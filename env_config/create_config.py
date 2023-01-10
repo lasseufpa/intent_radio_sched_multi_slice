@@ -11,14 +11,14 @@ config = {
         "bandwidths": np.repeat(100e6, number_basestations).tolist(),
         "carrier_frequencies": np.repeat(28e9, number_basestations).tolist(),
         "num_available_rbs": np.repeat(8, number_basestations).tolist(),
-        "basestation_ue_assoc": np.ones((number_basestations, number_ues)).tolist(),
-        "basestation_slice_assoc": np.ones(
+        "basestation_ue_assoc": np.zeros((number_basestations, number_ues)).tolist(),
+        "basestation_slice_assoc": np.zeros(
             (number_basestations, number_slices)
         ).tolist(),
     },
     "slices": {
         "max_number_slices": number_slices,
-        "slice_ue_assoc": np.ones((number_slices, number_ues)).tolist(),
+        "slice_ue_assoc": np.zeros((number_slices, number_ues)).tolist(),
         "slice_req": {},
     },
     "ues": {
