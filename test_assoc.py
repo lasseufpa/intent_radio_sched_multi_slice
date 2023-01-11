@@ -11,12 +11,18 @@ mult_slice_assoc = MultSliceAssociation(
     max_number_ues, max_number_basestations, max_number_slices, rng
 )
 
-number_steps = 1000
+number_steps = 2
 basestation_ue_assoc = np.zeros((max_number_basestations, max_number_ues))
 basestation_slice_assoc = np.zeros((max_number_basestations, max_number_slices))
 slice_ue_assoc = np.zeros((max_number_slices, max_number_ues))
+slice_req = {}
 
 for step in np.arange(number_steps):
-    mult_slice_assoc.step(
+    (
+        basestation_ue_assoc,
+        basestation_slice_assoc,
+        slice_ue_assoc,
+        slice_req,
+    ) = mult_slice_assoc.step(
         basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, {}, step, 0
     )
