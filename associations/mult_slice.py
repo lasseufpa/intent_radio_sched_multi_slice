@@ -44,9 +44,11 @@ class MultSliceAssociation(Association):
             basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, slice_req
         )
 
-        self.slices_lifetime[(basestation_slice_assoc[0] != 0).nonzero()[0]] -= 1
+        self.slices_lifetime[(self.slices_lifetime != 0).nonzero()[0]] -= 1
 
-        if step_number % self.update_steps == 0:
+        if (step_number % self.update_steps == 0) and (
+            np.sum(basestation_slice_assoc) < 10
+        ):
             return self.associations(
                 basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, slice_req
             )
