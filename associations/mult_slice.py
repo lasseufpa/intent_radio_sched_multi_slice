@@ -16,6 +16,7 @@ class MultSliceAssociation(Association):
 
         self.max_steps = 2000
         self.min_steps = 500
+        self.update_steps = 500
         self.min_number_ues_slice = 10
         self.max_number_ues_slice = int(max_number_ues / max_number_slices)
         self.max_number_ues = max_number_ues
@@ -34,38 +35,52 @@ class MultSliceAssociation(Association):
         episode_number: int,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Optional[dict]]:
 
-        return self.initial_associations(
+        (
+            basestation_ue_assoc,
+            basestation_slice_assoc,
+            slice_ue_assoc,
+            slice_req,
+        ) = self.remove_finished_slices(
             basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, slice_req
         )
 
-    # def dynamic_associations(
-    #     self,
-    #     basestation_ue_assoc: np.ndarray,
-    #     basestation_slice_assoc: np.ndarray,
-    #     slice_ue_assoc: np.ndarray,
-    #     slice_req: Optional[dict],
-    # ):
-    #     if np.sum(basestation_slice_assoc) < self.max_number_slices:
-    #         slices_to_create = self.rng.integers(
-    #             0,
-    #             int(self.max_number_slices - np.sum(basestation_slice_assoc)),
-    #             endpoint=True,
-    #         )
-    #         ues_per_slices = self.rng.integers(
-    #             self.min_number_ues_slice,
-    #             self.max_number_ues_slice,
-    #             slices_to_create,
-    #             endpoint=True,
-    #         )
-    #         self.slices_lifetime[
-    #             self.rng.choice(
-    #                 np.arange(self.max_number_slices), slices_to_create, replace=False
-    #             )
-    #         ] = self.rng.integers(
-    #             self.min_steps, self.max_steps, slices_to_create, endpoint=True
-    #         )
+        self.slices_lifetime[(basestation_slice_assoc[0] != 0).nonzero()[0]] -= 1
 
-    def initial_associations(
+        if step_number % self.update_steps == 0:
+            return self.associations(
+                basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, slice_req
+            )
+        else:
+            return (
+                basestation_ue_assoc,
+                basestation_slice_assoc,
+                slice_ue_assoc,
+                slice_req,
+            )
+
+    def remove_finished_slices(
+        self,
+        basestation_ue_assoc: np.ndarray,
+        basestation_slice_assoc: np.ndarray,
+        slice_ue_assoc: np.ndarray,
+        slice_req: Optional[dict],
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Optional[dict]]:
+
+        slices_to_deactivate = (self.slices_lifetime == 1).nonzero()[0]
+
+        if len(slices_to_deactivate) > 0:
+            basestation_slice_assoc[0, slices_to_deactivate] = 0
+            slice_ue_assoc[slices_to_deactivate, :] = 0
+            basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
+
+        return (
+            basestation_ue_assoc,
+            basestation_slice_assoc,
+            slice_ue_assoc,
+            slice_req,
+        )
+
+    def associations(
         self,
         basestation_ue_assoc: np.ndarray,
         basestation_slice_assoc: np.ndarray,
@@ -83,10 +98,9 @@ class MultSliceAssociation(Association):
             initial_slices,
             endpoint=True,
         )
+        slices_to_use = (self.slices_lifetime == 0).nonzero()[0]
         self.slices_lifetime[
-            self.rng.choice(
-                (self.slices_lifetime == 0).nonzero()[0], initial_slices, replace=False
-            )
+            self.rng.choice(slices_to_use, initial_slices, replace=False)
         ] = self.rng.integers(
             self.min_steps, self.max_steps, initial_slices, endpoint=True
         )
@@ -101,7 +115,7 @@ class MultSliceAssociation(Association):
         )
         used_ues = 0
         used_slices = 0
-        for idx in np.arange(self.max_number_slices):
+        for idx in slices_to_use:
             if basestation_slice_assoc[0, idx] == 1:
                 slice_ue_assoc[
                     idx, active_ues[used_ues : used_ues + ues_per_slices[used_slices]]
@@ -109,18 +123,6 @@ class MultSliceAssociation(Association):
                 used_ues += ues_per_slices[used_slices]
                 used_slices += 1
         basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
-
-        print(
-            basestation_slice_assoc,
-            "\n",
-            np.sum(basestation_ue_assoc),
-            "\n",
-            np.sum(ues_per_slices),
-            "\n",
-            ues_per_slices,
-            "\n",
-            np.sum(slice_ue_assoc, axis=1),
-        )
 
         return (
             basestation_ue_assoc,
