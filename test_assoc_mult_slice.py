@@ -85,3 +85,13 @@ plt.ylabel("Remaining steps")
 plt.xlabel("Simulation step (n)")
 plt.grid()
 plt.show()
+
+# Number of slices
+plt.figure()
+plt.plot(np.arange(slices_lifetime.shape[1]), np.sum(slices_lifetime > 0, axis=0))
+plt.title("Slices in the system")
+plt.grid()
+plt.ylabel("Number of slices")
+plt.xlabel("Simulation step (n)")
+plt.grid()
+plt.show()
