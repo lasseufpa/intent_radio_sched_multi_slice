@@ -1,3 +1,4 @@
+import operator
 from typing import Optional, Tuple
 
 import numpy as np
@@ -132,3 +133,35 @@ class MultSliceAssociation(Association):
             slice_ue_assoc,
             slice_req,
         )
+
+    def slice_generator(self):
+        expectation_params = {
+            "at_least": operator.ge,
+            "at_most": operator.le,
+            "exactly": operator.eq,
+            "greater": operator.gt,
+            "one_of": operator.contains,
+            "smaller": operator.lt,
+        }
+        slice_types = [
+            "control_case_2",
+            "mobile_robot_case_2",
+            "monitoring_case_1",
+            "robotic_surgery_case_1",
+            "robotic_diagnosis",
+            "medical_monitoring",
+            "uav_app_case_1",
+            "uav_control_non_vlos",
+            "vr_gaming",
+            "cloud_gaming",
+            "video_streaming",
+        ]
+
+        slice_type_req = {
+            "control_case_2": {
+                "target": "slice",
+                "description": "test",
+            },
+        }
+
+        print(f"{expectation_params['at_least'](5,1)}{slice_types}{slice_type_req}")
