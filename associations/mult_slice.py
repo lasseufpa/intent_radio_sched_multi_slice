@@ -3,27 +3,27 @@ from typing import Tuple
 
 import numpy as np
 
-from sixg_radio_mgmt.sixg_radio_mgmt.association import Association
+from sixg_radio_mgmt import Association, UEs
 
 
 class MultSliceAssociation(Association):
     def __init__(
         self,
+        ues: UEs,
         max_number_ues: int,
         max_number_basestations: int,
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
     ) -> None:
 
+        super().__init__(
+            ues, max_number_ues, max_number_basestations, max_number_slices, rng
+        )
         self.max_steps = 2000
         self.min_steps = 500
         self.update_steps = 500
         self.min_number_ues_slice = 10
         self.max_number_ues_slice = int(max_number_ues / max_number_slices)
-        self.max_number_ues = max_number_ues
-        self.max_number_basestations = max_number_basestations
-        self.max_number_slices = max_number_slices
-        self.rng = rng
         self.slices_lifetime = np.zeros(self.max_number_slices)
 
     def step(
@@ -137,6 +137,8 @@ class MultSliceAssociation(Association):
                     used_slices += 1
             basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
 
+            self.update_ues(slice_ue_assoc, slices_to_use, slice_req)
+
         return (
             basestation_ue_assoc,
             basestation_slice_assoc,
@@ -185,6 +187,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,
                     "mobility": 0,
                 },
@@ -200,7 +203,8 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024,  # pkts,
+                    "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,
                     "mobility": 72,  # Km/h
                 },
@@ -229,6 +233,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 40,  # ms
                     "message_size": 2000 * 8,
                     "mobility": 0,  # Km/h
                 },
@@ -257,6 +262,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 40,  # ms
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
                 },
@@ -285,6 +291,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 200,  # ms
                     "message_size": 1000 * 8,
                     "mobility": 200,  # Km/h
                 },
@@ -307,6 +314,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 400,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                 },
@@ -335,6 +343,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 180,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                 },
@@ -363,6 +372,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 20,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
                 },
@@ -385,6 +395,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 160,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
                 },
@@ -401,6 +412,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
+                    "buffer_latency": 100,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
                 },
@@ -415,3 +427,18 @@ class MultSliceAssociation(Association):
             ]
 
         return slice_req
+
+    def update_ues(
+        self, slice_ue_assoc: np.ndarray, slices_to_use: np.ndarray, slice_req: dict
+    ) -> None:
+        def slice_info(parameter: str, num_ues: int) -> np.ndarray:
+            return np.repeat(slice_req[f"slice_{slice}"]["ues"][parameter], num_ues)
+
+        for slice in slices_to_use:
+            slice_ues = (slice_ue_assoc[slice] == 1).nonzero()[0]
+            self.ues.update_ues(
+                slice_ues,
+                slice_info("buffer_latency", len(slice_ues)),
+                slice_info("buffer_size", len(slice_ues)),
+                slice_info("message_size", len(slice_ues)),
+            )

@@ -2,14 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from associations.mult_slice import MultSliceAssociation
+from sixg_radio_mgmt import UEs
 
 max_number_ues = 1000
 max_number_slices = 10
 max_number_basestations = 1
 seed = 10
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
+ues = UEs(
+    1000,
+    np.repeat(100, max_number_ues),
+    np.repeat(1024, max_number_ues),
+    np.repeat(100, max_number_ues),
+)
 mult_slice_assoc = MultSliceAssociation(
-    max_number_ues, max_number_basestations, max_number_slices, rng
+    ues, max_number_ues, max_number_basestations, max_number_slices, rng
 )
 
 number_steps = 10000
@@ -61,6 +68,16 @@ for step in np.arange(number_steps):
             raise Exception(
                 "Error: Slice requirements and slice association doesn't match"
             )
+
+        if slice_req[slice] != {}:
+            ue_sample = (slice_ue_assoc[int(slice[6]), :] == 1).nonzero()[0][0]
+            if (
+                slice_req[slice]["ues"]["buffer_latency"]
+                != ues.buffers[ue_sample].max_packets_age
+            ):
+                raise Exception(
+                    "Slice characteristics are different than the ones implemented on UEs"
+                )
 
 # Total number of UEs in the system
 plt.figure()

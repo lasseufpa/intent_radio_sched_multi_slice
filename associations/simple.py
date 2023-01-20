@@ -2,18 +2,26 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from sixg_radio_mgmt import Association
+from sixg_radio_mgmt import Association, UEs
 
 
 class SimpleAssociation(Association):
     def __init__(
         self,
+        ues: UEs,
         max_number_ues: int,
         max_number_basestations: int,
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
     ) -> None:
 
+        super().__init__(
+            ues,
+            max_number_ues,
+            max_number_basestations,
+            max_number_slices,
+            rng,
+        )
         self.max_number_ues = max_number_ues
         self.max_number_basestations = max_number_basestations
         self.max_number_slices = max_number_slices
