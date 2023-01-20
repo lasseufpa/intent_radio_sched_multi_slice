@@ -3,6 +3,7 @@ import numpy as np
 
 from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import UEs
+from traffics.mult_slice import MultSliceTraffic
 
 max_number_ues = 1000
 max_number_slices = 10
@@ -18,6 +19,7 @@ ues = UEs(
 mult_slice_assoc = MultSliceAssociation(
     ues, max_number_ues, max_number_basestations, max_number_slices, rng
 )
+mult_slice_traffic = MultSliceTraffic(max_number_ues, rng)
 
 number_steps = 10000
 basestation_ue_assoc = np.zeros((max_number_basestations, max_number_ues))
@@ -29,6 +31,9 @@ slice_req = {}
 ues_per_slice = np.empty((10, 0))
 slices_lifetime = np.empty((10, 0))
 ues_basestation = np.array([])
+traffic_slice_watch = 5
+traffic_hist = np.array([])
+traffic_type_hist = [("Initial", 0)]
 
 for step in np.arange(number_steps):
     (
@@ -44,6 +49,26 @@ for step in np.arange(number_steps):
         step,
         0,
     )
+    traffic_hist = (
+        np.append(
+            traffic_hist,
+            np.sum(
+                mult_slice_traffic.step(slice_ue_assoc, slice_req, step, 0)
+                * slice_ue_assoc[traffic_slice_watch, :]
+            )
+            / np.sum(slice_ue_assoc[traffic_slice_watch, :]),
+        )
+        if np.sum(slice_ue_assoc[traffic_slice_watch, :]) != 0.0
+        else np.append(traffic_hist, 0.0)
+    )
+    slice_watch_type = (
+        slice_req[f"slice_{traffic_slice_watch}"]["name"]
+        if slice_req[f"slice_{traffic_slice_watch}"] != {}
+        else traffic_type_hist[-1][0]
+    )
+    if slice_watch_type != traffic_type_hist[-1][0]:
+        traffic_type_hist.append((slice_watch_type, step))
+
     print(f"Step {step}")
     ues_per_slice = np.append(
         ues_per_slice, np.reshape(np.sum(slice_ue_assoc, axis=1), (10, 1)), axis=1
@@ -126,3 +151,15 @@ plt.ylabel("Number of slices")
 plt.xlabel("Simulation step (n)")
 plt.grid()
 plt.show()
+
+# Slice traffic for specific slice defined by variable traffic_slice_watch
+plt.figure()
+plt.plot(np.arange(traffic_hist.shape[0]), traffic_hist / 1e9)
+plt.title(f"Slice {traffic_slice_watch} traffic")
+plt.grid()
+plt.ylabel("Throughput (Mbps)")
+plt.xlabel("Simulation step (n)")
+plt.grid()
+plt.show()
+
+print(f"\nSlice {traffic_slice_watch} types: {traffic_type_hist}")

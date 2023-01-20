@@ -188,8 +188,9 @@ class MultSliceAssociation(Association):
                 "ues": {
                     "buffer_size": 1024,  # pkts
                     "buffer_latency": 100,  # ms
-                    "message_size": 1 * 1024 * 8,
-                    "mobility": 0,
+                    "message_size": 1 * 1024 * 8,  # bits
+                    "mobility": 0,  # Km/h
+                    "traffic": 2,  # Mbps
                 },
             },
             "monitoring_case_1": {
@@ -197,7 +198,7 @@ class MultSliceAssociation(Association):
                 "parameters": {
                     "par1": {
                         "name": "throughput",
-                        "value": 5 * 1e9,
+                        "value": 5,
                         "unit": "Mbps",
                         "operator": expectation_params["at_least"],
                     },
@@ -207,6 +208,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,
                     "mobility": 72,  # Km/h
+                    "traffic": 5,  # Mbps
                 },
             },
             "robotic_surgery_case_1": {
@@ -226,7 +228,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 16 * 1e9,
+                        "value": 16,
                         "unit": "Mbps",
                         "operator": expectation_params["at_least"],
                     },
@@ -236,6 +238,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 2000 * 8,
                     "mobility": 0,  # Km/h
+                    "traffic": 16,  # Mbps
                 },
             },
             "robotic_diagnosis": {
@@ -255,7 +258,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 16 * 1e9,
+                        "value": 16,
                         "unit": "Mbps",
                         "operator": expectation_params["at_least"],
                     },
@@ -265,6 +268,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
+                    "traffic": 16,  # Mbps,
                 },
             },
             "medical_monitoring": {
@@ -294,6 +298,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 200,  # ms
                     "message_size": 1000 * 8,
                     "mobility": 200,  # Km/h
+                    "traffic": 1,  # Mbps
                 },
             },
             "uav_app_case_1": {
@@ -317,6 +322,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 400,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
+                    "traffic": 100,  # Mbps
                 },
             },
             "uav_control_non_vlos": {
@@ -346,6 +352,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 180,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
+                    "traffic": 4,  # Mbps
                 },
             },
             "vr_gaming": {
@@ -375,6 +382,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 20,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
+                    "traffic": 200,  # Mbps
                 },
             },
             "cloud_gaming": {
@@ -398,6 +406,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 160,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
+                    "traffic": 25,  # Mbps
                 },
             },
             "video_streaming_4k": {
@@ -415,6 +424,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
+                    "traffic": 15,  # Mbps
                 },
             },
         }

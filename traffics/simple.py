@@ -9,5 +9,11 @@ class SimpleTraffic(Traffic):
     ) -> None:
         super().__init__(max_number_ues, rng)
 
-    def step(self, step_number: int, episode_number: int) -> np.ndarray:
+    def step(
+        self,
+        slice_ue_assoc: np.ndarray,
+        slice_req: dict,
+        step_number: int,
+        episode_number: int,
+    ) -> np.ndarray:
         return np.ones(self.max_number_ues) * 4
