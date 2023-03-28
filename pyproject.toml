@@ -1,5 +1,25 @@
+[project]
+name = "intent_radio_sched_multi_bs"
+version = "1.0.0"
+authors = [
+  { name="Cleverson Nahum", email="cleversonahum@gmail.com" },
+]
+description = "Intent-based radio resource scheduling in a scenario with multiple basestations."
+readme = "README.md"
+license = { file="LICENSE.md" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/lasseufpa/intent_radio_sched_multi_bs"
+"Bug Tracker" = "https://github.com/lasseufpa/intent_radio_sched_multi_bs/issues"
+
 [tool.black]
-line-length = 88
+line-length = 79
 include = '\.pyi?$'
 exclude = '''
 /(

@@ -15,9 +15,12 @@ class MultSliceAssociation(Association):
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
     ) -> None:
-
         super().__init__(
-            ues, max_number_ues, max_number_basestations, max_number_slices, rng
+            ues,
+            max_number_ues,
+            max_number_basestations,
+            max_number_slices,
+            rng,
         )
         self.max_steps = 2000
         self.min_steps = 500
@@ -35,9 +38,10 @@ class MultSliceAssociation(Association):
         step_number: int,
         episode_number: int,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-
         if slice_req == {}:
-            slice_req = {f"slice_{id}": {} for id in np.arange(self.max_number_slices)}
+            slice_req = {
+                f"slice_{id}": {} for id in np.arange(self.max_number_slices)
+            }
 
         (
             basestation_ue_assoc,
@@ -45,7 +49,10 @@ class MultSliceAssociation(Association):
             slice_ue_assoc,
             slice_req,
         ) = self.remove_finished_slices(
-            basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, slice_req
+            basestation_ue_assoc,
+            basestation_slice_assoc,
+            slice_ue_assoc,
+            slice_req,
         )
 
         self.slices_lifetime[(self.slices_lifetime != 0).nonzero()[0]] -= 1
@@ -54,7 +61,10 @@ class MultSliceAssociation(Association):
             np.sum(basestation_slice_assoc) < 10
         ):
             return self.associations(
-                basestation_ue_assoc, basestation_slice_assoc, slice_ue_assoc, slice_req
+                basestation_ue_assoc,
+                basestation_slice_assoc,
+                slice_ue_assoc,
+                slice_req,
             )
         else:
             return (
@@ -71,7 +81,6 @@ class MultSliceAssociation(Association):
         slice_ue_assoc: np.ndarray,
         slice_req: dict,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-
         slices_to_deactivate = (self.slices_lifetime == 1).nonzero()[0]
 
         if len(slices_to_deactivate) > 0:
@@ -95,7 +104,6 @@ class MultSliceAssociation(Association):
         slice_ue_assoc: np.ndarray,
         slice_req: dict,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-
         slices_available = (self.slices_lifetime == 0).nonzero()[0]
         initial_slices = self.rng.integers(
             0,
@@ -121,7 +129,7 @@ class MultSliceAssociation(Association):
             active_ues = np.array(
                 self.rng.choice(
                     (basestation_ue_assoc[0] == 0).nonzero()[0],
-                    np.sum(ues_per_slices),
+                    int(np.sum(ues_per_slices)),
                     replace=False,
                 )
             )
@@ -131,7 +139,9 @@ class MultSliceAssociation(Association):
                 if basestation_slice_assoc[0, idx] == 1:
                     slice_ue_assoc[
                         idx,
-                        active_ues[used_ues : used_ues + ues_per_slices[used_slices]],
+                        active_ues[
+                            used_ues : used_ues + ues_per_slices[used_slices]
+                        ],
                     ] = 1
                     used_ues += ues_per_slices[used_slices]
                     used_slices += 1
@@ -146,7 +156,9 @@ class MultSliceAssociation(Association):
             slice_req,
         )
 
-    def slice_generator(self, slice_req: dict, slices_to_use: np.ndarray) -> dict:
+    def slice_generator(
+        self, slice_req: dict, slices_to_use: np.ndarray
+    ) -> dict:
         slice_types = [
             "control_case_2",
             "monitoring_case_1",
@@ -429,9 +441,11 @@ class MultSliceAssociation(Association):
             },
         }
 
-        slices_to_create = self.rng.choice(len(slice_types), len(slices_to_use))
+        slices_to_create = self.rng.choice(
+            len(slice_types), len(slices_to_use)
+        )
 
-        for (idx, slice) in enumerate(slices_to_create):
+        for idx, slice in enumerate(slices_to_create):
             slice_req[f"slice_{slices_to_use[idx]}"] = slice_type_model[
                 slice_types[slice]
             ]
@@ -439,10 +453,15 @@ class MultSliceAssociation(Association):
         return slice_req
 
     def update_ues(
-        self, slice_ue_assoc: np.ndarray, slices_to_use: np.ndarray, slice_req: dict
+        self,
+        slice_ue_assoc: np.ndarray,
+        slices_to_use: np.ndarray,
+        slice_req: dict,
     ) -> None:
         def slice_info(parameter: str, num_ues: int) -> np.ndarray:
-            return np.repeat(slice_req[f"slice_{slice}"]["ues"][parameter], num_ues)
+            return np.repeat(
+                slice_req[f"slice_{slice}"]["ues"][parameter], num_ues
+            )
 
         for slice in slices_to_use:
             slice_ues = (slice_ue_assoc[slice] == 1).nonzero()[0]

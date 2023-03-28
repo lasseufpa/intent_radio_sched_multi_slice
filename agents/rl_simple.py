@@ -18,7 +18,11 @@ class RLSimple(Agent):
         seed: int = np.random.randint(1000),
     ) -> None:
         super().__init__(
-            env, max_number_ues, max_number_basestations, num_available_rbs, seed
+            env,
+            max_number_ues,
+            max_number_basestations,
+            num_available_rbs,
+            seed,
         )
         self.agent = SAC(
             "MlpPolicy",
@@ -66,7 +70,7 @@ class RLSimple(Agent):
 
     @staticmethod
     def calculate_reward(obs_space: dict) -> float:
-        reward = -np.sum(obs_space["dropped_pkts"])
+        reward = -np.sum(obs_space["dropped_pkts"], dtype=float)
         return reward
 
     @staticmethod
@@ -75,7 +79,7 @@ class RLSimple(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Box:
-        return spaces.Box(low=0, high=np.inf, shape=(2 * 2,), dtype=np.float64)
+        return spaces.Box(low=0, high=np.inf, shape=(2 * 2,), dtype=np.float32)
 
     @staticmethod
     def action_format(

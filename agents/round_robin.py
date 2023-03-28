@@ -19,7 +19,9 @@ class RoundRobin(Agent):
 
     def step(self, obs_space: Union[np.ndarray, dict]) -> np.ndarray:
         allocation_rbs = [
-            np.zeros((self.max_number_ues, self.num_available_rbs[basestation]))
+            np.zeros(
+                (self.max_number_ues, self.num_available_rbs[basestation])
+            )
             for basestation in np.arange(self.max_number_basestations)
         ]
         for basestation in np.arange(self.max_number_basestations):

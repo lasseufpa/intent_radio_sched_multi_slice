@@ -19,7 +19,9 @@ class RoundRobin(Agent):
 
     def step(self, obs_space: Union[dict, np.ndarray]) -> np.ndarray:
         allocation_rbs = [
-            np.zeros((self.max_number_ues, self.num_available_rbs[basestation]))
+            np.zeros(
+                (self.max_number_ues, self.num_available_rbs[basestation])
+            )
             for basestation in np.arange(self.max_number_basestations)
         ]
         # Below is a fixed inter-slice allocation in which slice 1 always
@@ -29,7 +31,10 @@ class RoundRobin(Agent):
         for basestation in np.arange(self.max_number_basestations):
             rb_pos = 0
             for slice in np.arange(len(obs_space["slice_ue_assoc"])):
-                if obs_space["basestation_slice_assoc"][basestation][slice] == 1:
+                if (
+                    obs_space["basestation_slice_assoc"][basestation][slice]
+                    == 1
+                ):
                     num_slice_available_rbs = (
                         self.num_available_rbs[basestation] * slice_1_rate
                         if slice == 0

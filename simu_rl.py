@@ -23,7 +23,9 @@ comm_env = CommunicationEnv(
 )
 rl_agent = RLSimple(comm_env, 2, 2, np.array([2, 2]), seed=seed)
 comm_env.set_agent_functions(
-    rl_agent.obs_space_format, rl_agent.action_format, rl_agent.calculate_reward
+    rl_agent.obs_space_format,
+    rl_agent.action_format,
+    rl_agent.calculate_reward,
 )
 check_env(comm_env)
 total_number_steps = 10000

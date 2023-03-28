@@ -23,7 +23,9 @@ mult_slice_traffic = MultSliceTraffic(max_number_ues, rng)
 
 number_steps = 10000
 basestation_ue_assoc = np.zeros((max_number_basestations, max_number_ues))
-basestation_slice_assoc = np.zeros((max_number_basestations, max_number_slices))
+basestation_slice_assoc = np.zeros(
+    (max_number_basestations, max_number_slices)
+)
 slice_ue_assoc = np.zeros((max_number_slices, max_number_ues))
 slice_req = {}
 
@@ -71,10 +73,14 @@ for step in np.arange(number_steps):
 
     print(f"Step {step}")
     ues_per_slice = np.append(
-        ues_per_slice, np.reshape(np.sum(slice_ue_assoc, axis=1), (10, 1)), axis=1
+        ues_per_slice,
+        np.reshape(np.sum(slice_ue_assoc, axis=1), (10, 1)),
+        axis=1,
     )
     slices_lifetime = np.append(
-        slices_lifetime, np.reshape(mult_slice_assoc.slices_lifetime, (10, 1)), axis=1
+        slices_lifetime,
+        np.reshape(mult_slice_assoc.slices_lifetime, (10, 1)),
+        axis=1,
     )
     ues_basestation = np.append(ues_basestation, np.sum(basestation_ue_assoc))
 
@@ -82,13 +88,17 @@ for step in np.arange(number_steps):
         raise Exception("Error: UE associated with more than one slice")
 
     if np.sum(slice_ue_assoc) != np.sum(basestation_ue_assoc):
-        raise Exception("Error: Different number of UEs in slices and the basestation")
+        raise Exception(
+            "Error: Different number of UEs in slices and the basestation"
+        )
 
     for slice in slice_req:
         if (
-            slice_req[slice] == {} and basestation_slice_assoc[0, int(slice[6])] != 0
+            slice_req[slice] == {}
+            and basestation_slice_assoc[0, int(slice[6])] != 0
         ) or (
-            slice_req[slice] != {} and basestation_slice_assoc[0, int(slice[6])] == 0
+            slice_req[slice] != {}
+            and basestation_slice_assoc[0, int(slice[6])] == 0
         ):
             raise Exception(
                 "Error: Slice requirements and slice association doesn't match"
@@ -117,7 +127,9 @@ plt.show()
 plt.figure()
 for idx in np.arange(3):
     plt.plot(
-        np.arange(ues_per_slice.shape[1]), ues_per_slice[idx].T, label=f"Slice {idx+1}"
+        np.arange(ues_per_slice.shape[1]),
+        ues_per_slice[idx].T,
+        label=f"Slice {idx+1}",
     )
 plt.title("Number of UEs per slice")
 plt.ylabel("Number of UEs")
@@ -144,7 +156,9 @@ plt.show()
 
 # Number of slices
 plt.figure()
-plt.plot(np.arange(slices_lifetime.shape[1]), np.sum(slices_lifetime > 0, axis=0))
+plt.plot(
+    np.arange(slices_lifetime.shape[1]), np.sum(slices_lifetime > 0, axis=0)
+)
 plt.title("Slices in the system")
 plt.grid()
 plt.ylabel("Number of slices")
