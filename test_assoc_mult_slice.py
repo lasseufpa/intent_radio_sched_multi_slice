@@ -5,13 +5,13 @@ from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import UEs
 from traffics.mult_slice import MultSliceTraffic
 
-max_number_ues = 1000
+max_number_ues = 100
 max_number_slices = 10
 max_number_basestations = 1
 seed = 10
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 ues = UEs(
-    1000,
+    max_number_ues,
     np.repeat(100, max_number_ues),
     np.repeat(1024, max_number_ues),
     np.repeat(100, max_number_ues),
