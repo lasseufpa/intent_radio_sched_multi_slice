@@ -10,6 +10,9 @@ hist/*
 # Results
 results/*
 
+# Associations data
+associations/data/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -25,9 +25,17 @@ class MultSliceAssociation(Association):
         self.max_steps = 2000
         self.min_steps = 500
         self.update_steps = 500
-        self.min_number_ues_slice = 10
+        self.min_number_ues_slice = 2
         self.max_number_ues_slice = int(max_number_ues / max_number_slices)
         self.slices_lifetime = np.zeros(self.max_number_slices)
+        self.generator_mode = False  # False for reading from external files
+        self.scenario_name = "scenario_1"
+        self.current_episode = 0
+        if not self.generator_mode:
+            self.association_file = np.load(
+                f"associations/data/{self.scenario_name}/ep_{self.current_episode}.npz",
+                allow_pickle=True,
+            )
 
     def step(
         self,
@@ -38,40 +46,82 @@ class MultSliceAssociation(Association):
         step_number: int,
         episode_number: int,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-        if slice_req == {}:
-            slice_req = {
-                f"slice_{id}": {} for id in np.arange(self.max_number_slices)
-            }
+        if self.generator_mode:
+            if slice_req == {}:
+                slice_req = {
+                    f"slice_{id}": {}
+                    for id in np.arange(self.max_number_slices)
+                }
 
-        (
-            basestation_ue_assoc,
-            basestation_slice_assoc,
-            slice_ue_assoc,
-            slice_req,
-        ) = self.remove_finished_slices(
-            basestation_ue_assoc,
-            basestation_slice_assoc,
-            slice_ue_assoc,
-            slice_req,
-        )
-
-        self.slices_lifetime[(self.slices_lifetime != 0).nonzero()[0]] -= 1
-
-        if (step_number % self.update_steps == 0) and (
-            np.sum(basestation_slice_assoc) < 10
-        ):
-            return self.associations(
+            (
+                basestation_ue_assoc,
+                basestation_slice_assoc,
+                slice_ue_assoc,
+                slice_req,
+            ) = self.remove_finished_slices(
                 basestation_ue_assoc,
                 basestation_slice_assoc,
                 slice_ue_assoc,
                 slice_req,
             )
+
+            self.slices_lifetime[(self.slices_lifetime != 0).nonzero()[0]] -= 1
+
+            if (step_number % self.update_steps == 0) and (
+                np.sum(basestation_slice_assoc) < 10
+            ):
+                return self.associations(
+                    basestation_ue_assoc,
+                    basestation_slice_assoc,
+                    slice_ue_assoc,
+                    slice_req,
+                )
+            else:
+                return (
+                    basestation_ue_assoc,
+                    basestation_slice_assoc,
+                    slice_ue_assoc,
+                    slice_req,
+                )
         else:
+            if episode_number != self.current_episode:
+                self.association_file = np.load(
+                    f"associations/data/{self.scenario_name}/ep_{episode_number}.npz",
+                    allow_pickle=True,
+                )
+                self.current_episode = episode_number
+
+            slices_to_use = (
+                self.deduce_slices_to_use(self.association_file, step_number)
+                if step_number != 0
+                else np.array(
+                    [
+                        int(
+                            bool(
+                                self.association_file["hist_slice_req"][
+                                    step_number
+                                ][f"slice_{slice}"]
+                            )
+                        )
+                        for slice in range(self.max_number_slices)
+                    ]
+                ).nonzero()[0]
+            )
+            self.update_ues(
+                self.association_file["hist_slice_ue_assoc"][step_number],
+                slices_to_use,
+                self.association_file["hist_slice_req"][step_number],
+            )
+
             return (
-                basestation_ue_assoc,
-                basestation_slice_assoc,
-                slice_ue_assoc,
-                slice_req,
+                self.association_file["hist_basestation_ue_assoc"][
+                    step_number
+                ],
+                self.association_file["hist_basestation_slice_assoc"][
+                    step_number
+                ],
+                self.association_file["hist_slice_ue_assoc"][step_number],
+                self.association_file["hist_slice_req"][step_number],
             )
 
     def remove_finished_slices(
@@ -471,3 +521,35 @@ class MultSliceAssociation(Association):
                 slice_info("buffer_size", len(slice_ues)),
                 slice_info("message_size", len(slice_ues)),
             )
+
+    def deduce_slices_to_use(
+        self, association_file: dict, step_number: int
+    ) -> np.ndarray:
+        # a) Detect changes in the number of users, b) detect changes in the requirements
+        slices_to_use = np.array([])
+        if step_number != 0:
+            ue_changes = np.equal(
+                np.sum(
+                    association_file["hist_slice_ue_assoc"][step_number - 1],
+                    axis=0,
+                ),
+                np.sum(
+                    association_file["hist_slice_ue_assoc"][step_number],
+                    axis=0,
+                ),
+            )
+
+            comp_slices = np.zeros(self.max_number_slices)
+            for slice_number in np.arange(self.max_number_slices):
+                comp_slices[slice_number] = (
+                    association_file["hist_slice_req"][step_number][
+                        f"slice_{slice_number}"
+                    ]
+                    == association_file["hist_slice_req"][step_number - 1][
+                        f"slice_{slice_number}"
+                    ]
+                )
+
+            slices_to_use = (ue_changes or comp_slices).nonzero()[0]
+
+        return slices_to_use
