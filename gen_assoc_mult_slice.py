@@ -41,6 +41,7 @@ for episode in np.arange(number_episodes):
         (number_steps, max_number_slices, max_number_ues)
     )
     hist_slice_req = np.empty(number_steps, dtype=dict)
+    hist_slices_to_use = []
 
     basestation_ue_assoc = np.zeros((max_number_basestations, max_number_ues))
     basestation_slice_assoc = np.zeros(
@@ -76,6 +77,7 @@ for episode in np.arange(number_episodes):
         hist_basestation_slice_assoc[step] = basestation_slice_assoc
         hist_slice_ue_assoc[step] = slice_ue_assoc
         hist_slice_req[step] = slice_req.copy()
+        hist_slices_to_use.append(mult_slice_assoc.slices_to_use.copy())
 
         traffic_hist = (
             np.append(
@@ -153,6 +155,7 @@ for episode in np.arange(number_episodes):
         hist_basestation_slice_assoc=hist_basestation_slice_assoc,
         hist_slice_ue_assoc=hist_slice_ue_assoc,
         hist_slice_req=hist_slice_req,
+        hist_slices_to_use=np.array(hist_slices_to_use, dtype=object),
     )
 
     # Create result folder for episode

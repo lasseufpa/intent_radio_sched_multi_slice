@@ -31,10 +31,12 @@ class MultSliceAssociation(Association):
         self.generator_mode = False  # False for reading from external files
         self.scenario_name = "scenario_1"
         self.current_episode = 0
+        self.slices_to_use = np.array([])
         if not self.generator_mode:
             self.association_file = np.load(
                 f"associations/data/{self.scenario_name}/ep_{self.current_episode}.npz",
                 allow_pickle=True,
+                mmap_mode=None,
             )
 
     def step(
@@ -88,30 +90,16 @@ class MultSliceAssociation(Association):
                 self.association_file = np.load(
                     f"associations/data/{self.scenario_name}/ep_{episode_number}.npz",
                     allow_pickle=True,
+                    mmap_mode=None,
                 )
                 self.current_episode = episode_number
 
-            slices_to_use = (
-                self.deduce_slices_to_use(self.association_file, step_number)
-                if step_number != 0
-                else np.array(
-                    [
-                        int(
-                            bool(
-                                self.association_file["hist_slice_req"][
-                                    step_number
-                                ][f"slice_{slice}"]
-                            )
-                        )
-                        for slice in range(self.max_number_slices)
-                    ]
-                ).nonzero()[0]
-            )
-            self.update_ues(
-                self.association_file["hist_slice_ue_assoc"][step_number],
-                slices_to_use,
-                self.association_file["hist_slice_req"][step_number],
-            )
+            if step_number % self.update_steps == 0:
+                self.update_ues(
+                    self.association_file["hist_slice_ue_assoc"][step_number],
+                    self.association_file["hist_slices_to_use"][step_number],
+                    self.association_file["hist_slice_req"][step_number],
+                )
 
             return (
                 self.association_file["hist_basestation_ue_assoc"][
@@ -167,11 +155,11 @@ class MultSliceAssociation(Association):
                 initial_slices,
                 endpoint=True,
             )
-            slices_to_use = self.rng.choice(
+            self.slices_to_use = self.rng.choice(
                 slices_available, initial_slices, replace=False
             )
-            slice_req = self.slice_generator(slice_req, slices_to_use)
-            self.slices_lifetime[slices_to_use] = self.rng.integers(
+            slice_req = self.slice_generator(slice_req, self.slices_to_use)
+            self.slices_lifetime[self.slices_to_use] = self.rng.integers(
                 self.min_steps, self.max_steps, initial_slices, endpoint=True
             )
 
@@ -185,7 +173,7 @@ class MultSliceAssociation(Association):
             )
             used_ues = 0
             used_slices = 0
-            for idx in slices_to_use:
+            for idx in self.slices_to_use:
                 if basestation_slice_assoc[0, idx] == 1:
                     slice_ue_assoc[
                         idx,
@@ -197,7 +185,7 @@ class MultSliceAssociation(Association):
                     used_slices += 1
             basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
 
-            self.update_ues(slice_ue_assoc, slices_to_use, slice_req)
+            self.update_ues(slice_ue_assoc, self.slices_to_use, slice_req)
 
         return (
             basestation_ue_assoc,
@@ -523,39 +511,3 @@ class MultSliceAssociation(Association):
                 slice_info("buffer_size", len(slice_ues), slice_req),
                 slice_info("message_size", len(slice_ues), slice_req),
             )
-
-    def deduce_slices_to_use(
-        self, association_file: dict, step_number: int
-    ) -> np.ndarray:
-        # a) Detect changes in the number of users, b) detect changes in the requirements
-        slices_to_use = np.array([])
-        if step_number != 0:
-            ue_changes = np.logical_not(
-                np.equal(
-                    np.sum(
-                        association_file["hist_slice_ue_assoc"][
-                            step_number - 1
-                        ],
-                        axis=1,
-                    ),
-                    np.sum(
-                        association_file["hist_slice_ue_assoc"][step_number],
-                        axis=1,
-                    ),
-                )
-            )
-
-            comp_slices = np.zeros(self.max_number_slices)
-            for slice_number in np.arange(self.max_number_slices):
-                comp_slices[slice_number] = not (
-                    association_file["hist_slice_req"][step_number][
-                        f"slice_{slice_number}"
-                    ]
-                    == association_file["hist_slice_req"][step_number - 1][
-                        f"slice_{slice_number}"
-                    ]
-                )
-
-            slices_to_use = np.logical_or(ue_changes, comp_slices).nonzero()[0]
-
-        return slices_to_use
