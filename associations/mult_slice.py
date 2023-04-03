@@ -528,20 +528,24 @@ class MultSliceAssociation(Association):
         # a) Detect changes in the number of users, b) detect changes in the requirements
         slices_to_use = np.array([])
         if step_number != 0:
-            ue_changes = np.equal(
-                np.sum(
-                    association_file["hist_slice_ue_assoc"][step_number - 1],
-                    axis=0,
-                ),
-                np.sum(
-                    association_file["hist_slice_ue_assoc"][step_number],
-                    axis=0,
-                ),
+            ue_changes = np.logical_not(
+                np.equal(
+                    np.sum(
+                        association_file["hist_slice_ue_assoc"][
+                            step_number - 1
+                        ],
+                        axis=1,
+                    ),
+                    np.sum(
+                        association_file["hist_slice_ue_assoc"][step_number],
+                        axis=1,
+                    ),
+                )
             )
 
             comp_slices = np.zeros(self.max_number_slices)
             for slice_number in np.arange(self.max_number_slices):
-                comp_slices[slice_number] = (
+                comp_slices[slice_number] = not (
                     association_file["hist_slice_req"][step_number][
                         f"slice_{slice_number}"
                     ]
@@ -550,6 +554,6 @@ class MultSliceAssociation(Association):
                     ]
                 )
 
-            slices_to_use = (ue_changes or comp_slices).nonzero()[0]
+            slices_to_use = np.logical_or(ue_changes, comp_slices).nonzero()[0]
 
         return slices_to_use

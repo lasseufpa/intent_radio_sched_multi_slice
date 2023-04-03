@@ -15,8 +15,8 @@ scenario_name = "scenario_1"
 association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
-number_steps = 10000
-number_episodes = 10
+number_steps = 10
+number_episodes = 1
 
 for episode in np.arange(number_episodes):
     ues = UEs(
@@ -40,7 +40,7 @@ for episode in np.arange(number_episodes):
     hist_slice_ue_assoc = np.empty(
         (number_steps, max_number_slices, max_number_ues)
     )
-    hist_slice_req = []
+    hist_slice_req = np.empty(number_steps, dtype=dict)
 
     basestation_ue_assoc = np.zeros((max_number_basestations, max_number_ues))
     basestation_slice_assoc = np.zeros(
@@ -49,7 +49,6 @@ for episode in np.arange(number_episodes):
     slice_ue_assoc = np.zeros((max_number_slices, max_number_ues))
     slice_req = {}
 
-    # Hist
     ues_per_slice = np.empty((max_number_slices, 0))
     slices_lifetime = np.empty((max_number_slices, 0))
     ues_basestation = np.array([])
@@ -76,7 +75,7 @@ for episode in np.arange(number_episodes):
         hist_basestation_ue_assoc[step] = basestation_ue_assoc
         hist_basestation_slice_assoc[step] = basestation_slice_assoc
         hist_slice_ue_assoc[step] = slice_ue_assoc
-        hist_slice_req.append(slice_req)
+        hist_slice_req[step] = slice_req.copy()
 
         traffic_hist = (
             np.append(
@@ -153,7 +152,7 @@ for episode in np.arange(number_episodes):
         hist_basestation_ue_assoc=hist_basestation_ue_assoc,
         hist_basestation_slice_assoc=hist_basestation_slice_assoc,
         hist_slice_ue_assoc=hist_slice_ue_assoc,
-        hist_slice_req=np.array(hist_slice_req),
+        hist_slice_req=hist_slice_req,
     )
 
     # Create result folder for episode
