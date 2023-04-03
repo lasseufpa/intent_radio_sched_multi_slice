@@ -508,7 +508,9 @@ class MultSliceAssociation(Association):
         slices_to_use: np.ndarray,
         slice_req: dict,
     ) -> None:
-        def slice_info(parameter: str, num_ues: int) -> np.ndarray:
+        def slice_info(
+            parameter: str, num_ues: int, slice_req: dict
+        ) -> np.ndarray:
             return np.repeat(
                 slice_req[f"slice_{slice}"]["ues"][parameter], num_ues
             )
@@ -517,9 +519,9 @@ class MultSliceAssociation(Association):
             slice_ues = (slice_ue_assoc[slice] == 1).nonzero()[0]
             self.ues.update_ues(
                 slice_ues,
-                slice_info("buffer_latency", len(slice_ues)),
-                slice_info("buffer_size", len(slice_ues)),
-                slice_info("message_size", len(slice_ues)),
+                slice_info("buffer_latency", len(slice_ues), slice_req),
+                slice_info("buffer_size", len(slice_ues), slice_req),
+                slice_info("message_size", len(slice_ues), slice_req),
             )
 
     def deduce_slices_to_use(
