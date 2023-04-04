@@ -2,6 +2,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.io import savemat
 
 from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import UEs
@@ -17,6 +18,64 @@ rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
 number_steps = 10000
 number_episodes = 10
+
+
+def generate_quadriga_files(
+    episode_number,
+    number_steps,
+    max_number_ues,
+    max_number_slices,
+    hist_slice_ue_assoc,
+    hist_slice_req,
+):
+    print("Generating Quadriga files (UEs velocities)\n\n")
+    ues_velocities_per_step = np.zeros((number_steps, max_number_ues))
+    for step_number in np.arange(number_steps):
+        for slice_number in np.arange(max_number_slices):
+            slice = hist_slice_req[step_number][f"slice_{slice_number}"]
+            if slice != {}:
+                slice_ues_indexes = (
+                    hist_slice_ue_assoc[step_number, slice_number, :]
+                ).nonzero()[0]
+                ues_velocities_per_step[step_number, slice_ues_indexes] = (
+                    slice["ues"]["mobility"] / 3.6
+                )  # Convert to m/s
+
+    ues_velocities = np.empty((0, max_number_ues))
+    speed_change_steps = np.array([])
+    for step_number in np.arange(number_steps):
+        if step_number == 0:
+            reshape_ues_velocities = np.reshape(
+                ues_velocities_per_step[step_number],
+                (1, ues_velocities.shape[1]),
+            )
+            ues_velocities = np.append(
+                ues_velocities, reshape_ues_velocities, axis=0
+            )
+        else:
+            if not np.array_equal(
+                ues_velocities_per_step[step_number],
+                ues_velocities_per_step[step_number - 1],
+            ):
+                reshape_ues_velocities = np.reshape(
+                    ues_velocities_per_step[step_number],
+                    (1, ues_velocities.shape[1]),
+                )
+                speed_change_steps = np.append(speed_change_steps, step_number)
+                ues_velocities = np.append(
+                    ues_velocities,
+                    reshape_ues_velocities,
+                    axis=0,
+                )
+
+    savemat(
+        f"{association_file_path}ep_{episode_number}.mat",
+        {
+            "ues_velocities": ues_velocities,
+            "speed_change_steps": speed_change_steps,
+        },
+    )
+
 
 for episode in np.arange(number_episodes):
     ues = UEs(
@@ -153,6 +212,16 @@ for episode in np.arange(number_episodes):
         hist_slice_req=hist_slice_req,
         hist_slices_lifetime=hist_slices_lifetime,
         hist_slices_to_use=np.array(hist_slices_to_use, dtype=object),
+    )
+
+    # Generate files for QuaDRiGa
+    generate_quadriga_files(
+        episode,
+        number_steps,
+        max_number_ues,
+        max_number_slices,
+        hist_slice_ue_assoc,
+        hist_slice_req,
     )
 
     # Create result folder for episode
