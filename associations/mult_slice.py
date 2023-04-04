@@ -30,14 +30,15 @@ class MultSliceAssociation(Association):
         self.slices_lifetime = np.zeros(self.max_number_slices)
         self.generator_mode = False  # False for reading from external files
         self.scenario_name = "scenario_1"
-        self.current_episode = 0  # TODO change to 0
+        self.current_episode = -1  # TODO change to 0
         self.slices_to_use = np.array([])
-        if not self.generator_mode:
-            self.association_file = np.load(
-                f"associations/data/{self.scenario_name}/ep_{self.current_episode}.npz",
-                allow_pickle=True,
-                mmap_mode=None,
-            )
+        self.association_file = dict()
+        self.hist_slice_ue_assoc = np.array([])
+        self.hist_slices_to_use = np.array([])
+        self.hist_slice_req = np.array([])
+        self.hist_basestation_slice_assoc = np.array([])
+        self.hist_basestation_ue_assoc = np.array([])
+        self.hist_slices_lifetime = np.array([])
 
     def step(
         self,
@@ -87,33 +88,22 @@ class MultSliceAssociation(Association):
                 )
         else:
             if episode_number != self.current_episode:
-                self.association_file = np.load(
-                    f"associations/data/{self.scenario_name}/ep_{episode_number}.npz",
-                    allow_pickle=True,
-                    mmap_mode=None,
-                )
-                self.current_episode = episode_number
+                self.load_episode_data(episode_number)  # Update variables
 
             if step_number % self.update_steps == 0:
                 self.update_ues(
-                    self.association_file["hist_slice_ue_assoc"][step_number],
-                    self.association_file["hist_slices_to_use"][step_number],
-                    self.association_file["hist_slice_req"][step_number],
+                    self.hist_slice_ue_assoc[step_number],
+                    self.hist_slices_to_use[step_number],
+                    self.hist_slice_req[step_number],
                 )
 
-            self.slices_lifetime = self.association_file[
-                "hist_slices_lifetime"
-            ][step_number]
+            self.slices_lifetime = self.hist_slices_lifetime[step_number]
 
             return (
-                self.association_file["hist_basestation_ue_assoc"][
-                    step_number
-                ],
-                self.association_file["hist_basestation_slice_assoc"][
-                    step_number
-                ],
-                self.association_file["hist_slice_ue_assoc"][step_number],
-                self.association_file["hist_slice_req"][step_number],
+                self.hist_basestation_ue_assoc[step_number],
+                self.hist_basestation_slice_assoc[step_number],
+                self.hist_slice_ue_assoc[step_number],
+                self.hist_slice_req[step_number],
             )
 
     def remove_finished_slices(
@@ -516,3 +506,23 @@ class MultSliceAssociation(Association):
                 slice_info("buffer_size", len(slice_ues), slice_req),
                 slice_info("message_size", len(slice_ues), slice_req),
             )
+
+    def load_episode_data(self, episode_number: int):
+        self.association_file = np.load(
+            f"associations/data/{self.scenario_name}/ep_{episode_number}.npz",
+            allow_pickle=True,
+            mmap_mode=None,
+        )
+        self.hist_slice_ue_assoc = self.association_file["hist_slice_ue_assoc"]
+        self.hist_slices_to_use = self.association_file["hist_slices_to_use"]
+        self.hist_slice_req = self.association_file["hist_slice_req"]
+        self.hist_basestation_slice_assoc = self.association_file[
+            "hist_basestation_slice_assoc"
+        ]
+        self.hist_basestation_ue_assoc = self.association_file[
+            "hist_basestation_ue_assoc"
+        ]
+        self.hist_slices_lifetime = self.association_file[
+            "hist_slices_lifetime"
+        ]
+        self.current_episode = episode_number

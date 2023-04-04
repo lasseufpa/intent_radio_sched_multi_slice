@@ -15,8 +15,8 @@ scenario_name = "scenario_1"
 association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
-number_steps = 10
-number_episodes = 1  # TODO 10
+number_steps = 10000
+number_episodes = 10  # TODO 10
 
 for episode in np.arange(number_episodes):  # TODO remove 1
     ues = UEs(
