@@ -16,9 +16,9 @@ association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
 number_steps = 10000
-number_episodes = 10  # TODO 10
+number_episodes = 10
 
-for episode in np.arange(number_episodes):  # TODO remove 1
+for episode in np.arange(number_episodes):
     ues = UEs(
         max_number_ues,
         np.repeat(100, max_number_ues),
@@ -57,7 +57,7 @@ for episode in np.arange(number_episodes):  # TODO remove 1
     traffic_hist = np.array([])
     traffic_type_hist = [("Initial", 0)]
 
-    for step in np.arange(number_steps):  # TODO remove 997
+    for step in np.arange(number_steps):
         (
             basestation_ue_assoc,
             basestation_slice_assoc,
