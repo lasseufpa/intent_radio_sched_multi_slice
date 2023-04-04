@@ -15,10 +15,10 @@ scenario_name = "scenario_1"
 association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
-number_steps = 10000
-number_episodes = 10
+number_steps = 10
+number_episodes = 1  # TODO 10
 
-for episode in np.arange(number_episodes):
+for episode in np.arange(number_episodes):  # TODO remove 1
     ues = UEs(
         max_number_ues,
         np.repeat(100, max_number_ues),
@@ -51,13 +51,13 @@ for episode in np.arange(number_episodes):
     slice_req = {}
 
     ues_per_slice = np.empty((max_number_slices, 0))
-    slices_lifetime = np.empty((max_number_slices, 0))
+    hist_slices_lifetime = np.empty((number_steps, max_number_slices))
     ues_basestation = np.array([])
     traffic_slice_watch = 5
     traffic_hist = np.array([])
     traffic_type_hist = [("Initial", 0)]
 
-    for step in np.arange(number_steps):
+    for step in np.arange(number_steps):  # TODO remove 997
         (
             basestation_ue_assoc,
             basestation_slice_assoc,
@@ -105,11 +105,7 @@ for episode in np.arange(number_episodes):
             np.reshape(np.sum(slice_ue_assoc, axis=1), (10, 1)),
             axis=1,
         )
-        slices_lifetime = np.append(
-            slices_lifetime,
-            np.reshape(mult_slice_assoc.slices_lifetime, (10, 1)),
-            axis=1,
-        )
+        hist_slices_lifetime[step] = mult_slice_assoc.slices_lifetime
         ues_basestation = np.append(
             ues_basestation, np.sum(basestation_ue_assoc)
         )
@@ -155,6 +151,7 @@ for episode in np.arange(number_episodes):
         hist_basestation_slice_assoc=hist_basestation_slice_assoc,
         hist_slice_ue_assoc=hist_slice_ue_assoc,
         hist_slice_req=hist_slice_req,
+        hist_slices_lifetime=hist_slices_lifetime,
         hist_slices_to_use=np.array(hist_slices_to_use, dtype=object),
     )
 
@@ -205,8 +202,8 @@ for episode in np.arange(number_episodes):
     plt.figure()
     for idx in np.arange(5):
         plt.plot(
-            np.arange(slices_lifetime.shape[1]),
-            slices_lifetime[idx].T,
+            np.arange(hist_slices_lifetime.shape[0]),
+            hist_slices_lifetime[:, idx].T,
             label=f"Slice {idx+1}",
         )
     plt.title("Slice lifetime (remaining steps)")
@@ -227,8 +224,8 @@ for episode in np.arange(number_episodes):
     # Number of slices
     plt.figure()
     plt.plot(
-        np.arange(slices_lifetime.shape[1]),
-        np.sum(slices_lifetime > 0, axis=0),
+        np.arange(hist_slices_lifetime.shape[0]),
+        np.sum(hist_slices_lifetime > 0, axis=1),
     )
     plt.title("Slices in the system")
     plt.grid()

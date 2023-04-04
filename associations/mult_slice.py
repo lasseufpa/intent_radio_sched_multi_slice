@@ -30,7 +30,7 @@ class MultSliceAssociation(Association):
         self.slices_lifetime = np.zeros(self.max_number_slices)
         self.generator_mode = False  # False for reading from external files
         self.scenario_name = "scenario_1"
-        self.current_episode = 0
+        self.current_episode = 0  # TODO change to 0
         self.slices_to_use = np.array([])
         if not self.generator_mode:
             self.association_file = np.load(
@@ -101,6 +101,10 @@ class MultSliceAssociation(Association):
                     self.association_file["hist_slice_req"][step_number],
                 )
 
+            self.slices_lifetime = self.association_file[
+                "hist_slices_lifetime"
+            ][step_number]
+
             return (
                 self.association_file["hist_basestation_ue_assoc"][
                     step_number
@@ -148,6 +152,7 @@ class MultSliceAssociation(Association):
             int(self.max_number_slices - np.sum(basestation_slice_assoc[0])),
             endpoint=True,
         )
+        self.slices_to_use = np.array([])
         if initial_slices > 0:
             ues_per_slices = self.rng.integers(
                 self.min_number_ues_slice,
