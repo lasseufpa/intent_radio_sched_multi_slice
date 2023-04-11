@@ -2,7 +2,13 @@ basestations:
   bandwidths: [100000000.0]
   carrier_frequencies: [28000000000.0]
   max_number_basestations: 1
-  num_available_rbs: [8]
-simulation: {hist_root_path: ./, max_number_episodes: 1, max_number_steps: 10, simu_name: mult_bs}
-slices: {max_number_slices: 10}
-ues: {max_number_ues: 1000}
+  num_available_rbs: [135]
+simulation:
+  {
+    hist_root_path: ./,
+    max_number_episodes: 10,
+    max_number_steps: 10000,
+    simu_name: mult_slice,
+  }
+slices: { max_number_slices: 10 }
+ues: { max_number_ues: 100 }

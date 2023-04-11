@@ -3,7 +3,7 @@ from tqdm import tqdm
 
 from agents.round_robin import RoundRobin
 from associations.mult_slice import MultSliceAssociation
-from channels.simple import SimpleChannel
+from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import CommunicationEnv
 from traffics.simple import SimpleTraffic
@@ -11,7 +11,7 @@ from traffics.simple import SimpleTraffic
 seed = 10
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 comm_env = CommunicationEnv(
-    SimpleChannel,
+    QuadrigaChannel,
     SimpleTraffic,
     SimpleMobility,
     MultSliceAssociation,
@@ -32,8 +32,11 @@ comm_env.set_agent_functions(
 )
 
 obs = comm_env.reset()
-number_steps = 10
-for step_number in tqdm(np.arange(comm_env.max_number_steps)):
+for step_number in tqdm(
+    np.arange(
+        comm_env.max_number_steps
+    )  # * comm_env.max_number_episodes) TODO
+):
     sched_decision = round_robin.step(obs)
     obs, _, end_ep, _ = comm_env.step(sched_decision)
     if end_ep:
