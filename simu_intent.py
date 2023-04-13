@@ -33,9 +33,7 @@ comm_env.set_agent_functions(
 
 obs = comm_env.reset()
 for step_number in tqdm(
-    np.arange(
-        comm_env.max_number_steps
-    )  # * comm_env.max_number_episodes) TODO
+    np.arange(comm_env.max_number_steps * comm_env.max_number_episodes)
 ):
     sched_decision = round_robin.step(obs)
     obs, _, end_ep, _ = comm_env.step(sched_decision)
