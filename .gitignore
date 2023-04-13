@@ -8,7 +8,9 @@ tensorboard-logs/
 hist/*
 
 # Results
-results/*
+#results/*
+*.pdf
+*.npz
 
 # Associations data
 associations/data/
