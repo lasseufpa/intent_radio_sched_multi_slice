@@ -1,9 +1,9 @@
 import os
-
-import matplotlib.pyplot as plt
-import matplotlib.figure as matfig
-import numpy as np
 from typing import Tuple
+
+import matplotlib.figure as matfig
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def gen_results(
@@ -44,7 +44,9 @@ def gen_results(
                 f"./results/{scenario_name}/ep_{episode}", exist_ok=True
             )
             plt.savefig(
-                "./results/{}.pdf".format(metric),
+                "./results/{}/ep_{}/{}.pdf".format(
+                    scenario_name, episode, metric
+                ),
                 bbox_inches="tight",
                 pad_inches=0,
                 format="pdf",
@@ -60,8 +62,40 @@ def plot_graph(
     for slice in slices:
         match metric:
             case "pkt_incoming":
-                slice_throughput = data_metrics["pkt_incoming"][slice]
-                # plt.plot()
+                message_sizes = np.array(
+                    [
+                        (
+                            data_metrics["slice_req"][step][f"slice_{slice}"][
+                                "ues"
+                            ]["message_size"]
+                            if data_metrics["slice_req"][step][
+                                f"slice_{slice}"
+                            ]
+                            != {}
+                            else 0
+                        )
+                        for step in np.arange(
+                            data_metrics["pkt_incoming"].shape[0]
+                        )
+                    ]
+                )
+                slice_throughput = (
+                    np.sum(
+                        (
+                            data_metrics["pkt_incoming"]
+                            * data_metrics["slice_ue_assoc"][:, slice, :]
+                        ),
+                        axis=1,
+                    )
+                    * message_sizes
+                    / (
+                        1e6
+                        * np.sum(
+                            data_metrics["slice_ue_assoc"][:, slice, :], axis=1
+                        )
+                    )
+                )
+                plt.plot(slice_throughput, label=f"Slice {slice}")
                 xlabel = "Time (s)"
                 ylabel = "Throughput (Mbps)"
             case _:

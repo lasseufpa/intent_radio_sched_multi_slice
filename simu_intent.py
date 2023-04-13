@@ -6,13 +6,13 @@ from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import CommunicationEnv
-from traffics.simple import SimpleTraffic
+from traffics.mult_slice import MultSliceTraffic
 
 seed = 10
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 comm_env = CommunicationEnv(
     QuadrigaChannel,
-    SimpleTraffic,
+    MultSliceTraffic,
     SimpleMobility,
     MultSliceAssociation,
     "mult_slice",

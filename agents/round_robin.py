@@ -16,23 +16,43 @@ class RoundRobin(Agent):
         super().__init__(
             env, max_number_ues, max_number_basestations, num_available_rbs
         )
+        self.current_ues = np.array([])
+        self.rbs_per_ue = np.array([])
 
     def step(self, obs_space: Union[np.ndarray, dict]) -> np.ndarray:
+        idx_active_ues = np.array([])
         allocation_rbs = [
             np.zeros(
                 (self.max_number_ues, self.num_available_rbs[basestation])
             )
             for basestation in np.arange(self.max_number_basestations)
         ]
-        for basestation in np.arange(self.max_number_basestations):
-            ue_idx = 0
-            rb_idx = 0
-            while rb_idx < self.num_available_rbs[basestation]:
-                if obs_space[basestation][ue_idx] == 1:
-                    allocation_rbs[basestation][ue_idx][rb_idx] += 1
-                    rb_idx += 1
-                ue_idx += 1 if ue_idx + 1 != self.max_number_ues else -ue_idx
 
+        if not np.array_equal(self.current_ues, obs_space[0]):
+            self.current_ues = obs_space[0]
+            idx_active_ues = obs_space[0].nonzero()[0]
+            num_active_ues = int(np.sum(obs_space[0]))
+            num_rbs_per_ue = int(
+                (
+                    np.floor(self.num_available_rbs[0] / num_active_ues)
+                    if num_active_ues > 0
+                    else 0
+                )
+            )
+            remaining_rbs = (
+                self.num_available_rbs[0] - num_rbs_per_ue * num_active_ues
+            )
+            self.rbs_per_ue = np.ones(num_active_ues) * num_rbs_per_ue
+            self.rbs_per_ue[:remaining_rbs] += 1
+
+        initial_rb = 0
+        for idx, ue_idx in enumerate(idx_active_ues):
+            allocation_rbs[0][
+                ue_idx, initial_rb : initial_rb + int(self.rbs_per_ue[idx])
+            ] = 1
+            initial_rb += int(self.rbs_per_ue[idx])
+
+        self.rbs_per_ue = np.roll(self.rbs_per_ue, 1)
         return np.array(allocation_rbs)
 
     def obs_space_format(self, obs_space: dict) -> np.ndarray:
