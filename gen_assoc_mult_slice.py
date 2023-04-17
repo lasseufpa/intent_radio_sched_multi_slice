@@ -312,7 +312,7 @@ for episode in np.arange(number_episodes):
 
     # Slice traffic for specific slice defined by variable traffic_slice_watch
     plt.figure()
-    plt.plot(np.arange(traffic_hist.shape[0]), traffic_hist / 1e9)
+    plt.plot(np.arange(traffic_hist.shape[0]), traffic_hist / 1e6)
     plt.title(f"Slice {traffic_slice_watch} traffic")
     plt.grid()
     plt.ylabel("Throughput (Mbps)")

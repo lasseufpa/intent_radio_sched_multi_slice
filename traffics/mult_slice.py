@@ -27,7 +27,7 @@ class MultSliceTraffic(Traffic):
                     self.rng.poisson(
                         slice_req[slice]["ues"]["traffic"], len(idx_ues)
                     )
-                    * 1e9
+                    * 1e6
                 )  # Mbps
 
         return traffic_per_ue

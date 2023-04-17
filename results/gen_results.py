@@ -62,38 +62,8 @@ def plot_graph(
     for slice in slices:
         match metric:
             case "pkt_incoming":
-                message_sizes = np.array(
-                    [
-                        (
-                            data_metrics["slice_req"][step][f"slice_{slice}"][
-                                "ues"
-                            ]["message_size"]
-                            if data_metrics["slice_req"][step][
-                                f"slice_{slice}"
-                            ]
-                            != {}
-                            else 0
-                        )
-                        for step in np.arange(
-                            data_metrics["pkt_incoming"].shape[0]
-                        )
-                    ]
-                )
-                slice_throughput = (
-                    np.sum(
-                        (
-                            data_metrics["pkt_incoming"]
-                            * data_metrics["slice_ue_assoc"][:, slice, :]
-                        ),
-                        axis=1,
-                    )
-                    * message_sizes
-                    / (
-                        1e6
-                        * np.sum(
-                            data_metrics["slice_ue_assoc"][:, slice, :], axis=1
-                        )
-                    )
+                slice_throughput = calc_throughput_slice(
+                    data_metrics, metric, slice
                 )
                 plt.plot(slice_throughput, label=f"Slice {slice}")
                 xlabel = "Time (s)"
@@ -104,9 +74,41 @@ def plot_graph(
     return (xlabel, ylabel)
 
 
+def calc_throughput_slice(
+    data_metrics: dict, metric: str, slice: int
+) -> np.ndarray:
+    message_sizes = np.array(
+        [
+            (
+                data_metrics["slice_req"][step][f"slice_{slice}"]["ues"][
+                    "message_size"
+                ]
+                if data_metrics["slice_req"][step][f"slice_{slice}"] != {}
+                else 0
+            )
+            for step in np.arange(data_metrics[metric].shape[0])
+        ]
+    )
+    den = np.sum(data_metrics["slice_ue_assoc"][:, slice, :], axis=1)
+    slice_throughput = np.divide(
+        np.sum(
+            (
+                data_metrics[metric]
+                * data_metrics["slice_ue_assoc"][:, slice, :]
+            ),
+            axis=1,
+        )
+        * message_sizes,
+        (1e6 * den),
+        where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+    )
+
+    return slice_throughput
+
+
 scenario_name = "mult_slice"
 metrics = ["pkt_incoming"]
 episodes = np.array([0])
-slices = np.array([1, 2])
+slices = np.array([0, 1, 2])
 
 gen_results(scenario_name, episodes, metrics, slices)
