@@ -61,13 +61,78 @@ def plot_graph(
     xlabel = ylabel = ""
     for slice in slices:
         match metric:
-            case "pkt_incoming":
+            case (
+                "pkt_incoming"
+                | "pkt_effective_thr"
+                | "pkt_throughputs"
+                | "dropped_pkts"
+            ):
                 slice_throughput = calc_throughput_slice(
                     data_metrics, metric, slice
                 )
                 plt.plot(slice_throughput, label=f"Slice {slice}")
-                xlabel = "Time (s)"
+                xlabel = "Step (n)"
                 ylabel = "Throughput (Mbps)"
+            case ("buffer_latencies" | "buffer_occupancies"):
+                avg_spectral_efficiency = calc_slice_average(
+                    data_metrics, metric, slice
+                )
+                plt.plot(avg_spectral_efficiency, label=f"Slice {slice}")
+                xlabel = "Step (n)"
+                match metric:
+                    case "buffer_latencies":
+                        ylabel = "Average buffer latency (ms)"
+                    case "buffer_occupancies":
+                        ylabel = "Buffer occupancy rate"
+            case ("basestation_ue_assoc" | "basestation_slice_assoc"):
+                number_elements = np.sum(
+                    np.sum(data_metrics[metric], axis=2), axis=1
+                )
+                plt.plot(number_elements)
+                xlabel = "Step (n)"
+                match metric:
+                    case "basestation_ue_assoc":
+                        ylabel = "Number of UEs"
+                    case "basestation_slice_assoc":
+                        ylabel = "Number of slices"
+                break
+            case "slice_ue_assoc":
+                number_uers_per_slice = np.sum(
+                    data_metrics[metric][:, slice, :], axis=1
+                )
+                plt.plot(number_uers_per_slice, label=f"Slice {slice}")
+                xlabel = "Step (n)"
+                ylabel = "Number of UEs"
+            case "reward":
+                plt.plot(data_metrics[metric])
+                xlabel = "Step (n)"
+                ylabel = "Reward"
+                break
+            case "total_network_throughput":
+                if slice == slices[0]:
+                    total_throughput = np.zeros(
+                        data_metrics["pkt_throughputs"].shape[0], dtype=float
+                    )
+                total_throughput += calc_throughput_slice(  # type: ignore
+                    data_metrics, "pkt_throughputs", slice
+                )
+
+                if slice == slices[-1]:
+                    plt.plot(total_throughput)
+                    xlabel = "Step (n)"
+                    ylabel = "Throughput (Mbps)"
+            case "spectral_efficiencies":
+                spectral_eff = (
+                    np.sum(np.squeeze(data_metrics[metric]), axis=2)
+                    * 100e6
+                    / 1e6
+                )
+                plt.plot(spectral_eff[:, 0], label="UE 0")
+                plt.plot(spectral_eff[:, 1], label="UE 1")
+                plt.plot(spectral_eff[:, 2], label="UE 2")
+                xlabel = "Step (n)"
+                ylabel = "Thoughput capacity (Mbps)"
+                break
             case _:
                 raise Exception("Metric not found")
 
@@ -106,9 +171,38 @@ def calc_throughput_slice(
     return slice_throughput
 
 
+def calc_slice_average(
+    data_metrics: dict, metric: str, slice: int
+) -> np.ndarray:
+    slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
+    num_slice_ues = np.sum(slice_ues, axis=1)
+    result_values = np.divide(
+        np.sum(data_metrics[metric] * slice_ues, axis=1),
+        num_slice_ues,
+        where=np.logical_not(
+            np.isclose(num_slice_ues, np.zeros_like(num_slice_ues))
+        ),
+    )
+
+    return result_values
+
+
 scenario_name = "mult_slice"
-metrics = ["pkt_incoming"]
-episodes = np.array([0])
-slices = np.array([0, 1, 2])
+metrics = [
+    "pkt_incoming",
+    "pkt_effective_thr",
+    "pkt_throughputs",
+    "dropped_pkts",
+    "buffer_occupancies",
+    "buffer_latencies",
+    "basestation_ue_assoc",
+    "basestation_slice_assoc",
+    "slice_ue_assoc",
+    "reward",
+    "total_network_throughput",
+    "spectral_efficiencies",
+]
+episodes = np.array([0], dtype=int)
+slices = np.array([0, 1, 2], dtype=int)
 
 gen_results(scenario_name, episodes, metrics, slices)
