@@ -127,9 +127,9 @@ def plot_graph(
                     * 100e6
                     / 1e6
                 )
-                plt.plot(spectral_eff[:, 0], label="UE 0")
-                plt.plot(spectral_eff[:, 1], label="UE 1")
-                plt.plot(spectral_eff[:, 2], label="UE 2")
+                for ue_idx in range(10):
+                    if ue_idx != 1:
+                        plt.plot(spectral_eff[:, ue_idx], label=f"UE {ue_idx}")
                 xlabel = "Step (n)"
                 ylabel = "Thoughput capacity (Mbps)"
                 break
@@ -203,6 +203,6 @@ metrics = [
     "spectral_efficiencies",
 ]
 episodes = np.array([0], dtype=int)
-slices = np.array([0, 1, 2], dtype=int)
+slices = np.arange(10)
 
 gen_results(scenario_name, episodes, metrics, slices)
