@@ -122,17 +122,28 @@ def plot_graph(
                     xlabel = "Step (n)"
                     ylabel = "Throughput (Mbps)"
             case "spectral_efficiencies":
-                spectral_eff = (
-                    np.sum(np.squeeze(data_metrics[metric]), axis=2)
-                    * 100e6
-                    / 1e6
-                )
-                for ue_idx in range(10):
-                    if ue_idx != 1:
-                        plt.plot(spectral_eff[:, ue_idx], label=f"UE {ue_idx}")
-                xlabel = "Step (n)"
-                ylabel = "Thoughput capacity (Mbps)"
-                break
+                if slice not in [11]:
+                    slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
+                    num = (
+                        np.sum(
+                            np.sum(np.squeeze(data_metrics[metric]), axis=2)
+                            * slice_ues,
+                            axis=1,
+                        )
+                        * 100
+                        / 135
+                    )
+                    den = np.sum(slice_ues, axis=1)
+                    spectral_eff = np.divide(
+                        num,
+                        den,
+                        where=np.logical_not(
+                            np.isclose(den, np.zeros_like(den))
+                        ),
+                    )
+                    plt.plot(spectral_eff, label=f"Slice {slice}")
+                    xlabel = "Step (n)"
+                    ylabel = "Thoughput capacity per RB (Mbps)"
             case _:
                 raise Exception("Metric not found")
 
@@ -202,6 +213,7 @@ metrics = [
     "total_network_throughput",
     "spectral_efficiencies",
 ]
+# metrics = ["spectral_efficiencies"]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 
