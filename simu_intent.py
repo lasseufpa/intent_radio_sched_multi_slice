@@ -16,6 +16,7 @@ comm_env = CommunicationEnv(
     SimpleMobility,
     MultSliceAssociation,
     "mult_slice",
+    "round_robin",
     rng=rng,
 )
 
