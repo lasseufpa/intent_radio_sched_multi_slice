@@ -15,8 +15,12 @@ pyright = "==1.1.296"
 stable-baselines3 = ">=1.7.0"
 tensorboard = "*"
 scipy = "*"
+mat73 = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.10"
+
+[pipenv]
+allow_prereleases = true

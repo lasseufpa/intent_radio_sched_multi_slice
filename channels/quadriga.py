@@ -1,7 +1,7 @@
 from typing import Optional
 
 import numpy as np
-import scipy.io as sio
+import mat73
 
 from sixg_radio_mgmt import Channel
 
@@ -22,6 +22,7 @@ class QuadrigaChannel(Channel):
             "../mult_slice_channel_generation/results/freq_channel/"
         )
         self.spectral_efficiencies = np.array([])
+        self.thermal_noise_power = 10e-14
 
     def step(
         self,
@@ -32,11 +33,24 @@ class QuadrigaChannel(Channel):
     ) -> np.ndarray:
         if episode_number != self.current_episode_number:
             self.current_episode_number = episode_number
-            self.spectral_efficiencies = sio.loadmat(
-                f"{self.channels_path}ep_{episode_number}/spectral_efficiencies_per_rb.mat"
+            target_cell_power = mat73.loadmat(
+                f"{self.channels_path}ep_{episode_number}/target_cell_power.mat"
+            )
+            target_cell_power = target_cell_power["target_cell_power"]
+            intercell_interference = np.zeros_like(target_cell_power)
+            spectral_efficiencies_per_rb = np.log2(
+                1
+                + np.divide(
+                    (target_cell_power / self.num_available_rbs[0])
+                    * np.power(np.abs(target_cell_power), 2),
+                    (
+                        np.power(np.abs(intercell_interference), 2)
+                        + self.thermal_noise_power
+                    ),
+                )
             )
             self.spectral_efficiencies = np.squeeze(
-                self.spectral_efficiencies["spectral_efficiencies_per_rb"]
+                spectral_efficiencies_per_rb
             )
 
         return np.array([self.spectral_efficiencies[:, :, step_number]])
