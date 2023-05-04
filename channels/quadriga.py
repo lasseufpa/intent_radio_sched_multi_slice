@@ -1,7 +1,7 @@
 from typing import Optional
 
-import numpy as np
 import mat73
+import numpy as np
 
 from sixg_radio_mgmt import Channel
 
