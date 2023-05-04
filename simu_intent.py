@@ -9,7 +9,7 @@ from sixg_radio_mgmt import CommunicationEnv
 from traffics.mult_slice import MultSliceTraffic
 
 seed = 10
-rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
+
 comm_env = CommunicationEnv(
     QuadrigaChannel,
     MultSliceTraffic,
@@ -17,7 +17,6 @@ comm_env = CommunicationEnv(
     MultSliceAssociation,
     "mult_slice",
     "round_robin",
-    rng=rng,
 )
 
 round_robin = RoundRobin(
@@ -32,11 +31,11 @@ comm_env.set_agent_functions(
     round_robin.calculate_reward,
 )
 
-obs = comm_env.reset()
+obs = comm_env.reset(seed=seed)[0]
 for step_number in tqdm(
     np.arange(comm_env.max_number_steps * comm_env.max_number_episodes)
 ):
     sched_decision = round_robin.step(obs)
-    obs, _, end_ep, _ = comm_env.step(sched_decision)
+    obs, _, end_ep, _, _ = comm_env.step(sched_decision)
     if end_ep:
         comm_env.reset()

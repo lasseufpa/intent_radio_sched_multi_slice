@@ -9,14 +9,13 @@ from sixg_radio_mgmt import CommunicationEnv
 from traffics.simple import SimpleTraffic
 
 seed = 10
-rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
+
 comm_env = CommunicationEnv(
     SimpleChannel,
     SimpleTraffic,
     SimpleMobility,
     SimpleSliceAssociation,
     "simple_slice",
-    rng=rng,
 )
 
 round_robin = RoundRobin(comm_env, 3, 2, np.array([8, 8]))
@@ -26,10 +25,10 @@ comm_env.set_agent_functions(
     round_robin.calculate_reward,
 )
 
-obs = comm_env.reset()
+obs = comm_env.reset(seed=seed)[0]
 number_steps = 10
 for step_number in tqdm(np.arange(comm_env.max_number_steps)):
     sched_decision = round_robin.step(obs)
-    obs, _, end_ep, _ = comm_env.step(sched_decision)
+    obs, _, end_ep, _, _ = comm_env.step(sched_decision)
     if end_ep:
         comm_env.reset()

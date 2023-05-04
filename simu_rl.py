@@ -10,14 +10,13 @@ from sixg_radio_mgmt import CommunicationEnv
 from traffics.simple import SimpleTraffic
 
 seed = 10
-rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
+
 comm_env = CommunicationEnv(
     SimpleChannel,
     SimpleTraffic,
     SimpleMobility,
     SimpleAssociation,
     "simple",
-    rng=rng,
     obs_space=RLSimple.get_obs_space,
     action_space=RLSimple.get_action_space,
 )
@@ -31,9 +30,9 @@ check_env(comm_env)
 total_number_steps = 10000
 rl_agent.train(total_number_steps)
 
-obs = comm_env.reset()
-for step_number in tqdm(np.arange(total_number_steps)):
+obs = comm_env.reset(seed=seed)[0]
+for step_number in tqdm(np.arange(0, total_number_steps)):
     sched_decision = rl_agent.step(obs)
-    obs, _, end_ep, _ = comm_env.step(sched_decision)
+    obs, _, end_ep, _, _ = comm_env.step(sched_decision)
     if end_ep:
         comm_env.reset()

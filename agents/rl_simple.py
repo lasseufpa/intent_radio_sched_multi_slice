@@ -1,7 +1,7 @@
 from typing import Union
 
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 from stable_baselines3.sac.sac import SAC
 
 from sixg_radio_mgmt import Agent, CommunicationEnv
