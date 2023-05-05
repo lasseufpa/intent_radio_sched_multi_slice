@@ -1,6 +1,6 @@
 from typing import Optional
 
-import mat73
+import h5py
 import numpy as np
 
 from sixg_radio_mgmt import Channel
@@ -33,10 +33,12 @@ class QuadrigaChannel(Channel):
     ) -> np.ndarray:
         if episode_number != self.current_episode_number:
             self.current_episode_number = episode_number
-            target_cell_power = mat73.loadmat(
-                f"{self.channels_path}ep_{episode_number}/target_cell_power.mat"
+            file = h5py.File(
+                f"{self.channels_path}ep_{episode_number}/target_cell_power.mat",
+                "r",
             )
-            target_cell_power = target_cell_power["target_cell_power"]
+            target_cell_power = file.get("target_cell_power")
+            file.close()
             intercell_interference = np.zeros_like(target_cell_power)
             spectral_efficiencies_per_rb = np.log2(
                 1

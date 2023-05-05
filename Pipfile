@@ -15,7 +15,6 @@ pyright = "==1.1.296"
 stable-baselines3 = ">=1.7.0"
 tensorboard = "*"
 scipy = "*"
-mat73 = "*"
 
 [dev-packages]
 
