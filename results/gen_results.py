@@ -140,6 +140,14 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Throughput (Mbps)"
                 break
+            case "total_network_requested_throughput":
+                total_req_throughput = calc_total_throughput(
+                    data_metrics, "pkt_incoming", slices
+                )
+                plt.plot(total_req_throughput, label=f"{agent}")
+                xlabel = "Step (n)"
+                ylabel = "Throughput (Mbps)"
+                break
             case "spectral_efficiencies":
                 if slice not in [11]:
                     slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
@@ -325,22 +333,23 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 
 scenario_names = ["mult_slice"]
 agent_names = ["round_robin"]  # , "ssr"]
-metrics = [
-    "pkt_incoming",
-    "pkt_effective_thr",
-    "pkt_throughputs",
-    "dropped_pkts",
-    "buffer_occupancies",
-    "buffer_latencies",
-    "basestation_ue_assoc",
-    "basestation_slice_assoc",
-    "slice_ue_assoc",
-    "reward",
-    "reward_cumsum",
-    "total_network_throughput",
-    "spectral_efficiencies",
-]
-# metrics = ["total_network_throughput"]
+# metrics = [
+#     "pkt_incoming",
+#     "pkt_effective_thr",
+#     "pkt_throughputs",
+#     "dropped_pkts",
+#     "buffer_occupancies",
+#     "buffer_latencies",
+#     "basestation_ue_assoc",
+#     "basestation_slice_assoc",
+#     "slice_ue_assoc",
+#     "reward",
+#     "reward_cumsum",
+#     "total_network_throughput",
+#     "total_network_requested_throughput",
+#     "spectral_efficiencies",
+# ]
+metrics = ["total_network_requested_throughput"]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 

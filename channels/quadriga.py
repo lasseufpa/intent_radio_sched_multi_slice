@@ -18,10 +18,12 @@ class QuadrigaChannel(Channel):
             max_number_ues, max_number_basestations, num_available_rbs, rng
         )
         self.current_episode_number = -1
+        self.file = None
         self.channels_path = (
             "../mult_slice_channel_generation/results/freq_channel/"
         )
         self.spectral_efficiencies = np.array([])
+        self.transmission_power = 100  # Watts
         self.thermal_noise_power = 10e-14
 
     def step(
@@ -33,26 +35,30 @@ class QuadrigaChannel(Channel):
     ) -> np.ndarray:
         if episode_number != self.current_episode_number:
             self.current_episode_number = episode_number
-            file = h5py.File(
+            if self.file is not None:
+                self.file.close()
+            self.file = h5py.File(
                 f"{self.channels_path}ep_{episode_number}/target_cell_power.mat",
                 "r",
             )
-            target_cell_power = file.get("target_cell_power")
-            file.close()
+        if self.file is not None:
+            target_cell_power = self.file.get("target_cell_power")
+            target_cell_power = np.array(
+                target_cell_power[step_number, :, :, :, :]  # type: ignore
+            )
             intercell_interference = np.zeros_like(target_cell_power)
             spectral_efficiencies_per_rb = np.log2(
                 1
                 + np.divide(
-                    (target_cell_power / self.num_available_rbs[0])
-                    * np.power(np.abs(target_cell_power), 2),
-                    (
-                        np.power(np.abs(intercell_interference), 2)
-                        + self.thermal_noise_power
-                    ),
+                    (self.transmission_power / self.num_available_rbs[0])
+                    * target_cell_power,
+                    (intercell_interference + self.thermal_noise_power),
                 )
             )
             self.spectral_efficiencies = np.squeeze(
-                spectral_efficiencies_per_rb
+                spectral_efficiencies_per_rb.transpose()
             )
+        else:
+            raise ValueError("File is None")
 
-        return np.array([self.spectral_efficiencies[:, :, step_number]])
+        return np.array([self.spectral_efficiencies])
