@@ -349,7 +349,7 @@ agent_names = ["round_robin"]  # , "ssr"]
 #     "total_network_requested_throughput",
 #     "spectral_efficiencies",
 # ]
-metrics = ["total_network_requested_throughput"]
+metrics = ["total_network_requested_throughput", "total_network_throughput"]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 
