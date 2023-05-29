@@ -28,7 +28,7 @@ class MultSliceAssociation(Association):
         self.min_number_ues_slice = 2
         self.max_number_ues_slice = int(max_number_ues / max_number_slices)
         self.slices_lifetime = np.zeros(self.max_number_slices)
-        self.generator_mode = False  # False for reading from external files
+        self.generator_mode = True  # False for reading from external files
         self.scenario_name = "scenario_1"
         self.current_episode = -1
         self.slices_to_use = np.array([])

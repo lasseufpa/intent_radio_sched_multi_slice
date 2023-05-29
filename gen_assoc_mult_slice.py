@@ -17,7 +17,7 @@ association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
 number_steps = 10000
-number_episodes = 100
+number_episodes = 1
 
 
 def generate_quadriga_files(
@@ -115,6 +115,7 @@ for episode in np.arange(number_episodes):
     traffic_slice_watch = 5
     traffic_hist = np.array([])
     traffic_type_hist = [("Initial", 0)]
+    hist_total_throughput = np.array([])
 
     for step in np.arange(number_steps):
         (
@@ -137,14 +138,15 @@ for episode in np.arange(number_episodes):
         hist_slice_ue_assoc[step] = slice_ue_assoc
         hist_slice_req[step] = slice_req.copy()
         hist_slices_to_use.append(mult_slice_assoc.slices_to_use.copy())
+        traffics = mult_slice_traffic.step(slice_ue_assoc, slice_req, step, 0)
+        hist_total_throughput = np.append(
+            hist_total_throughput, np.sum(traffics)
+        )
 
         traffic_hist = (
             np.append(
                 traffic_hist,
-                np.sum(
-                    mult_slice_traffic.step(slice_ue_assoc, slice_req, step, 0)
-                    * slice_ue_assoc[traffic_slice_watch, :]
-                )
+                np.sum(traffics * slice_ue_assoc[traffic_slice_watch, :])
                 / np.sum(slice_ue_assoc[traffic_slice_watch, :]),
             )
             if np.sum(slice_ue_assoc[traffic_slice_watch, :]) != 0.0
@@ -320,6 +322,24 @@ for episode in np.arange(number_episodes):
     plt.grid()
     plt.savefig(
         f"{resuts_common_path}test_slice_traffic.pdf",
+        bbox_inches="tight",
+        pad_inches=0,
+        format="pdf",
+        dpi=1000,
+    )
+    plt.close()
+
+    # Slice traffic for specific slice defined by variable traffic_slice_watch
+    plt.figure()
+    plt.plot(
+        np.arange(hist_total_throughput.shape[0]), hist_total_throughput / 1e6
+    )
+    plt.grid()
+    plt.ylabel("Throughput (Mbps)")
+    plt.xlabel("Simulation step (n)")
+    plt.grid()
+    plt.savefig(
+        f"{resuts_common_path}total_req_throughput.pdf",
         bbox_inches="tight",
         pad_inches=0,
         format="pdf",
