@@ -87,6 +87,7 @@ for episode in np.arange(number_episodes):
     mult_slice_assoc = MultSliceAssociation(
         ues, max_number_ues, max_number_basestations, max_number_slices, rng
     )
+    mult_slice_assoc.generator_mode = True
     mult_slice_traffic = MultSliceTraffic(max_number_ues, rng)
 
     # Init hist variables

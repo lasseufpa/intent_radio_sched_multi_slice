@@ -153,14 +153,14 @@ def plot_graph(
                     slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
                     num = (
                         np.sum(
-                            np.sum(np.squeeze(data_metrics[metric]), axis=2)
+                            np.mean(np.squeeze(data_metrics[metric]), axis=2)
                             * slice_ues,
                             axis=1,
                         )
                         * 100
-                        / 135
                     )
                     den = np.sum(slice_ues, axis=1)
+                    spectral_eff = np.zeros_like(num)
                     spectral_eff = np.divide(
                         num,
                         den,
@@ -349,7 +349,7 @@ agent_names = ["round_robin"]  # , "ssr"]
 #     "total_network_requested_throughput",
 #     "spectral_efficiencies",
 # ]
-metrics = ["total_network_requested_throughput", "total_network_throughput"]
+metrics = ["spectral_efficiencies"]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 
