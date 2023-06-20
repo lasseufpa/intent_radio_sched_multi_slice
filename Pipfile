@@ -14,7 +14,18 @@ matplotlib = "*"
 pyright = "==1.1.296"
 stable-baselines3 = ">=1.7.0"
 tensorboard = "*"
+pettingzoo = "*"
+dm-tree = "*"
+opencv-python = "*"
 scipy = "*"
+tensorflow-probability = "*"
+pyarrow = "*"
+lz4 = "*"
+tensorboardx = "*"
+fsspec = "*"
+ray = {extras = ["tune"], version = "*"}
+gputil = "*"
+h5py = "*"
 
 [dev-packages]
 
