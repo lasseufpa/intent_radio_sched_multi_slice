@@ -79,12 +79,13 @@ class RLSimple(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Box:
-        return spaces.Box(low=0, high=np.inf, shape=(2 * 2,), dtype=np.float32)
+        return spaces.Box(low=0, high=np.inf, shape=(2 * 2,), dtype=np.float64)
 
     @staticmethod
     def action_format(
-        action: np.ndarray,
+        action: Union[np.ndarray, dict],
     ) -> np.ndarray:
+        action = np.array(action)
         action = np.reshape(action, (2, 2, 2))
         sched_decision = np.copy(action)
         sched_decision[0, 0] = (action[0, 0] >= action[0, 1]).astype(int)

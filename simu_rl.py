@@ -31,7 +31,7 @@ total_number_steps = 10000
 rl_agent.train(total_number_steps)
 
 obs = comm_env.reset(seed=seed)[0]
-for step_number in tqdm(np.arange(0, total_number_steps)):
+for step_number in tqdm(np.arange(total_number_steps)):
     sched_decision = rl_agent.step(obs)
     obs, _, end_ep, _, _ = comm_env.step(sched_decision)
     if end_ep:

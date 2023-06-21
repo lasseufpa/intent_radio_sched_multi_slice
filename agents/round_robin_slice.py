@@ -67,5 +67,5 @@ class RoundRobin(Agent):
     def calculate_reward(obs_space: dict) -> float:
         return 0
 
-    def action_format(self, action: np.ndarray) -> np.ndarray:
-        return action
+    def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
+        return np.array(action)
