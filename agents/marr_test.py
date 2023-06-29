@@ -4,8 +4,8 @@ import numpy as np
 from gymnasium import spaces
 from pettingzoo import AECEnv
 
-from sixg_radio_mgmt import Agent, CommunicationEnv, MARLCommEnv
 from agents.round_robin import RoundRobin
+from sixg_radio_mgmt import Agent, CommunicationEnv, MARLCommEnv
 
 
 class MARRTest(Agent):
@@ -33,7 +33,6 @@ class MARRTest(Agent):
         self, agent: str, obs_space: Optional[Union[np.ndarray, dict]]
     ) -> np.ndarray:
         assert isinstance(obs_space, dict), "Observation space must be a dict"
-        allocation_rbs = self.round_robin.step(obs_space)
 
         if agent == "player_0":  # Basestation 1
             return np.array([[1, 0], [0, 1]])

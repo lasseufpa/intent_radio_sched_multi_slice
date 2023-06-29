@@ -1,0 +1,41 @@
+repos:
+  - repo: local
+    hooks:
+      - id: isort
+        name: isort
+        entry: isort
+        language: python
+        "types": [python]
+        args: []
+        require_serial: false
+        additional_dependencies: []
+        minimum_pre_commit_version: "0"
+  - repo: local
+    hooks:
+      - id: flake8
+        name: Flake8
+        description: This hook runs flake8.
+        entry: flake8
+        language: python
+        types: [python]
+        require_serial: true
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        description: ""
+        entry: pyright
+        language: node
+        "types": [python]
+        args: []
+        require_serial: false
+        minimum_pre_commit_version: "0"
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        description: "Black: The uncompromising Python code formatter"
+        entry: black
+        language: python
+        require_serial: true
+        types_or: [python, pyi]

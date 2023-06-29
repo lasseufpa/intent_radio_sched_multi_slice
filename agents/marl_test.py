@@ -2,15 +2,14 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from pettingzoo import AECEnv
 
-from sixg_radio_mgmt import Agent, CommunicationEnv
+from sixg_radio_mgmt import Agent, CommunicationEnv, MARLCommEnv
 
 
 class MARLTest(Agent):
     def __init__(
         self,
-        env: Union[CommunicationEnv, AECEnv],
+        env: Union[CommunicationEnv, MARLCommEnv],
         max_number_ues: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,

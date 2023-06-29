@@ -4,28 +4,28 @@ from ray.rllib.env import PettingZooEnv
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
 
-from agents.marl_test import MARLTest
-from associations.simple import SimpleAssociation
-from channels.simple import SimpleChannel
+from agents.ib_sched import IBSched
+from associations.mult_slice import MultSliceAssociation
+from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
-from traffics.simple import SimpleTraffic
+from traffics.mult_slice import MultSliceTraffic
 
 seed = 10
 
 marl_comm_env = MARLCommEnv(
-    SimpleChannel,
-    SimpleTraffic,
+    QuadrigaChannel,
+    MultSliceTraffic,
     SimpleMobility,
-    SimpleAssociation,
-    "simple",
-    "agent_marl_test",
+    MultSliceAssociation,
+    "mult_slice",
+    "ib_sched",
     seed,
-    obs_space=MARLTest.get_obs_space,
-    action_space=MARLTest.get_action_space,
-    number_agents=2,
+    obs_space=IBSched.get_obs_space,
+    action_space=IBSched.get_action_space,
+    number_agents=11,
 )
-marl_test_agent = MARLTest(
+marl_test_agent = IBSched(
     marl_comm_env,
     marl_comm_env.comm_env.max_number_ues,
     marl_comm_env.comm_env.max_number_basestations,

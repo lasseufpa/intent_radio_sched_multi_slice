@@ -2,12 +2,12 @@ import numpy as np
 from pettingzoo.test import api_test, seed_test
 from tqdm import tqdm
 
-from sixg_radio_mgmt import MARLCommEnv
+from agents.marr_test import MARRTest
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
+from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
-from agents.marr_test import MARRTest
 
 seed = 10
 
