@@ -20,7 +20,7 @@ class IBSched(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        self.last_unformatted_obs = None
+        self.last_unformatted_obs = {}
 
     def step(
         self, agent: str, obs_space: Optional[Union[np.ndarray, dict]]
@@ -138,6 +138,28 @@ class IBSched(Agent):
         slice_ues: np.ndarray,
     ) -> np.ndarray:
         # TODO Implement
+        spectral_eff = np.mean(
+            self.last_unformatted_obs["spectral_efficiencies"][0, slice_ues, :], axis=1
+        )
+        snt_thoughput = 
+        self.vec_throughput_snt = np.append(
+            self.vec_throughput_snt, [obs[[9, 18, 27]]], axis=0
+        )
+        se = obs[[14, 23, 32]]
+        buffer_occ = obs[[11, 20, 29]]
+        total_throughput_avail = np.min(
+            [
+                se * self.bandwidth,
+                buffer_occ * self.max_packets_buffer * self.packet_size,
+            ],
+            axis=0,
+        )
+        factors = (
+            total_throughput_avail / np.mean(self.vec_throughput_snt, axis=0)
+            if not (0 in np.mean(self.vec_throughput_snt, axis=0))
+            else [1, 1, 1]
+        )
+
         return allocation_rbs
 
     def waterfilling(
