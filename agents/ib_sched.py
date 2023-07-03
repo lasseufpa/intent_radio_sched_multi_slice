@@ -137,27 +137,43 @@ class IBSched(Agent):
         rbs_per_slice: np.ndarray,
         slice_ues: np.ndarray,
     ) -> np.ndarray:
-        # TODO Implement
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
         spectral_eff = np.mean(
-            self.last_unformatted_obs["spectral_efficiencies"][0, slice_ues, :], axis=1
+            self.last_unformatted_obs["spectral_efficiencies"][
+                0, slice_ues, :
+            ],
+            axis=1,
         )
-        snt_thoughput = 
-        self.vec_throughput_snt = np.append(
-            self.vec_throughput_snt, [obs[[9, 18, 27]]], axis=0
-        )
-        se = obs[[14, 23, 32]]
-        buffer_occ = obs[[11, 20, 29]]
-        total_throughput_avail = np.min(
+        snt_thoughput = self.last_unformatted_obs["pkt_effective_thr"][
+            slice_ues
+        ]
+        buffer_occ = self.last_unformatted_obs["buffer_occupancies"][slice_ues]
+        throughput_available = np.min(
             [
-                se * self.bandwidth,
-                buffer_occ * self.max_packets_buffer * self.packet_size,
+                spectral_eff * self.env.comm_env.bandwidths[0],
+                buffer_occ
+                * self.env.comm_env.ues.max_buffer_pkts[slice_ues]
+                * self.env.comm_env.ues.pkt_sizes[slice_ues],
             ],
             axis=0,
         )
-        factors = (
-            total_throughput_avail / np.mean(self.vec_throughput_snt, axis=0)
-            if not (0 in np.mean(self.vec_throughput_snt, axis=0))
-            else [1, 1, 1]
+        weights = np.divide(
+            throughput_available,
+            snt_thoughput,
+            where=snt_thoughput != 0,
+            out=0.00001 * np.ones_like(snt_thoughput),
+        )
+        rbs_per_ue = np.round(
+            rbs_per_slice[slice_idx] * weights / np.sum(weights)
+        )
+        assert (
+            np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
+        ), "PF: Number of allocated RBs is different than available RBs"
+
+        allocation_rbs = self.distribute_rbs_ues(
+            rbs_per_ue, allocation_rbs, slice_ues
         )
 
         return allocation_rbs
@@ -171,6 +187,14 @@ class IBSched(Agent):
     ) -> np.ndarray:
         # TODO Implement
         return allocation_rbs
+
+    def distribute_rbs_ues(
+        self,
+        rbs_per_ue: np.ndarray,
+        allocation_rbs: np.ndarray,
+        slice_ues: np.ndarray,
+    ) -> np.ndarray:
+        return np.array([])
 
     @staticmethod
     def get_action_space() -> dict:
