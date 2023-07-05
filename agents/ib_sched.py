@@ -25,10 +25,7 @@ class IBSched(Agent):
     def step(
         self, agent: str, obs_space: Optional[Union[np.ndarray, dict]]
     ) -> np.ndarray:
-        if agent == "player_0":  # Basestation 1
-            return np.array([1, 0, 0, 1])
-        else:  # Basestation 2
-            return np.array([1, 0, 0, 1])
+        raise NotImplementedError("IBSched does not implement step()")
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         self.last_unformatted_obs = obs_space
