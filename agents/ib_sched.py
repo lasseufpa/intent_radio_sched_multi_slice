@@ -101,7 +101,7 @@ class IBSched(Agent):
                         allocation_rbs, slice_idx, rbs_per_slice, slice_ues
                     )
                 case 2:
-                    allocation_rbs = self.waterfilling(
+                    allocation_rbs = self.max_throughput(
                         allocation_rbs, slice_idx, rbs_per_slice, slice_ues
                     )
                 case _:
@@ -118,15 +118,13 @@ class IBSched(Agent):
     ) -> np.ndarray:
         rbs_per_ue = np.floor(rbs_per_slice[slice_idx] / slice_ues.shape[0])
         remaining_rbs = rbs_per_slice[slice_idx] % slice_ues.shape[0]
-
-        rb_idx = np.sum(rbs_per_slice[:slice_idx], dtype=int)
-        for ue_idx in slice_ues:
-            allocation_rbs[0, ue_idx, rb_idx : rb_idx + rbs_per_ue] = 1
-            rb_idx += rbs_per_ue
-            if remaining_rbs > 0:
-                allocation_rbs[0, ue_idx, rb_idx] = 1
-                rb_idx += 1
-                remaining_rbs -= 1
+        rbs_per_ue[0:remaining_rbs] += 1
+        assert (
+            np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
+        ), "RR: Number of allocated RBs is different than available RBs"
+        allocation_rbs = self.distribute_rbs_ues(
+            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
+        )
 
         return allocation_rbs
 
@@ -173,19 +171,49 @@ class IBSched(Agent):
         ), "PF: Number of allocated RBs is different than available RBs"
 
         allocation_rbs = self.distribute_rbs_ues(
-            rbs_per_ue, allocation_rbs, slice_ues
+            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
         )
 
         return allocation_rbs
 
-    def waterfilling(
+    def max_throughput(
         self,
         allocation_rbs: np.ndarray,
         slice_idx: int,
         rbs_per_slice: np.ndarray,
         slice_ues: np.ndarray,
     ) -> np.ndarray:
-        # TODO Implement
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
+        spectral_eff = np.mean(
+            self.last_unformatted_obs["spectral_efficiencies"][
+                0, slice_ues, :
+            ],
+            axis=1,
+        )
+        buffer_occ = self.last_unformatted_obs["buffer_occupancies"][slice_ues]
+        throughput_available = np.min(
+            [
+                spectral_eff * self.env.comm_env.bandwidths[0],
+                buffer_occ
+                * self.env.comm_env.ues.max_buffer_pkts[slice_ues]
+                * self.env.comm_env.ues.pkt_sizes[slice_ues],
+            ],
+            axis=0,
+        )
+        rbs_per_ue = np.round(
+            rbs_per_slice[slice_idx]
+            * throughput_available
+            / np.sum(throughput_available)
+        )
+        assert (
+            np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
+        ), "MT: Number of allocated RBs is different than available RBs"
+        allocation_rbs = self.distribute_rbs_ues(
+            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
+        )
+
         return allocation_rbs
 
     def distribute_rbs_ues(
@@ -193,8 +221,15 @@ class IBSched(Agent):
         rbs_per_ue: np.ndarray,
         allocation_rbs: np.ndarray,
         slice_ues: np.ndarray,
+        rbs_per_slice: np.ndarray,
+        slice_idx: int,
     ) -> np.ndarray:
-        return np.array([])
+        rb_idx = np.sum(rbs_per_slice[:slice_idx], dtype=int)
+        for ue_idx in slice_ues:
+            allocation_rbs[0, ue_idx, rb_idx : rb_idx + rbs_per_ue] = 1
+            rb_idx += rbs_per_ue
+
+        return allocation_rbs
 
     @staticmethod
     def get_action_space() -> dict:
