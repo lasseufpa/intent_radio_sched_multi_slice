@@ -1,9 +1,10 @@
+from collections import deque
 from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
 
-from sixg_radio_mgmt import Agent, CommunicationEnv, MARLCommEnv
+from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
 class IBSched(Agent):
@@ -20,7 +21,8 @@ class IBSched(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        self.last_unformatted_obs = {}
+        max_obs_memory = 10
+        self.last_unformatted_obs = deque(maxlen=max_obs_memory)
 
     def step(
         self, agent: str, obs_space: Optional[Union[np.ndarray, dict]]
@@ -28,31 +30,82 @@ class IBSched(Agent):
         raise NotImplementedError("IBSched does not implement step()")
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
-        self.last_unformatted_obs = obs_space
-        formatted_obs_space = np.array([])
-        hist_labels = [
-            # "pkt_incoming",
-            "dropped_pkts",
-            # "pkt_effective_thr",
-            "buffer_occupancies",
-            # "spectral_efficiencies",
-        ]
-        for hist_label in hist_labels:
-            if hist_label == "spectral_efficiencies":
-                formatted_obs_space = np.append(
-                    formatted_obs_space,
-                    np.squeeze(np.sum(obs_space[hist_label], axis=2)),
-                    axis=0,
-                )
-            else:
-                formatted_obs_space = np.append(
-                    formatted_obs_space, obs_space[hist_label], axis=0
-                )
+        self.last_unformatted_obs.appendleft(obs_space)
+        formatted_obs_space = self.intent_drift_calc(self.last_unformatted_obs)
 
-        return {
-            "player_0": formatted_obs_space,
-            "player_1": formatted_obs_space,
-        }
+        return formatted_obs_space
+
+    @staticmethod
+    def intent_drift_calc(last_unformatted_obs: deque[dict]) -> dict:
+        def get_metric_value(
+            metric_name: str,
+            last_unformatted_obs: deque,
+            slice_idx: int,
+            slice_ues: np.ndarray,
+        ) -> float:
+            if metric_name == "throughput":
+                avg_pkt_throughput = np.mean(
+                    last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
+                )
+                metric_value = (
+                    avg_pkt_throughput
+                    * last_unformatted_obs[0][f"slice_{slice_idx}"]["ues"][
+                        "message_size"
+                    ]
+                ) / 1e6
+            elif metric_name == "reliability":
+
+                def calc_metric_interval(metric: str) -> float:
+                    return np.sum(
+                        [
+                            last_unformatted_obs[i][metric][slice_ues]
+                            for i in range(len(last_unformatted_obs))
+                        ]
+                    )
+
+                pkts_snt_over_interval = calc_metric_interval(
+                    "pkt_effective_thr"
+                )
+                dropped_pkts_over_interval = calc_metric_interval(
+                    "dropped_pkts"
+                )
+                buffer_pkts = (
+                    np.sum(
+                        last_unformatted_obs[0]["buffer_occupancies"][
+                            slice_ues
+                        ]
+                    )
+                    * last_unformatted_obs[0]["slice_req"]["ues"][
+                        "buffer_size"
+                    ]
+                    + dropped_pkts_over_interval
+                    + pkts_snt_over_interval
+                )
+                metric_value = dropped_pkts_over_interval / buffer_pkts
+            elif metric_name == "latency":
+                metric_value = last_unformatted_obs[0]["buffer_latencies"][
+                    slice_ues
+                ]
+            else:
+                raise ValueError("Invalid metric name")
+
+            return metric_value
+
+        last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
+        for slice in last_obs_slice_req:
+            if last_obs_slice_req[slice] == {}:
+                continue
+            slice_ues = last_unformatted_obs[0]["slice_ue_assoc"].nonzero()[0]
+            for parameter in last_obs_slice_req[slice]["parameters"]:
+                metric_value = get_metric_value(
+                    parameter["name"],
+                    last_unformatted_obs,
+                    int(slice.split("_")[1]),
+                    slice_ues,
+                )
+                print(metric_value)
+                # TODO: Add intent drift calculation
+        return {}
 
     def calculate_reward(self, obs_space: dict) -> float:
         reward = -np.sum(obs_space["dropped_pkts"], dtype=float)
@@ -136,15 +189,17 @@ class IBSched(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         spectral_eff = np.mean(
-            self.last_unformatted_obs["spectral_efficiencies"][
+            self.last_unformatted_obs[0]["spectral_efficiencies"][
                 0, slice_ues, :
             ],
             axis=1,
         )
-        snt_thoughput = self.last_unformatted_obs["pkt_effective_thr"][
+        snt_thoughput = self.last_unformatted_obs[0]["pkt_effective_thr"][
             slice_ues
         ]
-        buffer_occ = self.last_unformatted_obs["buffer_occupancies"][slice_ues]
+        buffer_occ = self.last_unformatted_obs[0]["buffer_occupancies"][
+            slice_ues
+        ]
         throughput_available = np.min(
             [
                 spectral_eff * self.env.comm_env.bandwidths[0],
@@ -184,12 +239,14 @@ class IBSched(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         spectral_eff = np.mean(
-            self.last_unformatted_obs["spectral_efficiencies"][
+            self.last_unformatted_obs[0]["spectral_efficiencies"][
                 0, slice_ues, :
             ],
             axis=1,
         )
-        buffer_occ = self.last_unformatted_obs["buffer_occupancies"][slice_ues]
+        buffer_occ = self.last_unformatted_obs[0]["buffer_occupancies"][
+            slice_ues
+        ]
         throughput_available = np.min(
             [
                 spectral_eff * self.env.comm_env.bandwidths[0],
