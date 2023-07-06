@@ -21,8 +21,9 @@ class IBSched(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        max_obs_memory = 10
+        max_obs_memory = 100
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
+        self.intent_oversatisfaction_rate = 0.2
 
     def step(
         self, agent: str, obs_space: Optional[Union[np.ndarray, dict]]
@@ -35,34 +36,30 @@ class IBSched(Agent):
 
         return formatted_obs_space
 
-    @staticmethod
-    def intent_drift_calc(last_unformatted_obs: deque[dict]) -> dict:
+    def intent_drift_calc(self, last_unformatted_obs: deque[dict]) -> dict:
         def get_metric_value(
             metric_name: str,
             last_unformatted_obs: deque,
             slice_idx: int,
             slice_ues: np.ndarray,
         ) -> float:
-            if metric_name == "throughput":
-                avg_pkt_throughput = np.mean(
-                    last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
+            def calc_metric_interval(metric: str) -> float:
+                return np.sum(
+                    [
+                        last_unformatted_obs[i][metric][slice_ues]
+                        for i in range(len(last_unformatted_obs))
+                    ],
+                    axis=0,
                 )
+
+            if metric_name == "throughput":
                 metric_value = (
-                    avg_pkt_throughput
+                    last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
                     * last_unformatted_obs[0][f"slice_{slice_idx}"]["ues"][
                         "message_size"
                     ]
-                ) / 1e6
+                ) / 1e6  # Mbps
             elif metric_name == "reliability":
-
-                def calc_metric_interval(metric: str) -> float:
-                    return np.sum(
-                        [
-                            last_unformatted_obs[i][metric][slice_ues]
-                            for i in range(len(last_unformatted_obs))
-                        ]
-                    )
-
                 pkts_snt_over_interval = calc_metric_interval(
                     "pkt_effective_thr"
                 )
@@ -70,40 +67,53 @@ class IBSched(Agent):
                     "dropped_pkts"
                 )
                 buffer_pkts = (
-                    np.sum(
-                        last_unformatted_obs[0]["buffer_occupancies"][
-                            slice_ues
-                        ]
-                    )
+                    last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
                     * last_unformatted_obs[0]["slice_req"]["ues"][
                         "buffer_size"
                     ]
                     + dropped_pkts_over_interval
                     + pkts_snt_over_interval
                 )
-                metric_value = dropped_pkts_over_interval / buffer_pkts
+                metric_value = (
+                    dropped_pkts_over_interval / buffer_pkts
+                )  # Rate [0,1]
             elif metric_name == "latency":
                 metric_value = last_unformatted_obs[0]["buffer_latencies"][
                     slice_ues
-                ]
+                ]  # Seconds
             else:
                 raise ValueError("Invalid metric name")
 
             return metric_value
 
         last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
+        observations = np.zeros(
+            (
+                last_unformatted_obs[0]["slice_ue_assoc"].shape[0],
+                last_unformatted_obs[0]["slice_ue_assoc"].shape[1],
+            )
+        )
         for slice in last_obs_slice_req:
             if last_obs_slice_req[slice] == {}:
                 continue
             slice_ues = last_unformatted_obs[0]["slice_ue_assoc"].nonzero()[0]
+            slice_idx = int(slice.split("_")[1])
             for parameter in last_obs_slice_req[slice]["parameters"]:
                 metric_value = get_metric_value(
                     parameter["name"],
                     last_unformatted_obs,
-                    int(slice.split("_")[1]),
+                    slice_idx,
                     slice_ues,
                 )
-                print(metric_value)
+                if parameter["operator"](metric_value, parameter["value"]):
+                    match parameter["name"]:
+                        case "throughput":
+                            observations[
+                                slice_idx, 0 : slice_ues.shape[0]
+                            ] = metric_value
+                else:
+                    print("throughput", metric_value)
+
                 # TODO: Add intent drift calculation
         return {}
 
