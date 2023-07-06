@@ -21,7 +21,7 @@ for step in range(steps_per_episode):
 plt.figure()
 for ue in range(max_number_ues):
     plt.plot(np.arange(steps_per_episode), average_se[:, ue], label=f"UE {ue}")
-plt.ylim([0, 3])
+# plt.ylim([0, 3])
 plt.xlabel("Step")
 plt.ylabel("Average Spectral Efficiency")
 plt.show()
