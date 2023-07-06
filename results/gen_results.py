@@ -149,7 +149,7 @@ def plot_graph(
                 ylabel = "Throughput (Mbps)"
                 break
             case "spectral_efficiencies":
-                if slice not in [11]:
+                if slice not in []:
                     slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
                     num = (
                         np.sum(
@@ -159,7 +159,10 @@ def plot_graph(
                         )
                         * 100
                     )
-                    den = np.sum(slice_ues, axis=1)
+                    den = (
+                        np.sum(slice_ues, axis=1)
+                        * data_metrics["spectral_efficiencies"].shape[3]
+                    )
                     spectral_eff = np.zeros_like(num)
                     spectral_eff = np.divide(
                         num,
@@ -167,6 +170,7 @@ def plot_graph(
                         where=np.logical_not(
                             np.isclose(den, np.zeros_like(den))
                         ),
+                        out=spectral_eff,
                     )
                     plt.plot(spectral_eff, label=f"{agent}, slice {slice}")
                     xlabel = "Step (n)"
