@@ -87,12 +87,7 @@ class IBSched(Agent):
             return metric_value
 
         last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
-        observations = np.zeros(
-            (
-                last_unformatted_obs[0]["slice_ue_assoc"].shape[0],
-                last_unformatted_obs[0]["slice_ue_assoc"].shape[1],
-            )
-        )
+        observations = np.zeros_like(last_unformatted_obs[0]["slice_ue_assoc"])
         for slice in last_obs_slice_req:
             if last_obs_slice_req[slice] == {}:
                 continue
@@ -110,11 +105,52 @@ class IBSched(Agent):
                         case "throughput":
                             observations[
                                 slice_idx, 0 : slice_ues.shape[0]
-                            ] = metric_value
+                            ] += (
+                                (metric_value - parameter["value"])
+                                / (
+                                    parameter["value"]
+                                    * self.intent_oversatisfaction_rate
+                                )
+                                if metric_value
+                                < parameter["value"]
+                                * self.intent_oversatisfaction_rate
+                                else 1.0
+                            )
+                        case "reliability":
+                            observations[
+                                slice_idx, 0 : slice_ues.shape[0]
+                            ] += (
+                                ((100 - parameter["value"]) - metric_value)
+                                / (
+                                    (100 - parameter["value"])
+                                    * self.intent_oversatisfaction_rate
+                                )
+                                if metric_value
+                                > (100 - parameter["value"])
+                                * self.intent_oversatisfaction_rate
+                                else 1.0
+                            )
+                        case "latency":
+                            observations[
+                                slice_idx, 0 : slice_ues.shape[0]
+                            ] += (
+                                (parameter["value"] - metric_value)
+                                / (
+                                    parameter["value"]
+                                    * self.intent_oversatisfaction_rate
+                                )
+                                if metric_value
+                                > parameter["value"]
+                                * self.intent_oversatisfaction_rate
+                                else 1.0
+                            )
+
                 else:
                     print("throughput", metric_value)
 
-                # TODO: Add intent drift calculation
+                # TODO: Consider negative reward when the intent is not
+                # satisfied for all slices, but some of them are receiving much more resources than needed
+                # TODO mudar reliability para ser o numero de pacotes perdidos
         return {}
 
     def calculate_reward(self, obs_space: dict) -> float:
