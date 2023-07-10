@@ -1,4 +1,3 @@
-import operator
 from typing import Tuple
 
 import numpy as np
@@ -214,12 +213,12 @@ class MultSliceAssociation(Association):
             "video_streaming_4k",
         ]
         expectation_params = {
-            "at_least": operator.ge,
-            "at_most": operator.le,
-            "exactly": operator.eq,
-            "greater": operator.gt,
-            "one_of": operator.contains,
-            "smaller": operator.lt,
+            "at_least": np.greater_equal,
+            "at_most": np.less_equal,
+            "exactly": np.equal,
+            "greater": np.greater,
+            "one_of": np.isin,
+            "smaller": np.less,
         }
 
         slice_type_model = {

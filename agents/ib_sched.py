@@ -23,6 +23,7 @@ class IBSched(Agent):
         ), "Environment must be MARLCommEnv"
         max_obs_memory = 100
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
+        self.last_formatted_obs = {}
         self.intent_oversatisfaction_rate = 0.2
 
     def step(
@@ -32,11 +33,23 @@ class IBSched(Agent):
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         self.last_unformatted_obs.appendleft(obs_space)
-        formatted_obs_space = self.intent_drift_calc(self.last_unformatted_obs)
+        intent_drift_slice_ue = self.intent_drift_calc(
+            self.last_unformatted_obs
+        )
+        formatted_obs_space = {}
+        for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
+            formatted_obs_space[f"player_{agent_idx}"] = (
+                np.mean(intent_drift_slice_ue, axis=1)
+                if agent_idx == 0
+                else intent_drift_slice_ue[agent_idx - 1, :]
+            )
+        self.last_formatted_obs = formatted_obs_space
 
         return formatted_obs_space
 
-    def intent_drift_calc(self, last_unformatted_obs: deque[dict]) -> dict:
+    def intent_drift_calc(
+        self, last_unformatted_obs: deque[dict]
+    ) -> np.ndarray:
         def get_metric_value(
             metric_name: str,
             last_unformatted_obs: deque,
@@ -88,24 +101,32 @@ class IBSched(Agent):
 
         last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
         observations = np.zeros_like(last_unformatted_obs[0]["slice_ue_assoc"])
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
         for slice in last_obs_slice_req:
             if last_obs_slice_req[slice] == {}:
                 continue
             slice_ues = last_unformatted_obs[0]["slice_ue_assoc"].nonzero()[0]
             slice_idx = int(slice.split("_")[1])
-            for parameter in last_obs_slice_req[slice]["parameters"]:
+            for parameter in last_obs_slice_req[slice]["parameters"].values():
                 metric_value = get_metric_value(
                     parameter["name"],
                     last_unformatted_obs,
                     slice_idx,
                     slice_ues,
                 )
-                if parameter["operator"](metric_value, parameter["value"]):
-                    match parameter["name"]:
-                        case "throughput":
+                intent_fulfillment = int(
+                    parameter["operator"](metric_value, parameter["value"])
+                )
+                intent_unfulfillment = np.logical_not(intent_fulfillment)
+                match parameter["name"]:
+                    case "throughput":
+                        # Intent fulfillment
+                        if np.sum(intent_fulfillment) > 0:
                             observations[
                                 slice_idx, 0 : slice_ues.shape[0]
-                            ] += (
+                            ] += intent_fulfillment * (
                                 (metric_value - parameter["value"])
                                 / (
                                     parameter["value"]
@@ -114,12 +135,24 @@ class IBSched(Agent):
                                 if metric_value
                                 < parameter["value"]
                                 * self.intent_oversatisfaction_rate
-                                else 1.0
+                                else np.ones_like(metric_value)
                             )
-                        case "reliability":
+
+                        # Intent unfulfillment
+                        if np.sum(intent_unfulfillment) > 0:
                             observations[
                                 slice_idx, 0 : slice_ues.shape[0]
-                            ] += (
+                            ] -= intent_unfulfillment * (
+                                (parameter["value"] - metric_value)
+                                / (parameter["value"])
+                            )
+
+                    case "reliability":
+                        # Intent fulfillment
+                        if np.sum(intent_fulfillment) > 0:
+                            observations[
+                                slice_idx, 0 : slice_ues.shape[0]
+                            ] += intent_fulfillment * (
                                 ((100 - parameter["value"]) - metric_value)
                                 / (
                                     (100 - parameter["value"])
@@ -128,12 +161,29 @@ class IBSched(Agent):
                                 if metric_value
                                 > (100 - parameter["value"])
                                 * self.intent_oversatisfaction_rate
-                                else 1.0
+                                else np.ones_like(metric_value)
                             )
-                        case "latency":
+
+                        # Intent unfulfillment
+                        if np.sum(intent_unfulfillment) > 0:
                             observations[
                                 slice_idx, 0 : slice_ues.shape[0]
-                            ] += (
+                            ] += intent_unfulfillment * (
+                                (metric_value - (100 - parameter["value"]))
+                                / parameter["value"]
+                            )
+
+                    case "latency":
+                        max_latency_per_ue = (
+                            self.env.comm_env.ues.max_buffer_latencies[
+                                slice_ues
+                            ]
+                        )
+                        # Intent fulfillment
+                        if np.sum(intent_fulfillment) > 0:
+                            observations[
+                                slice_idx, 0 : slice_ues.shape[0]
+                            ] += intent_fulfillment * (
                                 (parameter["value"] - metric_value)
                                 / (
                                     parameter["value"]
@@ -142,16 +192,26 @@ class IBSched(Agent):
                                 if metric_value
                                 > parameter["value"]
                                 * self.intent_oversatisfaction_rate
-                                else 1.0
+                                else np.ones_like(metric_value)
                             )
 
-                else:
-                    print("throughput", metric_value)
+                        # Intent fulfillment
+                        if np.sum(intent_unfulfillment) > 0:
+                            observations[
+                                slice_idx, 0 : slice_ues.shape[0]
+                            ] += intent_unfulfillment * (
+                                (metric_value - parameter["value"])
+                                / max_latency_per_ue
+                            )
 
-                # TODO: Consider negative reward when the intent is not
-                # satisfied for all slices, but some of them are receiving much more resources than needed
-                # TODO mudar reliability para ser o numero de pacotes perdidos
-        return {}
+                    case _:
+                        raise ValueError("Invalid parameter name")
+
+            observations[slice_idx, :] = observations[slice_idx, :] / len(
+                last_obs_slice_req[slice]["parameters"]
+            )
+
+        return observations
 
     def calculate_reward(self, obs_space: dict) -> float:
         reward = -np.sum(obs_space["dropped_pkts"], dtype=float)
@@ -339,7 +399,7 @@ class IBSched(Agent):
             if idx == 0
             else spaces.Discrete(
                 3
-            )  # Three algorithms (RR, PF and Waterfilling)
+            )  # Three algorithms (RR, PF and Maximum Throughput)
             for idx in range(num_agents)
         }
 
