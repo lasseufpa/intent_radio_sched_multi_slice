@@ -213,8 +213,11 @@ class IBSched(Agent):
 
         return observations
 
-    def calculate_reward(self, obs_space: dict) -> float:
-        reward = -np.sum(obs_space["dropped_pkts"], dtype=float)
+    def calculate_reward(self, obs_space: dict) -> dict:
+        reward = {}
+        for agent_obs in self.last_formatted_obs.items():
+            reward[agent_obs[0]] = np.mean(agent_obs[1])
+
         return reward
 
     def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
