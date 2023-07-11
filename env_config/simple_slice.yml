@@ -1,14 +1,14 @@
 ---
 basestations:
-  max_number_basestations: 2
-  bandwidths: [8, 8]
-  carrier_frequencies: [28, 28]
-  num_available_rbs: [8, 8]
-  basestation_ue_assoc: [[1, 1, 1], [1, 1, 1]]
-  basestation_slice_assoc: [[1, 1], [1, 0]]
+  max_number_basestations: 1
+  bandwidths: [8]
+  carrier_frequencies: [28]
+  num_available_rbs: [8]
+  basestation_ue_assoc: [[1, 1]]
+  basestation_slice_assoc: [[1, 1]]
 slices:
   max_number_slices: 2
-  slice_ue_assoc: [[1, 1, 0], [0, 0, 1]]
+  slice_ue_assoc: [[1, 0], [0, 1]]
   slice_req:
     embb:
       throughput: 10
@@ -17,10 +17,10 @@ slices:
     be:
       long_throughput: 1
 ues:
-  max_number_ues: 3
-  max_buffer_latencies: [10, 10, 10]
-  max_buffer_pkts: [10, 10, 10]
-  pkt_sizes: [1, 1, 1]
+  max_number_ues: 2
+  max_buffer_latencies: [10, 10]
+  max_buffer_pkts: [10, 10]
+  pkt_sizes: [1, 1]
 simulation:
   simu_name: test
   max_number_steps: 10

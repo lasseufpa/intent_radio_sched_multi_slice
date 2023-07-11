@@ -68,9 +68,9 @@ class IBSched(Agent):
             if metric_name == "throughput":
                 metric_value = (
                     last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
-                    * last_unformatted_obs[0][f"slice_{slice_idx}"]["ues"][
-                        "message_size"
-                    ]
+                    * last_unformatted_obs[0]["slice_req"][
+                        f"slice_{slice_idx}"
+                    ]["ues"]["message_size"]
                 ) / 1e6  # Mbps
             elif metric_name == "reliability":
                 pkts_snt_over_interval = calc_metric_interval(
@@ -81,14 +81,17 @@ class IBSched(Agent):
                 )
                 buffer_pkts = (
                     last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
-                    * last_unformatted_obs[0]["slice_req"]["ues"][
-                        "buffer_size"
-                    ]
+                    * last_unformatted_obs[0]["slice_req"][
+                        f"slice_{slice_idx}"
+                    ]["ues"]["buffer_size"]
                     + dropped_pkts_over_interval
                     + pkts_snt_over_interval
                 )
-                metric_value = (
-                    dropped_pkts_over_interval / buffer_pkts
+                metric_value = np.divide(
+                    dropped_pkts_over_interval,
+                    buffer_pkts,
+                    where=buffer_pkts != 0,
+                    out=np.zeros_like(buffer_pkts),
                 )  # Rate [0,1]
             elif metric_name == "latency":
                 metric_value = last_unformatted_obs[0]["buffer_latencies"][
@@ -100,15 +103,19 @@ class IBSched(Agent):
             return metric_value
 
         last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
-        observations = np.zeros_like(last_unformatted_obs[0]["slice_ue_assoc"])
+        observations = np.zeros_like(
+            last_unformatted_obs[0]["slice_ue_assoc"], dtype=float
+        )
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         for slice in last_obs_slice_req:
             if last_obs_slice_req[slice] == {}:
                 continue
-            slice_ues = last_unformatted_obs[0]["slice_ue_assoc"].nonzero()[0]
             slice_idx = int(slice.split("_")[1])
+            slice_ues = last_unformatted_obs[0]["slice_ue_assoc"][
+                slice_idx
+            ].nonzero()[0]
             for parameter in last_obs_slice_req[slice]["parameters"].values():
                 metric_value = get_metric_value(
                     parameter["name"],
@@ -116,9 +123,9 @@ class IBSched(Agent):
                     slice_idx,
                     slice_ues,
                 )
-                intent_fulfillment = int(
-                    parameter["operator"](metric_value, parameter["value"])
-                )
+                intent_fulfillment = parameter["operator"](
+                    metric_value, parameter["value"]
+                ).astype(int)
                 intent_unfulfillment = np.logical_not(intent_fulfillment)
                 match parameter["name"]:
                     case "throughput":
@@ -237,7 +244,7 @@ class IBSched(Agent):
             / np.sum(action["player_0"] + 1)
         )
         assert (
-            np.sum(rbs_per_slice) > self.num_available_rbs[0]
+            np.sum(rbs_per_slice) <= self.num_available_rbs[0]
         ), "Allocated RBs are bigger than available RBs"
         assert isinstance(
             self.env, MARLCommEnv
@@ -275,8 +282,10 @@ class IBSched(Agent):
         rbs_per_slice: np.ndarray,
         slice_ues: np.ndarray,
     ) -> np.ndarray:
-        rbs_per_ue = np.floor(rbs_per_slice[slice_idx] / slice_ues.shape[0])
-        remaining_rbs = rbs_per_slice[slice_idx] % slice_ues.shape[0]
+        rbs_per_ue = np.ones_like(slice_ues, dtype=float) * np.floor(
+            rbs_per_slice[slice_idx] / slice_ues.shape[0]
+        )
+        remaining_rbs = int(rbs_per_slice[slice_idx] % slice_ues.shape[0])
         rbs_per_ue[0:remaining_rbs] += 1
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
@@ -324,8 +333,11 @@ class IBSched(Agent):
             where=snt_thoughput != 0,
             out=0.00001 * np.ones_like(snt_thoughput),
         )
-        rbs_per_ue = np.round(
-            rbs_per_slice[slice_idx] * weights / np.sum(weights)
+        rbs_per_ue = (
+            np.round(rbs_per_slice[slice_idx] * weights / np.sum(weights))
+            if np.sum(weights) != 0
+            else np.floor(rbs_per_slice[slice_idx] / weights.shape[0])
+            * np.ones_like(weights)
         )
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
@@ -369,6 +381,11 @@ class IBSched(Agent):
             rbs_per_slice[slice_idx]
             * throughput_available
             / np.sum(throughput_available)
+            if np.sum(throughput_available) != 0
+            else np.floor(
+                rbs_per_slice[slice_idx] / throughput_available.shape[0]
+            )
+            * np.ones_like(throughput_available)
         )
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
@@ -388,9 +405,11 @@ class IBSched(Agent):
         slice_idx: int,
     ) -> np.ndarray:
         rb_idx = np.sum(rbs_per_slice[:slice_idx], dtype=int)
-        for ue_idx in slice_ues:
-            allocation_rbs[0, ue_idx, rb_idx : rb_idx + rbs_per_ue] = 1
-            rb_idx += rbs_per_ue
+        for idx, ue_idx in enumerate(slice_ues):
+            allocation_rbs[
+                0, ue_idx, rb_idx : rb_idx + int(rbs_per_ue[idx])
+            ] = 1
+            rb_idx += rbs_per_ue[idx]
 
         return allocation_rbs
 
