@@ -47,7 +47,7 @@ class SimpleSliceAssociation(Association):
                     "parameters": {
                         "par1": {
                             "name": "reliability",
-                            "value": 1.00,
+                            "value": 99.00,
                             "unit": "rate",
                             "operator": expectation_params["at_least"],
                         },
