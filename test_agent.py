@@ -38,7 +38,7 @@ marl_comm_env.comm_env.set_agent_functions(
 
 sched_decisions = [
     {
-        "player_0": np.array([0, 0]),
+        "player_0": np.array([-1, -1]),
         "player_1": int(2),
         "player_2": int(2),
     },

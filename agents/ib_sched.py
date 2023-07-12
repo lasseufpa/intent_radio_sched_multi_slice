@@ -238,10 +238,17 @@ class IBSched(Agent):
         )
 
         # Inter-slice scheduling
-        rbs_per_slice = np.round(
-            self.num_available_rbs[0]
-            * (action["player_0"] + 1)
-            / np.sum(action["player_0"] + 1)
+        rbs_per_slice = (
+            np.round(
+                self.num_available_rbs[0]
+                * (action["player_0"] + 1)
+                / np.sum(action["player_0"] + 1)
+            )
+            if np.sum(action["player_0"] + 1) != 0
+            else np.floor(
+                self.num_available_rbs[0] / action["player_0"].shape[0]
+            )
+            * np.ones_like(action["player_0"], dtype=int)
         )
         assert (
             np.sum(rbs_per_slice) <= self.num_available_rbs[0]
