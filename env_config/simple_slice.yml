@@ -8,7 +8,7 @@ basestations:
   basestation_slice_assoc: [[1, 1]]
 slices:
   max_number_slices: 2
-  slice_ue_assoc: [[1, 0], [0, 1]]
+  slice_ue_assoc: [[1, 1, 0, 0], [0, 0, 1, 1]]
   slice_req:
     embb:
       throughput: 10
@@ -17,10 +17,10 @@ slices:
     be:
       long_throughput: 1
 ues:
-  max_number_ues: 2
-  max_buffer_latencies: [10, 10]
-  max_buffer_pkts: [10, 10]
-  pkt_sizes: [1, 1]
+  max_number_ues: 4
+  max_buffer_latencies: [10, 10, 10, 10]
+  max_buffer_pkts: [10, 10, 10, 10]
+  pkt_sizes: [1, 1, 1, 1]
 simulation:
   simu_name: test
   max_number_steps: 10

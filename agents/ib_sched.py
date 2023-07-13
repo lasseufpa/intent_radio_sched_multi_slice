@@ -56,7 +56,9 @@ class IBSched(Agent):
             slice_idx: int,
             slice_ues: np.ndarray,
         ) -> np.ndarray:
-            def calc_metric_interval(metric: str) -> float:
+            def calc_metric_interval(
+                metric: str, slice_ues: np.ndarray
+            ) -> float:
                 return np.sum(
                     [
                         last_unformatted_obs[i][metric][slice_ues]
@@ -74,10 +76,10 @@ class IBSched(Agent):
                 ) / 1e6  # Mbps
             elif metric_name == "reliability":
                 pkts_snt_over_interval = calc_metric_interval(
-                    "pkt_effective_thr"
+                    "pkt_effective_thr", slice_ues
                 )
                 dropped_pkts_over_interval = calc_metric_interval(
-                    "dropped_pkts"
+                    "dropped_pkts", slice_ues
                 )
                 buffer_pkts = (
                     last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
@@ -132,21 +134,21 @@ class IBSched(Agent):
                         100 * (1 - metric_value), parameter["value"]
                     ).astype(int)
                 )
-                intent_unfulfillment = np.logical_not(
-                    intent_fulfillment
-                ).nonzero()[0]
-                intent_fulfillment = intent_fulfillment.nonzero()[0]
+                intent_unfulfillment = np.logical_not(intent_fulfillment)
                 match parameter["name"]:
                     case "throughput":
                         # Intent fulfillment
                         if np.sum(intent_fulfillment) > 0:
-                            overfulfilled_mask = (
+                            overfulfilled_mask = intent_fulfillment * (
                                 metric_value
-                                > parameter["value"]
-                                * self.intent_overfulfillment_rate
+                                > (
+                                    parameter["value"]
+                                    * (1 + self.intent_overfulfillment_rate)
+                                )
                             )
-                            fulfilled_mask = np.logical_not(
-                                overfulfilled_mask
+                            fulfilled_mask = (
+                                intent_fulfillment
+                                * np.logical_not(overfulfilled_mask)
                             ).nonzero()[0]
                             overfulfilled_mask = overfulfilled_mask.nonzero()[
                                 0
@@ -164,22 +166,32 @@ class IBSched(Agent):
 
                         # Intent unfulfillment
                         if np.sum(intent_unfulfillment) > 0:
-                            observations[slice_idx, intent_unfulfillment] -= (
+                            observations[
+                                slice_idx, intent_unfulfillment.nonzero()[0]
+                            ] -= (
                                 parameter["value"]
-                                - metric_value[intent_unfulfillment]
-                            ) / (parameter["value"])
+                                - metric_value[
+                                    intent_unfulfillment.nonzero()[0]
+                                ]
+                            ) / (
+                                parameter["value"]
+                            )
 
                     case "reliability":
                         # Intent fulfillment
                         if np.sum(intent_fulfillment) > 0:
-                            overfulfilled_mask = (
+                            overfulfilled_mask = intent_fulfillment * (
                                 metric_value
-                                > ((100 - parameter["value"]) / 100)
-                                * self.intent_overfulfillment_rate
+                                < (
+                                    ((100 - parameter["value"]) / 100)
+                                    * (1 - self.intent_overfulfillment_rate)
+                                )
                             )
-                            fulfilled_mask = np.logical_not(
-                                overfulfilled_mask
+                            fulfilled_mask = (
+                                intent_fulfillment
+                                * np.logical_not(overfulfilled_mask)
                             ).nonzero()[0]
+
                             overfulfilled_mask = overfulfilled_mask.nonzero()[
                                 0
                             ]
@@ -196,10 +208,14 @@ class IBSched(Agent):
 
                         # Intent unfulfillment
                         if np.sum(intent_unfulfillment) > 0:
-                            observations[slice_idx, intent_unfulfillment] += (
-                                metric_value[intent_unfulfillment]
-                                - (100 - parameter["value"])
-                            ) / parameter["value"]
+                            observations[
+                                slice_idx, intent_unfulfillment.nonzero()[0]
+                            ] -= (
+                                metric_value[intent_unfulfillment.nonzero()[0]]
+                                - ((100 - parameter["value"]) / 100)
+                            ) / (
+                                parameter["value"] / 100
+                            )
 
                     case "latency":
                         max_latency_per_ue = (
@@ -209,33 +225,43 @@ class IBSched(Agent):
                         )
                         # Intent fulfillment
                         if np.sum(intent_fulfillment) > 0:
-                            overfulfilled_mask = (
+                            overfulfilled_mask = intent_fulfillment * (
                                 metric_value
-                                > parameter["value"]
-                                * self.intent_overfulfillment_rate
-                            )
-                            fulfilled_mask = np.logical_not(overfulfilled_mask)
-                            observations[
-                                slice_idx, 0 : slice_ues.shape[0]
-                            ] += intent_fulfillment * (
-                                (parameter["value"] - metric_value)
-                                / (
+                                < (
                                     parameter["value"]
-                                    * self.intent_overfulfillment_rate
+                                    * (1 - self.intent_overfulfillment_rate)
                                 )
-                                if metric_value
-                                > parameter["value"]
-                                * self.intent_overfulfillment_rate
-                                else np.ones_like(metric_value)
                             )
+                            fulfilled_mask = (
+                                intent_fulfillment
+                                * np.logical_not(overfulfilled_mask)
+                            ).nonzero()[0]
+                            overfulfilled_mask = (
+                                intent_fulfillment * overfulfilled_mask
+                            ).nonzero()[0]
+                            # Fulfilled intent
+                            observations[slice_idx, fulfilled_mask] += (
+                                parameter["value"]
+                                - metric_value[fulfilled_mask]
+                            ) / (
+                                parameter["value"]
+                                * self.intent_overfulfillment_rate
+                            )
+                            # Overfulfilled intent
+                            observations[slice_idx, overfulfilled_mask] += 1
 
-                        # Intent fulfillment
+                        # Intent unfulfillment
                         if np.sum(intent_unfulfillment) > 0:
                             observations[
-                                slice_idx, 0 : slice_ues.shape[0]
-                            ] += intent_unfulfillment * (
-                                (metric_value - parameter["value"])
-                                / max_latency_per_ue
+                                slice_idx, intent_unfulfillment.nonzero()[0]
+                            ] -= (
+                                metric_value[intent_unfulfillment.nonzero()[0]]
+                                - parameter["value"]
+                            ) / (
+                                max_latency_per_ue[
+                                    intent_unfulfillment.nonzero()[0]
+                                ]
+                                - parameter["value"]
                             )
 
                     case _:

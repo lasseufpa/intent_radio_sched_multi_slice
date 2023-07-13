@@ -59,7 +59,7 @@ class SimpleSliceAssociation(Association):
                         },
                         "par3": {
                             "name": "throughput",
-                            "value": 0,
+                            "value": 1,
                             "unit": "Mbps",
                             "operator": expectation_params["at_least"],
                         },
