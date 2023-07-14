@@ -445,7 +445,7 @@ class IBSched(Agent):
             else np.floor(
                 rbs_per_slice[slice_idx] / throughput_available.shape[0]
             )
-            * np.ones_like(throughput_available)
+            * np.ones_like(throughput_available),
         )
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
@@ -467,9 +467,9 @@ class IBSched(Agent):
         rb_idx = np.sum(rbs_per_slice[:slice_idx], dtype=int)
         for idx, ue_idx in enumerate(slice_ues):
             allocation_rbs[
-                0, ue_idx, rb_idx : rb_idx + int(rbs_per_ue[idx])
+                0, ue_idx, rb_idx : rb_idx + rbs_per_ue[idx].astype(int)
             ] = 1
-            rb_idx += rbs_per_ue[idx]
+            rb_idx += rbs_per_ue[idx].astype(int)
 
         return allocation_rbs
 

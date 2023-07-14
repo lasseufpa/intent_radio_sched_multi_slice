@@ -48,11 +48,17 @@ sched_decisions = [
         "player_2": int(0),
     },
 ]
-
+reward_hist = {
+    "player_0": [],
+    "player_1": [],
+    "player_2": [],
+}
 marl_comm_env.reset(seed=seed)
 for agent in marl_comm_env.agent_iter():
     obs, reward, termination, truncation, info = marl_comm_env.last()
+    reward_hist[agent].append(reward)
     if termination:
         break
     sched_decision = sched_decisions[0][agent]
     marl_comm_env.step(sched_decision)
+print(reward_hist)
