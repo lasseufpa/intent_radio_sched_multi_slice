@@ -26,6 +26,7 @@ fsspec = "*"
 ray = {extras = ["tune"], version = "*"}
 gputil = "*"
 h5py = "*"
+iteround = "*"
 
 [dev-packages]
 

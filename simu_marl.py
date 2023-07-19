@@ -1,10 +1,9 @@
 import numpy as np
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.env import PettingZooEnv
+from ray.rllib.policy.policy import PolicySpec
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
-from ray.rllib.policy.policy import PolicySpec
-from pettingzoo.test import api_test
 
 from agents.ib_sched import IBSched
 from associations.mult_slice import MultSliceAssociation
@@ -46,7 +45,6 @@ marl_comm_env.comm_env.set_agent_functions(
     marl_test_agent.action_format,
     marl_test_agent.calculate_reward,
 )
-api_test(marl_comm_env, num_cycles=1000, verbose_progress=False)
 
 # Ray RLlib
 register_env("marl_comm_env", lambda config: PettingZooEnv(marl_comm_env))

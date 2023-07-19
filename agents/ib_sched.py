@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
+from iteround import saferound
 
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
@@ -22,6 +23,7 @@ class IBSched(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         max_obs_memory = 10
+        self.max_number_ues_slice = 10
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
@@ -105,8 +107,12 @@ class IBSched(Agent):
             return metric_value
 
         last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
-        observations = np.zeros_like(
-            last_unformatted_obs[0]["slice_ue_assoc"], dtype=float
+        observations = np.zeros(
+            (
+                last_unformatted_obs[0]["slice_ue_assoc"].shape[0],
+                self.max_number_ues_slice,
+            ),
+            dtype=float,
         )
         assert isinstance(
             self.env, MARLCommEnv
@@ -292,10 +298,13 @@ class IBSched(Agent):
 
         # Inter-slice scheduling
         rbs_per_slice = (
-            np.round(
-                self.num_available_rbs[0]
-                * (action["player_0"] + 1)
-                / np.sum(action["player_0"] + 1)
+            np.array(
+                saferound(
+                    self.num_available_rbs[0]
+                    * (action["player_0"] + 1)
+                    / np.sum(action["player_0"] + 1),
+                    0,
+                )
             )
             if np.sum(action["player_0"] + 1) != 0
             else np.floor(
@@ -304,7 +313,7 @@ class IBSched(Agent):
             * np.ones_like(action["player_0"], dtype=int)
         )
         assert (
-            np.sum(rbs_per_slice) <= self.num_available_rbs[0]
+            np.sum(rbs_per_slice) == self.num_available_rbs[0]
         ), "Allocated RBs are bigger than available RBs"
         assert isinstance(
             self.env, MARLCommEnv
@@ -341,6 +350,7 @@ class IBSched(Agent):
         slice_idx: int,
         rbs_per_slice: np.ndarray,
         slice_ues: np.ndarray,
+        distribute_rbs: bool = True,
     ) -> np.ndarray:
         rbs_per_ue = np.ones_like(slice_ues, dtype=float) * np.floor(
             rbs_per_slice[slice_idx] / slice_ues.shape[0]
@@ -350,11 +360,15 @@ class IBSched(Agent):
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
         ), "RR: Number of allocated RBs is different than available RBs"
-        allocation_rbs = self.distribute_rbs_ues(
-            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
-        )
 
-        return allocation_rbs
+        if distribute_rbs:
+            allocation_rbs = self.distribute_rbs_ues(
+                rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
+            )
+
+            return allocation_rbs
+        else:
+            return rbs_per_ue
 
     def proportional_fairness(
         self,
@@ -394,11 +408,21 @@ class IBSched(Agent):
             out=0.00001 * np.ones_like(snt_thoughput),
         )
         rbs_per_ue = (
-            np.round(rbs_per_slice[slice_idx] * weights / np.sum(weights))
+            np.array(
+                saferound(
+                    rbs_per_slice[slice_idx] * weights / np.sum(weights), 0
+                )
+            )
             if np.sum(weights) != 0
-            else np.floor(rbs_per_slice[slice_idx] / weights.shape[0])
-            * np.ones_like(weights)
+            else self.round_robin(
+                allocation_rbs=np.array([]),
+                slice_idx=slice_idx,
+                rbs_per_slice=rbs_per_slice,
+                slice_ues=slice_ues,
+                distribute_rbs=False,
+            )
         )
+
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
         ), "PF: Number of allocated RBs is different than available RBs"
@@ -437,15 +461,23 @@ class IBSched(Agent):
             ],
             axis=0,
         )
-        rbs_per_ue = np.round(
-            rbs_per_slice[slice_idx]
-            * throughput_available
-            / np.sum(throughput_available)
-            if np.sum(throughput_available) != 0
-            else np.floor(
-                rbs_per_slice[slice_idx] / throughput_available.shape[0]
+        rbs_per_ue = (
+            np.array(
+                saferound(
+                    rbs_per_slice[slice_idx]
+                    * throughput_available
+                    / np.sum(throughput_available),
+                    0,
+                )
             )
-            * np.ones_like(throughput_available),
+            if np.sum(throughput_available) != 0
+            else self.round_robin(
+                allocation_rbs=np.array([]),
+                slice_idx=slice_idx,
+                rbs_per_slice=rbs_per_slice,
+                slice_ues=slice_ues,
+                distribute_rbs=False,
+            )
         )
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
