@@ -477,7 +477,9 @@ class IBSched(Agent):
     def get_action_space() -> dict:
         num_agents = 11
         action_space = {
-            f"player_{idx}": spaces.Box(low=-1, high=1, shape=(10,))
+            f"player_{idx}": spaces.Box(
+                low=-1, high=1, shape=(10,), dtype=np.float64
+            )
             if idx == 0
             else spaces.Discrete(
                 3
@@ -491,7 +493,9 @@ class IBSched(Agent):
     def get_obs_space() -> dict:
         num_agents = 11
         obs_space = {
-            f"player_{idx}": spaces.Box(low=-1, high=1, shape=(10,))
+            f"player_{idx}": spaces.Box(
+                low=-1, high=1, shape=(10,), dtype=np.float64
+            )
             for idx in range(num_agents)
         }
 
