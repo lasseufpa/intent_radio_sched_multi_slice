@@ -49,30 +49,32 @@ register_env(
 )
 
 
-# def policy_mapping_fn(agent_id, episode, worker, **kwargs):
-#     agent_idx = int(agent_id[-1])
+def policy_mapping_fn(agent_id, episode, worker, **kwargs):
+    agent_idx = int(agent_id.partition("_")[2])
 
-#     return "inte_slice_sched" if agent_idx == 0 else "intra_slice_sched"
+    return "inte_slice_sched" if agent_idx == 0 else "intra_slice_sched"
 
 
-# config = {
-#     "multiagent": {
-#         "policies": {
-#             "inte_slice_sched": PolicySpec(),
-#             "intra_slice_sched": PolicySpec(),
-#         },
-#         "policy_mapping_fn": policy_mapping_fn,
-#     },
-# }
-# algo_config = (
-#     PPOConfig()
-#     .environment("marl_comm_env")
-#     .multi_agent(
-#         policies=config["multiagent"]["policies"],
-#         policy_mapping_fn=config["multiagent"]["policy_mapping_fn"],
-#     )
-# )
-# algo = algo_config.build()
+config = {
+    "multiagent": {
+        "policies": {
+            "inte_slice_sched": PolicySpec(),
+            "intra_slice_sched": PolicySpec(),
+        },
+        "policy_mapping_fn": policy_mapping_fn,
+    },
+}
+algo_config = (
+    PPOConfig()
+    .environment("marl_comm_env")
+    .multi_agent(
+        policies=config["multiagent"]["policies"],
+        policy_mapping_fn=config["multiagent"]["policy_mapping_fn"],
+    )
+    .framework("torch")
+    .rollouts(num_rollout_workers=0)
+)
+algo = algo_config.build()
 
 # # Training
 # total_train_steps = 1
