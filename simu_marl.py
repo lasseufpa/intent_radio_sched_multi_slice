@@ -4,6 +4,7 @@ from ray.rllib.env import PettingZooEnv
 from ray.rllib.policy.policy import PolicySpec
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
+from ray.util import inspect_serializability
 
 from agents.ib_sched import IBSched
 from associations.mult_slice import MultSliceAssociation
@@ -12,42 +13,40 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-# Remove after
-# from agents.marl_test import MARLTest
-# from associations.simple import SimpleAssociation
-# from channels.simple import SimpleChannel
-# from mobilities.simple import SimpleMobility
-# from sixg_radio_mgmt import MARLCommEnv
-# from traffics.simple import SimpleTraffic
 
-seed = 10
+def env_creator(env_config):
+    seed = 10
+    marl_comm_env = MARLCommEnv(
+        QuadrigaChannel,
+        MultSliceTraffic,
+        SimpleMobility,
+        MultSliceAssociation,
+        "mult_slice",
+        "ib_sched",
+        seed,
+        obs_space=IBSched.get_obs_space,
+        action_space=IBSched.get_action_space,
+        number_agents=11,
+    )
+    marl_test_agent = IBSched(
+        marl_comm_env,
+        marl_comm_env.comm_env.max_number_ues,
+        marl_comm_env.comm_env.max_number_basestations,
+        marl_comm_env.comm_env.num_available_rbs,
+    )
+    marl_comm_env.comm_env.set_agent_functions(
+        marl_test_agent.obs_space_format,
+        marl_test_agent.action_format,
+        marl_test_agent.calculate_reward,
+    )
 
-marl_comm_env = MARLCommEnv(
-    QuadrigaChannel,
-    MultSliceTraffic,
-    SimpleMobility,
-    MultSliceAssociation,
-    "mult_slice",
-    "ib_sched",
-    seed,
-    obs_space=IBSched.get_obs_space,
-    action_space=IBSched.get_action_space,
-    number_agents=11,
-)
-marl_test_agent = IBSched(
-    marl_comm_env,
-    marl_comm_env.comm_env.max_number_ues,
-    marl_comm_env.comm_env.max_number_basestations,
-    marl_comm_env.comm_env.num_available_rbs,
-)
-marl_comm_env.comm_env.set_agent_functions(
-    marl_test_agent.obs_space_format,
-    marl_test_agent.action_format,
-    marl_test_agent.calculate_reward,
-)
+    return marl_comm_env
+
 
 # Ray RLlib
-register_env("marl_comm_env", lambda config: PettingZooEnv(marl_comm_env))
+register_env(
+    "marl_comm_env", lambda config: PettingZooEnv(env_creator(config))
+)
 
 
 # def policy_mapping_fn(agent_id, episode, worker, **kwargs):
