@@ -28,9 +28,7 @@ class IBSched(Agent):
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
 
-    def step(
-        self, agent: str, obs_space: Optional[Union[np.ndarray, dict]]
-    ) -> np.ndarray:
+    def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
@@ -506,29 +504,33 @@ class IBSched(Agent):
         return allocation_rbs
 
     @staticmethod
-    def get_action_space() -> dict:
+    def get_action_space() -> spaces.Dict:
         num_agents = 11
-        action_space = {
-            f"player_{idx}": spaces.Box(
-                low=-1, high=1, shape=(10,), dtype=np.float64
-            )
-            if idx == 0
-            else spaces.Discrete(
-                3
-            )  # Three algorithms (RR, PF and Maximum Throughput)
-            for idx in range(num_agents)
-        }
+        action_space = spaces.Dict(
+            {
+                f"player_{idx}": spaces.Box(
+                    low=-1, high=1, shape=(10,), dtype=np.float64
+                )
+                if idx == 0
+                else spaces.Discrete(
+                    3
+                )  # Three algorithms (RR, PF and Maximum Throughput)
+                for idx in range(num_agents)
+            }
+        )
 
         return action_space
 
     @staticmethod
-    def get_obs_space() -> dict:
+    def get_obs_space() -> spaces.Dict:
         num_agents = 11
-        obs_space = {
-            f"player_{idx}": spaces.Box(
-                low=-1, high=1, shape=(10,), dtype=np.float64
-            )
-            for idx in range(num_agents)
-        }
+        obs_space = spaces.Dict(
+            {
+                f"player_{idx}": spaces.Box(
+                    low=-1, high=1, shape=(10,), dtype=np.float64
+                )
+                for idx in range(num_agents)
+            }
+        )
 
         return obs_space

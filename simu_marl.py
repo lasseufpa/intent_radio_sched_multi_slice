@@ -44,9 +44,7 @@ def env_creator(env_config):
 
 
 # Ray RLlib
-register_env(
-    "marl_comm_env", lambda config: PettingZooEnv(env_creator(config))
-)
+register_env("marl_comm_env", lambda config: env_creator(config))
 
 
 def policy_mapping_fn(agent_id, episode, worker, **kwargs):
@@ -58,8 +56,8 @@ def policy_mapping_fn(agent_id, episode, worker, **kwargs):
 config = {
     "multiagent": {
         "policies": {
-            "inte_slice_sched": PolicySpec(),
-            "intra_slice_sched": PolicySpec(),
+            "inte_slice_sched",
+            "intra_slice_sched",
         },
         "policy_mapping_fn": policy_mapping_fn,
     },
@@ -76,17 +74,22 @@ algo_config = (
 )
 algo = algo_config.build()
 
-# # Training
-# total_train_steps = 1
-# for _ in range(total_train_steps):
-#     result = algo.train()
-#     print(pretty_print(result))
+# Training
+total_train_steps = 1
+for _ in range(total_train_steps):
+    result = algo.train()
+    print(pretty_print(result))
 
-# # Testing
-# marl_comm_env.reset(seed=seed)
-# for agent in marl_comm_env.agent_iter():
-#     obs, reward, termination, truncation, info = marl_comm_env.last()
-#     if termination:
-#         break
-#     sched_decision = np.array(algo.compute_single_action(obs))
-#     marl_comm_env.step(sched_decision)
+# Testing
+marl_comm_env = env_creator({})
+seed = 10
+total_test_steps = 10
+obs, _ = marl_comm_env.reset(seed=seed)
+for step in np.arange(total_test_steps):
+    obs = marl_comm_env.observation_space.sample()
+    sched_decision = algo.compute_actions(obs)
+    obs, reward, terminated, truncated, info = marl_comm_env.step(
+        sched_decision
+    )
+    if terminated["__all__"]:
+        break

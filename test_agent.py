@@ -20,6 +20,8 @@ marl_comm_env = MARLCommEnv(
     "simple_slice",
     "test_agent_ib",
     seed,
+    obs_space=IBSched.get_obs_space,
+    action_space=IBSched.get_action_space,
     number_agents=number_agents,
 )
 
@@ -48,17 +50,16 @@ sched_decisions = [
         "player_2": int(0),
     },
 ]
-reward_hist = {
-    "player_0": [],
-    "player_1": [],
-    "player_2": [],
-}
-marl_comm_env.reset(seed=seed)
-for agent in marl_comm_env.agent_iter():
-    obs, reward, termination, truncation, info = marl_comm_env.last()
-    reward_hist[agent].append(reward)
-    if termination:
+reward_hist = []
+
+number_steps = 10
+obs, _ = marl_comm_env.reset(seed=seed)
+for step in np.arange(number_steps):
+    obs, reward, terminated, truncated, info = marl_comm_env.step(
+        sched_decisions[0]
+    )
+    reward_hist.append(reward)
+    if terminated["__all__"]:
         break
-    sched_decision = sched_decisions[0][agent]
-    marl_comm_env.step(sched_decision)
+
 print(reward_hist)
