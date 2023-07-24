@@ -5,6 +5,7 @@ from ray.rllib.policy.policy import PolicySpec
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
 from ray.util import inspect_serializability
+from tqdm import tqdm
 
 from agents.ib_sched import IBSched
 from associations.mult_slice import MultSliceAssociation
@@ -47,16 +48,16 @@ def env_creator(env_config):
 register_env("marl_comm_env", lambda config: env_creator(config))
 
 
-def policy_mapping_fn(agent_id, episode, worker, **kwargs):
+def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
     agent_idx = int(agent_id.partition("_")[2])
 
-    return "inte_slice_sched" if agent_idx == 0 else "intra_slice_sched"
+    return "inter_slice_sched" if agent_idx == 0 else "intra_slice_sched"
 
 
 config = {
     "multiagent": {
         "policies": {
-            "inte_slice_sched",
+            "inter_slice_sched",
             "intra_slice_sched",
         },
         "policy_mapping_fn": policy_mapping_fn,
@@ -70,7 +71,7 @@ algo_config = (
         policy_mapping_fn=config["multiagent"]["policy_mapping_fn"],
     )
     .framework("torch")
-    .rollouts(num_rollout_workers=0)
+    .rollouts(num_rollout_workers=0, enable_connectors=False)
 )
 algo = algo_config.build()
 
@@ -83,13 +84,14 @@ for _ in range(total_train_steps):
 # Testing
 marl_comm_env = env_creator({})
 seed = 10
-total_test_steps = 10
+total_test_steps = 10000
 obs, _ = marl_comm_env.reset(seed=seed)
-for step in np.arange(total_test_steps):
-    obs = marl_comm_env.observation_space.sample()
-    sched_decision = algo.compute_actions(obs)
-    obs, reward, terminated, truncated, info = marl_comm_env.step(
-        sched_decision
-    )
-    if terminated["__all__"]:
-        break
+for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
+    action = {}
+    assert isinstance(obs, dict), "Observation must be a dict"
+    for agent_id, agent_obs in obs.items():
+        policy_id = config["multiagent"]["policy_mapping_fn"](agent_id)
+        action[agent_id] = algo.compute_single_action(
+            agent_obs, policy_id=policy_id
+        )
+    obs, reward, terminated, truncated, info = marl_comm_env.step(action)
