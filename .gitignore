@@ -15,6 +15,9 @@ hist/*
 # Associations data
 associations/data/
 
+# Ray results
+ray_results/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

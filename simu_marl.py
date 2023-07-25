@@ -1,4 +1,7 @@
+from os import getcwd
+
 import numpy as np
+from ray import air, tune
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.env import PettingZooEnv
 from ray.rllib.policy.policy import PolicySpec
@@ -26,6 +29,7 @@ def env_creator(env_config):
         env_config["seed"],
         obs_space=env_config["agent_class"].get_obs_space,
         action_space=env_config["agent_class"].get_action_space,
+        config_file_root_path=env_config["config_file_root_path"],
         number_agents=env_config["number_agents"],
     )
     marl_test_agent = env_config["agent_class"](
@@ -62,6 +66,7 @@ env_config = {
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
     "agent": "ib_sched",
+    "config_file_root_path": str(getcwd()),
     "number_agents": 11,
 }
 
@@ -71,19 +76,30 @@ algo_config = (
     .multi_agent(
         policies={"inter_slice_sched", "intra_slice_sched"},
         policy_mapping_fn=policy_mapping_fn,
+        count_steps_by="env_steps",
     )
     .framework("torch")
-    .rollouts(num_rollout_workers=0, enable_connectors=False)
+    .rollouts(
+        num_rollout_workers=0,
+        enable_connectors=False,
+        batch_mode="complete_episodes",
+    )
 )
-algo = algo_config.build()
 
 # Training
-total_train_steps = 1
-for _ in range(total_train_steps):
-    result = algo.train()
-    print(pretty_print(result))
+stop = {
+    "training_iteration": 2,
+}
+results = tune.Tuner(
+    "PPO",
+    param_space=algo_config.to_dict(),
+    run_config=air.RunConfig(
+        storage_path="./ray_results/", stop=stop, verbose=2
+    ),
+).fit()
 
 # Testing
+algo = algo_config.build()
 marl_comm_env = env_creator(env_config)
 seed = 10
 total_test_steps = 10000
