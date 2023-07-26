@@ -82,7 +82,6 @@ algo_config = (
     .rollouts(
         num_rollout_workers=0,
         enable_connectors=False,
-        batch_mode="complete_episodes",
         num_envs_per_worker=1,
     )
 )
