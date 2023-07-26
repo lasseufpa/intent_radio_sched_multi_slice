@@ -13,15 +13,18 @@ class QuadrigaChannel(Channel):
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         rng: np.random.Generator = np.random.default_rng(),
+        root_path: str = "",
     ) -> None:
         super().__init__(
-            max_number_ues, max_number_basestations, num_available_rbs, rng
+            max_number_ues,
+            max_number_basestations,
+            num_available_rbs,
+            rng,
+            root_path,
         )
         self.current_episode_number = -1
         self.file = None
-        self.channels_path = (
-            "../mult_slice_channel_generation/results/freq_channel/"
-        )
+        self.channels_path = f"{self.root_path}/../mult_slice_channel_generation/results/freq_channel/"
         self.spectral_efficiencies = np.array([])
         self.transmission_power = 100  # Watts
         self.thermal_noise_power = 10e-14

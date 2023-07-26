@@ -29,7 +29,7 @@ def env_creator(env_config):
         env_config["seed"],
         obs_space=env_config["agent_class"].get_obs_space,
         action_space=env_config["agent_class"].get_action_space,
-        config_file_root_path=env_config["config_file_root_path"],
+        root_path=env_config["root_path"],
         number_agents=env_config["number_agents"],
     )
     marl_test_agent = env_config["agent_class"](
@@ -66,7 +66,7 @@ env_config = {
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
     "agent": "ib_sched",
-    "config_file_root_path": str(getcwd()),
+    "root_path": str(getcwd()),
     "number_agents": 11,
 }
 
@@ -83,12 +83,13 @@ algo_config = (
         num_rollout_workers=0,
         enable_connectors=False,
         batch_mode="complete_episodes",
+        num_envs_per_worker=1,
     )
 )
 
 # Training
 stop = {
-    "training_iteration": 2,
+    "episodes_total": 1,
 }
 results = tune.Tuner(
     "PPO",
@@ -99,17 +100,17 @@ results = tune.Tuner(
 ).fit()
 
 # Testing
-algo = algo_config.build()
-marl_comm_env = env_creator(env_config)
-seed = 10
-total_test_steps = 10000
-obs, _ = marl_comm_env.reset(seed=seed)
-for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
-    action = {}
-    assert isinstance(obs, dict), "Observation must be a dict"
-    for agent_id, agent_obs in obs.items():
-        policy_id = policy_mapping_fn(agent_id)
-        action[agent_id] = algo.compute_single_action(
-            agent_obs, policy_id=policy_id
-        )
-    obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+# algo = algo_config.build()
+# marl_comm_env = env_creator(env_config)
+# seed = 10
+# total_test_steps = 10000
+# obs, _ = marl_comm_env.reset(seed=seed)
+# for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
+#     action = {}
+#     assert isinstance(obs, dict), "Observation must be a dict"
+#     for agent_id, agent_obs in obs.items():
+#         policy_id = policy_mapping_fn(agent_id)
+#         action[agent_id] = algo.compute_single_action(
+#             agent_obs, policy_id=policy_id
+#         )
+#     obs, reward, terminated, truncated, info = marl_comm_env.step(action)

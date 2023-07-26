@@ -13,6 +13,7 @@ class MultSliceAssociation(Association):
         max_number_basestations: int,
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
+        root_path: str = ".",
     ) -> None:
         super().__init__(
             ues,
@@ -20,6 +21,7 @@ class MultSliceAssociation(Association):
             max_number_basestations,
             max_number_slices,
             rng,
+            root_path,
         )
         self.max_steps = 2000
         self.min_steps = 500
@@ -537,7 +539,7 @@ class MultSliceAssociation(Association):
 
     def load_episode_data(self, episode_number: int):
         self.association_file = np.load(
-            f"associations/data/{self.scenario_name}/ep_{episode_number}.npz",
+            f"{self.root_path}/associations/data/{self.scenario_name}/ep_{episode_number}.npz",
             allow_pickle=True,
             mmap_mode=None,
         )

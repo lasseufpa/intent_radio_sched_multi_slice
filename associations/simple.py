@@ -13,6 +13,7 @@ class SimpleAssociation(Association):
         max_number_basestations: int,
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
+        root_path: str = "",
     ) -> None:
         super().__init__(
             ues,
@@ -20,6 +21,7 @@ class SimpleAssociation(Association):
             max_number_basestations,
             max_number_slices,
             rng,
+            root_path,
         )
 
     def step(
