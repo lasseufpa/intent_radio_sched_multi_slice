@@ -19,7 +19,7 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = "./ray_results/PPO"
-training_flag = False  # False for reading from checkpoint
+training_flag = True  # False for reading from checkpoint
 
 
 def env_creator(env_config):
@@ -78,7 +78,12 @@ env_config = {
 if training_flag:
     algo_config = (
         PPOConfig()
-        .environment(env="marl_comm_env", env_config=env_config)
+        .environment(
+            env="marl_comm_env",
+            env_config=env_config,
+            normalize_actions=False,
+            is_atari=False,
+        )
         .multi_agent(
             policies={"inter_slice_sched", "intra_slice_sched"},
             policy_mapping_fn=policy_mapping_fn,
