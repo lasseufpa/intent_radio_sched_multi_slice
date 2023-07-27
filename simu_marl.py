@@ -36,16 +36,16 @@ def env_creator(env_config):
         root_path=env_config["root_path"],
         number_agents=env_config["number_agents"],
     )
-    marl_test_agent = env_config["agent_class"](
+    agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
     )
     marl_comm_env.comm_env.set_agent_functions(
-        marl_test_agent.obs_space_format,
-        marl_test_agent.action_format,
-        marl_test_agent.calculate_reward,
+        agent.obs_space_format,
+        agent.action_format,
+        agent.calculate_reward,
     )
 
     return marl_comm_env
