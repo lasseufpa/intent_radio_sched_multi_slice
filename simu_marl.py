@@ -2,6 +2,7 @@ from os import getcwd
 
 import numpy as np
 from ray import air, tune
+from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.env import PettingZooEnv
 from ray.rllib.policy.policy import PolicySpec
@@ -16,6 +17,9 @@ from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
+
+read_checkpoint = "./ray_results/PPO"
+training_flag = False  # False for reading from checkpoint
 
 
 def env_creator(env_config):
@@ -70,46 +74,59 @@ env_config = {
     "number_agents": 11,
 }
 
-algo_config = (
-    PPOConfig()
-    .environment(env="marl_comm_env", env_config=env_config)
-    .multi_agent(
-        policies={"inter_slice_sched", "intra_slice_sched"},
-        policy_mapping_fn=policy_mapping_fn,
-        count_steps_by="env_steps",
-    )
-    .framework("torch")
-    .rollouts(
-        num_rollout_workers=0,
-        enable_connectors=False,
-        num_envs_per_worker=1,
-    )
-)
-
 # Training
-stop = {
-    "episodes_total": 1,
-}
-results = tune.Tuner(
-    "PPO",
-    param_space=algo_config.to_dict(),
-    run_config=air.RunConfig(
-        storage_path="./ray_results/", stop=stop, verbose=2
-    ),
-).fit()
+if training_flag:
+    algo_config = (
+        PPOConfig()
+        .environment(env="marl_comm_env", env_config=env_config)
+        .multi_agent(
+            policies={"inter_slice_sched", "intra_slice_sched"},
+            policy_mapping_fn=policy_mapping_fn,
+            count_steps_by="env_steps",
+        )
+        .framework("torch")
+        .rollouts(
+            num_rollout_workers=0,
+            enable_connectors=False,
+            num_envs_per_worker=1,
+        )
+    )
+    stop = {
+        "episodes_total": 1,
+    }
+    results = tune.Tuner(
+        "PPO",
+        param_space=algo_config.to_dict(),
+        run_config=air.RunConfig(
+            storage_path="./ray_results/",
+            stop=stop,
+            verbose=2,
+            checkpoint_config=air.CheckpointConfig(
+                num_to_keep=10,
+                checkpoint_frequency=1,
+                checkpoint_at_end=True,
+            ),
+        ),
+    ).fit()
 
 # Testing
-# algo = algo_config.build()
-# marl_comm_env = env_creator(env_config)
-# seed = 10
-# total_test_steps = 10000
-# obs, _ = marl_comm_env.reset(seed=seed)
-# for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
-#     action = {}
-#     assert isinstance(obs, dict), "Observation must be a dict"
-#     for agent_id, agent_obs in obs.items():
-#         policy_id = policy_mapping_fn(agent_id)
-#         action[agent_id] = algo.compute_single_action(
-#             agent_obs, policy_id=policy_id
-#         )
-#     obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+analysis = tune.ExperimentAnalysis(read_checkpoint)
+assert analysis.trials is not None, "Analysis trial is None"
+best_checkpoint = analysis.get_best_checkpoint(
+    analysis.trials[0], "episode_reward_mean", "max"
+)
+assert best_checkpoint is not None, "Best checkpoint is None"
+algo = Algorithm.from_checkpoint(best_checkpoint)
+marl_comm_env = env_creator(env_config)
+seed = 10
+total_test_steps = 10000
+obs, _ = marl_comm_env.reset(seed=seed)
+for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
+    action = {}
+    assert isinstance(obs, dict), "Observation must be a dict"
+    for agent_id, agent_obs in obs.items():
+        policy_id = policy_mapping_fn(agent_id)
+        action[agent_id] = algo.compute_single_action(
+            agent_obs, policy_id=policy_id
+        )
+    obs, reward, terminated, truncated, info = marl_comm_env.step(action)
