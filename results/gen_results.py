@@ -123,14 +123,22 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Number of UEs"
             case "reward":
-                plt.plot(data_metrics[metric], label=f"{agent}")
+                plt.plot(data_metrics[metric]["player_0"], label=f"{agent}")
                 xlabel = "Step (n)"
-                ylabel = "Reward"
+                ylabel = "Reward (inter-slice agent)"
                 break
             case "reward_cumsum":
-                plt.plot(np.cumsum(data_metrics["reward"]), label=f"{agent}")
+                plt.plot(
+                    np.cumsum(
+                        [
+                            data_metrics["reward"][idx]["player_0"]
+                            for idx in range(data_metrics["reward"].shape[0])
+                        ]
+                    ),
+                    label=f"{agent}",
+                )
                 xlabel = "Step (n)"
-                ylabel = "Cumulative reward"
+                ylabel = "Cumulative reward  (inter-slice agent)"
                 break
             case "total_network_throughput":
                 total_throughput = calc_total_throughput(
@@ -336,7 +344,7 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 
 
 scenario_names = ["mult_slice"]
-agent_names = ["round_robin"]  # , "ssr"]
+agent_names = ["round_robin", "ib_sched"]
 # metrics = [
 #     "pkt_incoming",
 #     "pkt_effective_thr",
@@ -353,7 +361,7 @@ agent_names = ["round_robin"]  # , "ssr"]
 #     "total_network_requested_throughput",
 #     "spectral_efficiencies",
 # ]
-metrics = ["spectral_efficiencies"]
+metrics = ["reward_cumsum"]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 
