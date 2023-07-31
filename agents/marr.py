@@ -35,6 +35,7 @@ class MARR(Agent):
             for idx in np.arange(slice_ue_assoc.shape[0] + 1)
         }
         action["player_0"] = (np.sum(slice_ue_assoc, axis=1) > 0).astype(int)
+        action["player_0"][action["player_0"] == 0] = -1
 
         return action
 
@@ -300,44 +301,56 @@ class MARR(Agent):
                 for basestation in np.arange(self.max_number_basestations)
             ]
         )
-
-        # Inter-slice scheduling
-        rbs_per_slice = (
-            np.array(
-                saferound(
-                    self.num_available_rbs[0]
-                    * (action["player_0"] + 1)
-                    / np.sum(action["player_0"] + 1),
-                    0,
-                )
-            )
-            if np.sum(action["player_0"] + 1) != 0
-            else np.floor(
-                self.num_available_rbs[0] / action["player_0"].shape[0]
-            )
-            * np.ones_like(action["player_0"], dtype=int)
-        )
-        assert (
-            np.sum(rbs_per_slice) == self.num_available_rbs[0]
-        ), "Allocated RBs are bigger than available RBs"
-        assert isinstance(
-            self.env, MARLCommEnv
-        ), "Environment must be MARLCommEnv"
-
-        # Intra-slice scheduling
-        for slice_idx in np.arange(rbs_per_slice.shape[0]):
-            slice_ues = self.env.comm_env.slices.ue_assoc[
-                slice_idx, :
-            ].nonzero()[0]
-            if slice_ues.shape[0] == 0:
-                continue
-            match action[f"player_{slice_idx+1}"]:
-                case 0:
-                    allocation_rbs = self.round_robin(
-                        allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+        if (
+            np.sum(self.last_unformatted_obs[0]["basestation_slice_assoc"])
+            != 0
+        ):
+            # Inter-slice scheduling
+            rbs_per_slice = (
+                np.array(
+                    saferound(
+                        self.num_available_rbs[0]
+                        * (action["player_0"] + 1)
+                        / np.sum(action["player_0"] + 1),
+                        0,
                     )
-                case _:
-                    raise ValueError("Invalid intra-slice scheduling action")
+                )
+                if np.sum(action["player_0"] + 1) != 0
+                else np.floor(
+                    self.num_available_rbs[0] / action["player_0"].shape[0]
+                )
+                * np.ones_like(action["player_0"], dtype=int)
+            )
+            assert (
+                np.sum(
+                    rbs_per_slice
+                    * self.last_unformatted_obs[0]["basestation_slice_assoc"]
+                )
+                == self.num_available_rbs[0]
+            ), "Allocated RBs are different from available RBs"
+            assert isinstance(
+                self.env, MARLCommEnv
+            ), "Environment must be MARLCommEnv"
+
+            # Intra-slice scheduling
+            for slice_idx in np.arange(rbs_per_slice.shape[0]):
+                slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                    slice_idx, :
+                ].nonzero()[0]
+                if slice_ues.shape[0] == 0:
+                    continue
+                match action[f"player_{slice_idx+1}"]:
+                    case 0:
+                        allocation_rbs = self.round_robin(
+                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                        )
+                    case _:
+                        raise ValueError(
+                            "Invalid intra-slice scheduling action"
+                        )
+            assert (
+                np.sum(allocation_rbs) == self.num_available_rbs[0]
+            ), "Allocated RBs are different from available RBs"
 
         return allocation_rbs
 
@@ -362,6 +375,14 @@ class MARR(Agent):
             allocation_rbs = self.distribute_rbs_ues(
                 rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
             )
+            assert (
+                np.sum(allocation_rbs[0, slice_ues, :])
+                == rbs_per_slice[slice_idx]
+            ), "Distribute RBs is different from RR distribution"
+
+            assert np.sum(allocation_rbs) == np.sum(
+                rbs_per_slice[0 : slice_idx + 1]
+            ), f"allocation_rbs is different from rbs_per_slice at slice {slice_idx}"
 
             return allocation_rbs
         else:

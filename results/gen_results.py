@@ -123,7 +123,11 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Number of UEs"
             case "reward":
-                plt.plot(data_metrics[metric]["player_0"], label=f"{agent}")
+                reward = [
+                    data_metrics["reward"][idx]["player_0"]
+                    for idx in range(data_metrics["reward"].shape[0])
+                ]
+                plt.plot(reward, label=f"{agent}")
                 xlabel = "Step (n)"
                 ylabel = "Reward (inter-slice agent)"
                 break
@@ -218,6 +222,19 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Cumulative # violations"
                 break
+            case "sched_decision":
+                slice_rbs = np.sum(
+                    np.sum(
+                        data_metrics["sched_decision"][:, 0, :, :],
+                        axis=2,
+                    )
+                    * data_metrics["slice_ue_assoc"][:, slice, :],
+                    axis=1,
+                )
+                plt.plot(slice_rbs, label=f"{agent}, slice {slice}")
+                plt.xlim([5000, 5200])
+                xlabel = "Step (n)"
+                ylabel = "# allocated RBs"
             case _:
                 raise Exception("Metric not found")
 
@@ -344,7 +361,7 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 
 
 scenario_names = ["mult_slice"]
-agent_names = ["round_robin", "ib_sched"]
+agent_names = ["round_robin"]  # ["round_robin", "ib_sched"]
 # metrics = [
 #     "pkt_incoming",
 #     "pkt_effective_thr",
@@ -360,8 +377,14 @@ agent_names = ["round_robin", "ib_sched"]
 #     "total_network_throughput",
 #     "total_network_requested_throughput",
 #     "spectral_efficiencies",
+#     "sched_decision",
 # ]
-metrics = ["reward_cumsum"]
+metrics = [
+    "sched_decision",
+    "basestation_slice_assoc",
+    "reward",
+    "reward_cumsum",
+]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 
