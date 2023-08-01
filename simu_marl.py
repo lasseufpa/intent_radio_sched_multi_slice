@@ -1,6 +1,7 @@
 from os import getcwd
 
 import numpy as np
+import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
@@ -20,6 +21,7 @@ from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = "./ray_results/PPO"
 training_flag = True  # False for reading from checkpoint
+ray.init(local_mode=True)
 
 
 def env_creator(env_config):
@@ -81,7 +83,6 @@ if training_flag:
         .environment(
             env="marl_comm_env",
             env_config=env_config,
-            normalize_actions=False,
             is_atari=False,
         )
         .multi_agent(
@@ -132,6 +133,10 @@ for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     for agent_id, agent_obs in obs.items():
         policy_id = policy_mapping_fn(agent_id)
         action[agent_id] = algo.compute_single_action(
-            agent_obs, policy_id=policy_id
+            agent_obs,
+            policy_id=policy_id,
+            explore=False,
         )
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+
+ray.shutdown()

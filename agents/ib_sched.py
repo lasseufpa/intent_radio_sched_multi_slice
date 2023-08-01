@@ -1,4 +1,5 @@
 from collections import deque
+from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
@@ -284,7 +285,7 @@ class IBSched(Agent):
 
         return reward
 
-    def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
+    def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
         allocation_rbs = np.array(
             [
                 np.zeros(
@@ -294,51 +295,90 @@ class IBSched(Agent):
             ]
         )
 
-        # Inter-slice scheduling
-        rbs_per_slice = (
-            np.array(
-                saferound(
+        if (
+            np.sum(
+                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :]
+            )
+            != 0
+        ):
+            # Action mask TODO substitute by Action distribution
+            # TODO return action_ori to action
+            action = deepcopy(action_ori)
+            action["player_0"][
+                np.where(
+                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
+                    ]
+                    == 0
+                )[0]
+            ] = -1
+            # Inter-slice scheduling
+            rbs_per_slice = (
+                self.round_int_equal_sum(
                     self.num_available_rbs[0]
                     * (action["player_0"] + 1)
                     / np.sum(action["player_0"] + 1),
-                    0,
+                    self.num_available_rbs[0],
+                )
+                if np.sum(action["player_0"] + 1) != 0
+                else self.round_int_equal_sum(
+                    np.floor(
+                        self.num_available_rbs[0]
+                        / np.sum(
+                            self.last_unformatted_obs[0][
+                                "basestation_slice_assoc"
+                            ][0, :]
+                        )
+                    )
+                    * self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
+                    ],
+                    self.num_available_rbs[0],
                 )
             )
-            if np.sum(action["player_0"] + 1) != 0
-            else np.floor(
-                self.num_available_rbs[0] / action["player_0"].shape[0]
-            )
-            * np.ones_like(action["player_0"], dtype=int)
-        )
-        assert (
-            np.sum(rbs_per_slice) == self.num_available_rbs[0]
-        ), "Allocated RBs are bigger than available RBs"
-        assert isinstance(
-            self.env, MARLCommEnv
-        ), "Environment must be MARLCommEnv"
+            assert (
+                np.sum(rbs_per_slice < 0) == 0
+            ), "Negative RBs on rbs_per_slice"
+            assert (
+                np.sum(
+                    rbs_per_slice
+                    * self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
+                    ]
+                )
+                == self.num_available_rbs[0]
+            ), "Allocated RBs are different from available RBs"
+            assert isinstance(
+                self.env, MARLCommEnv
+            ), "Environment must be MARLCommEnv"
 
-        # Intra-slice scheduling
-        for slice_idx in np.arange(rbs_per_slice.shape[0]):
-            slice_ues = self.env.comm_env.slices.ue_assoc[
-                slice_idx, :
-            ].nonzero()[0]
-            if slice_ues.shape[0] == 0:
-                continue
-            match action[f"player_{slice_idx+1}"]:
-                case 0:
-                    allocation_rbs = self.round_robin(
-                        allocation_rbs, slice_idx, rbs_per_slice, slice_ues
-                    )
-                case 1:
-                    allocation_rbs = self.proportional_fairness(
-                        allocation_rbs, slice_idx, rbs_per_slice, slice_ues
-                    )
-                case 2:
-                    allocation_rbs = self.max_throughput(
-                        allocation_rbs, slice_idx, rbs_per_slice, slice_ues
-                    )
-                case _:
-                    raise ValueError("Invalid intra-slice scheduling action")
+            # Intra-slice scheduling
+            for slice_idx in np.arange(rbs_per_slice.shape[0]):
+                slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                    slice_idx, :
+                ].nonzero()[0]
+                if slice_ues.shape[0] == 0:
+                    continue
+                match action[f"player_{slice_idx+1}"]:
+                    case 0:
+                        allocation_rbs = self.round_robin(
+                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                        )
+                    case 1:
+                        allocation_rbs = self.proportional_fairness(
+                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                        )
+                    case 2:
+                        allocation_rbs = self.max_throughput(
+                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                        )
+                    case _:
+                        raise ValueError(
+                            "Invalid intra-slice scheduling action"
+                        )
+            assert (
+                np.sum(allocation_rbs) == self.num_available_rbs[0]
+            ), "Allocated RBs are different from available RBs"
 
         return allocation_rbs
 
@@ -363,6 +403,14 @@ class IBSched(Agent):
             allocation_rbs = self.distribute_rbs_ues(
                 rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
             )
+            assert (
+                np.sum(allocation_rbs[0, slice_ues, :])
+                == rbs_per_slice[slice_idx]
+            ), "Distribute RBs is different from RR distribution"
+
+            assert np.sum(allocation_rbs) == np.sum(
+                rbs_per_slice[0 : slice_idx + 1]
+            ), f"allocation_rbs is different from rbs_per_slice at slice {slice_idx}"
 
             return allocation_rbs
         else:
@@ -408,7 +456,11 @@ class IBSched(Agent):
         rbs_per_ue = (
             np.array(
                 saferound(
-                    rbs_per_slice[slice_idx] * weights / np.sum(weights), 0
+                    (
+                        rbs_per_slice[slice_idx] * weights / np.sum(weights)
+                    ).astype(float),
+                    places=0,
+                    topline=rbs_per_slice[slice_idx],
                 )
             )
             if np.sum(weights) != 0
@@ -420,14 +472,20 @@ class IBSched(Agent):
                 distribute_rbs=False,
             )
         )
+        allocation_rbs = self.distribute_rbs_ues(
+            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
+        )
 
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
         ), "PF: Number of allocated RBs is different than available RBs"
+        assert (
+            np.sum(allocation_rbs[0, slice_ues, :]) == rbs_per_slice[slice_idx]
+        ), "Distribute RBs is different from RR distribution"
 
-        allocation_rbs = self.distribute_rbs_ues(
-            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
-        )
+        assert np.sum(allocation_rbs) == np.sum(
+            rbs_per_slice[0 : slice_idx + 1]
+        ), f"allocation_rbs is different from rbs_per_slice at slice {slice_idx}"
 
         return allocation_rbs
 
@@ -462,10 +520,13 @@ class IBSched(Agent):
         rbs_per_ue = (
             np.array(
                 saferound(
-                    rbs_per_slice[slice_idx]
-                    * throughput_available
-                    / np.sum(throughput_available),
-                    0,
+                    (
+                        rbs_per_slice[slice_idx]
+                        * throughput_available
+                        / np.sum(throughput_available)
+                    ).astype(float),
+                    places=0,
+                    topline=rbs_per_slice[slice_idx],
                 )
             )
             if np.sum(throughput_available) != 0
@@ -477,12 +538,20 @@ class IBSched(Agent):
                 distribute_rbs=False,
             )
         )
-        assert (
-            np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
-        ), "MT: Number of allocated RBs is different than available RBs"
         allocation_rbs = self.distribute_rbs_ues(
             rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
         )
+
+        assert (
+            np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
+        ), "MT: Number of allocated RBs is different than available RBs"
+        assert (
+            np.sum(allocation_rbs[0, slice_ues, :]) == rbs_per_slice[slice_idx]
+        ), "Distribute RBs is different from RR distribution"
+
+        assert np.sum(allocation_rbs) == np.sum(
+            rbs_per_slice[0 : slice_idx + 1]
+        ), f"allocation_rbs is different from rbs_per_slice at slice {slice_idx}"
 
         return allocation_rbs
 
@@ -502,6 +571,59 @@ class IBSched(Agent):
             rb_idx += rbs_per_ue[idx].astype(int)
 
         return allocation_rbs
+
+    def round_int_equal_sum(
+        self, float_array: np.ndarray, target_sum: int
+    ) -> np.ndarray:
+        # Create a mask for zero and non-zero elements
+        zero_mask = float_array == 0
+        non_zero_mask = ~zero_mask
+
+        # Calculate the sum of the non-zero elements
+        non_zero_sum = np.sum(float_array[non_zero_mask])
+
+        # Round the non-zero elements proportionally
+        rounded_integers = np.zeros_like(float_array)
+        if non_zero_sum != 0:
+            proportion = target_sum / non_zero_sum
+            rounded_integers[non_zero_mask] = np.floor(
+                float_array[non_zero_mask] * proportion
+            ).astype(int)
+
+        # Calculate the current sum of rounded_integers
+        current_sum = np.sum(rounded_integers)
+
+        # Calculate the rounding adjustment needed to reach the target sum
+        adjustment = target_sum - current_sum
+
+        if adjustment > 0:
+            # If the adjustment is positive, distribute it among the non-zero elements
+            for i in range(
+                int(adjustment)
+            ):  # Convert adjustment to an integer here
+                non_zero_indices = np.nonzero(rounded_integers != 0)[0]
+                index = non_zero_indices[i % len(non_zero_indices)]
+                rounded_integers[index] += 1
+        elif adjustment < 0:
+            # If the adjustment is negative, proportionally adjust the rounded integers
+            if np.any(rounded_integers[non_zero_mask] == 0):
+                # If any non-zero element becomes zero after proportionally adjusting, revert to the previous approach
+                rounded_integers = np.zeros_like(float_array)
+                if non_zero_sum != 0:
+                    proportion = target_sum / non_zero_sum
+                    rounded_integers[non_zero_mask] = np.floor(
+                        float_array[non_zero_mask] * proportion
+                    ).astype(int)
+            else:
+                # Proportionally adjust the non-zero elements
+                proportion = target_sum / np.sum(
+                    rounded_integers[non_zero_mask]
+                )
+                rounded_integers[non_zero_mask] = np.floor(
+                    rounded_integers[non_zero_mask] * proportion
+                ).astype(int)
+
+        return rounded_integers
 
     @staticmethod
     def get_action_space() -> spaces.Dict:
