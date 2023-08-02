@@ -40,9 +40,16 @@ class IBSched(Agent):
         formatted_obs_space = {}
         for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
             formatted_obs_space[f"player_{agent_idx}"] = (
-                np.mean(intent_drift_slice_ue, axis=1)
+                np.append(
+                    np.mean(intent_drift_slice_ue, axis=1),
+                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
+                    ],
+                )
                 if agent_idx == 0
-                else intent_drift_slice_ue[agent_idx - 1, :]
+                else self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, :
+                ]
             )
         self.last_formatted_obs = formatted_obs_space
 
@@ -649,8 +656,10 @@ class IBSched(Agent):
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(10,), dtype=np.float64
+                    low=-1, high=1, shape=(20,), dtype=np.float64
                 )
+                if idx == 0
+                else spaces.Box(low=-1, high=1, shape=(10,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )
