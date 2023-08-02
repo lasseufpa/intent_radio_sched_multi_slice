@@ -12,6 +12,7 @@ from ray.tune.registry import register_env
 from ray.util import inspect_serializability
 from tqdm import tqdm
 
+from agents.action_mask_model import TorchActionMaskModel
 from agents.ib_sched import IBSched
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
