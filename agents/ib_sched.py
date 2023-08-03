@@ -52,9 +52,7 @@ class IBSched(Agent):
                     ][0].astype(np.int8),
                 }
                 if agent_idx == 0
-                else self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                    0, :
-                ]
+                else intent_drift_slice_ue[agent_idx - 1, :]
             )
         self.last_formatted_obs = formatted_obs_space
 
