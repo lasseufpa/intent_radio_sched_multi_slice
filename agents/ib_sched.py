@@ -321,8 +321,6 @@ class IBSched(Agent):
             )
             != 0
         ):
-            # Action mask TODO substitute by Action distribution
-            # TODO return action_ori to action
             action = deepcopy(action_ori)
             action["player_0"][
                 np.where(

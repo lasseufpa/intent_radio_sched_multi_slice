@@ -43,7 +43,7 @@ class TorchActionMaskModel(TorchModelV2, nn.Module):
         # Compute the unmasked logits.
         logits, _ = self.internal_model({"obs": observations})
 
-        masked_logits = logits * action_mask
+        masked_logits = logits * torch.cat((action_mask, action_mask), 1)
 
         # Return masked logits.
         return masked_logits, state
