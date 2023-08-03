@@ -40,12 +40,17 @@ class IBSched(Agent):
         formatted_obs_space = {}
         for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
             formatted_obs_space[f"player_{agent_idx}"] = (
-                np.append(
-                    np.mean(intent_drift_slice_ue, axis=1),
-                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                        0, :
-                    ],
-                )
+                {
+                    "observations": np.append(
+                        np.mean(intent_drift_slice_ue, axis=1),
+                        self.last_unformatted_obs[0][
+                            "basestation_slice_assoc"
+                        ][0, :],
+                    ),
+                    "action_mask": self.last_unformatted_obs[0][
+                        "basestation_slice_assoc"
+                    ][0].astype(np.int8),
+                }
                 if agent_idx == 0
                 else self.last_unformatted_obs[0]["basestation_slice_assoc"][
                     0, :
@@ -288,7 +293,17 @@ class IBSched(Agent):
     def calculate_reward(self, obs_space: dict) -> dict:
         reward = {}
         for agent_obs in self.last_formatted_obs.items():
-            reward[agent_obs[0]] = np.mean(agent_obs[1])
+            reward[agent_obs[0]] = (
+                np.mean(agent_obs[1])
+                if agent_obs[0] != "player_0"
+                else np.mean(
+                    agent_obs[1]["observations"][
+                        0 : self.last_unformatted_obs[0][
+                            "basestation_slice_assoc"
+                        ][0, :].shape[0]
+                    ]
+                )
+            )
 
         return reward
 
@@ -655,8 +670,15 @@ class IBSched(Agent):
         num_agents = 11
         obs_space = spaces.Dict(
             {
-                f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(20,), dtype=np.float64
+                f"player_{idx}": spaces.Dict(
+                    {
+                        "observations": spaces.Box(
+                            low=-1, high=1, shape=(20,), dtype=np.float64
+                        ),
+                        "action_mask": spaces.Box(
+                            0.0, 1.0, shape=(10,), dtype=np.int8
+                        ),
+                    }
                 )
                 if idx == 0
                 else spaces.Box(low=-1, high=1, shape=(10,), dtype=np.float64)

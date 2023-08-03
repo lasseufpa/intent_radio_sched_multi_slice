@@ -54,6 +54,15 @@ def env_creator(env_config):
     return marl_comm_env
 
 
+def action_mask_policy():
+    config = PPOConfig.overrides(
+        model={
+            "custom_model": TorchActionMaskModel,
+        },
+    )
+    return PolicySpec(config=config)
+
+
 # Ray RLlib
 register_env("marl_comm_env", lambda config: env_creator(config))
 
@@ -87,7 +96,10 @@ if training_flag:
             is_atari=False,
         )
         .multi_agent(
-            policies={"inter_slice_sched", "intra_slice_sched"},
+            policies={
+                "inter_slice_sched": action_mask_policy(),
+                "intra_slice_sched": PolicySpec(),
+            },
             policy_mapping_fn=policy_mapping_fn,
             count_steps_by="env_steps",
         )

@@ -3,7 +3,6 @@ import torch.nn as nn
 from gymnasium.spaces import Dict
 from ray.rllib.models.torch.fcnet import FullyConnectedNetwork as TorchFC
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
-from ray.rllib.utils.torch_utils import FLOAT_MIN
 
 
 class TorchActionMaskModel(TorchModelV2, nn.Module):
@@ -30,7 +29,7 @@ class TorchActionMaskModel(TorchModelV2, nn.Module):
         nn.Module.__init__(self)
 
         self.internal_model = TorchFC(
-            obs_space,
+            obs_space.original_space["observations"],
             action_space,
             num_outputs,
             model_config,
@@ -38,15 +37,13 @@ class TorchActionMaskModel(TorchModelV2, nn.Module):
         )
 
     def forward(self, input_dict, state, seq_lens):
-        # Extract the available actions tensor from the observation.
-        action_mask = input_dict["obs"]
+        action_mask = input_dict["obs"]["action_mask"]  # type: ignore
+        observations = input_dict["obs"]["observations"]  # type: ignore
 
         # Compute the unmasked logits.
-        logits, _ = self.internal_model({"obs": input_dict["obs"]})
+        logits, _ = self.internal_model({"obs": observations})
 
-        # Convert action_mask into a [0.0 || -inf]-type mask.
-        inf_mask = torch.clamp(torch.log(action_mask), min=FLOAT_MIN)
-        masked_logits = logits + inf_mask
+        masked_logits = logits * action_mask
 
         # Return masked logits.
         return masked_logits, state
