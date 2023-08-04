@@ -1,12 +1,13 @@
-from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
-from ray.rllib.utils.annotations import override
-from ray.rllib.utils.typing import TensorType, ModelConfigDict
-import torch
+from typing import List, Optional, Union
+
 import gymnasium as gym
 import numpy as np
-from typing import Optional, List, Union
+import torch
+from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.torch.torch_action_dist import TorchDistributionWrapper
+from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
+from ray.rllib.utils.annotations import override
+from ray.rllib.utils.typing import ModelConfigDict, TensorType
 
 
 class TorchDiagGaussian(TorchDistributionWrapper):

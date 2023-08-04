@@ -6,6 +6,7 @@ from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.env import PettingZooEnv
+from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
 from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
@@ -13,14 +14,13 @@ from ray.util import inspect_serializability
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
-from agents.masked_action_distribution import TorchDiagGaussian
 from agents.ib_sched import IBSched
+from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
-from ray.rllib.models import ModelCatalog
 
 read_checkpoint = "./ray_results/PPO"
 training_flag = True  # False for reading from checkpoint
