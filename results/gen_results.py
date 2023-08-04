@@ -361,7 +361,7 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 
 
 scenario_names = ["mult_slice"]
-agent_names = ["ib_sched"]  # ["round_robin", "ib_sched"]
+agent_names = ["round_robin"]  # ["round_robin", "ib_sched"]
 # metrics = [
 #     "pkt_incoming",
 #     "pkt_effective_thr",

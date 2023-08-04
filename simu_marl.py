@@ -13,12 +13,14 @@ from ray.util import inspect_serializability
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
+from agents.masked_action_distribution import TorchDiagGaussian
 from agents.ib_sched import IBSched
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
+from ray.rllib.models import ModelCatalog
 
 read_checkpoint = "./ray_results/PPO"
 training_flag = True  # False for reading from checkpoint
@@ -54,10 +56,14 @@ def env_creator(env_config):
     return marl_comm_env
 
 
+ModelCatalog.register_custom_action_dist("masked_gaussian", TorchDiagGaussian)
+
+
 def action_mask_policy():
     config = PPOConfig.overrides(
         model={
             "custom_model": TorchActionMaskModel,
+            "custom_action_dist": "masked_gaussian",
         },
     )
     return PolicySpec(config=config)

@@ -321,6 +321,20 @@ class IBSched(Agent):
             )
             != 0
         ):
+            # assert (  # verify if the inactive slices are receiving -1 value
+            #     np.prod(
+            #         action_ori["player_0"][
+            #             self.last_unformatted_obs[0][
+            #                 "basestation_slice_assoc"
+            #             ][0, :]
+            #             == 0
+            #         ]
+            #         == -1
+            #     )
+            #     == 1
+            # ), "Invalid action"
+
+            ####### TODO Remove after action distribution is fixed
             action = deepcopy(action_ori)
             action["player_0"][
                 np.where(
@@ -330,6 +344,8 @@ class IBSched(Agent):
                     == 0
                 )[0]
             ] = -1
+            ######################################################
+
             # Inter-slice scheduling
             rbs_per_slice = (
                 self.round_int_equal_sum(
