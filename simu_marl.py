@@ -100,6 +100,7 @@ if training_flag:
             env="marl_comm_env",
             env_config=env_config,
             is_atari=False,
+            disable_env_checking=True,
         )
         .multi_agent(
             policies={
@@ -115,9 +116,10 @@ if training_flag:
             enable_connectors=False,
             num_envs_per_worker=1,
         )
+        .resources(num_gpus=1)
     )
     stop = {
-        "episodes_total": 1,
+        "episodes_total": 10,
     }
     results = tune.Tuner(
         "PPO",

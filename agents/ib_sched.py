@@ -305,7 +305,7 @@ class IBSched(Agent):
 
         return reward
 
-    def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
+    def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
         allocation_rbs = np.array(
             [
                 np.zeros(
@@ -321,30 +321,18 @@ class IBSched(Agent):
             )
             != 0
         ):
-            # assert (  # verify if the inactive slices are receiving -1 value
-            #     np.prod(
-            #         action_ori["player_0"][
-            #             self.last_unformatted_obs[0][
-            #                 "basestation_slice_assoc"
-            #             ][0, :]
-            #             == 0
-            #         ]
-            #         == -1
-            #     )
-            #     == 1
-            # ), "Invalid action"
-
-            ####### TODO Remove after action distribution is fixed
-            action = deepcopy(action_ori)
-            action["player_0"][
-                np.where(
-                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                        0, :
+            assert (  # verify if the inactive slices are receiving -1 value
+                np.prod(
+                    action["player_0"][
+                        self.last_unformatted_obs[0][
+                            "basestation_slice_assoc"
+                        ][0, :]
+                        == 0
                     ]
-                    == 0
-                )[0]
-            ] = -1
-            ######################################################
+                    == -1
+                )
+                == 1
+            ), "Invalid action"
 
             # Inter-slice scheduling
             rbs_per_slice = (

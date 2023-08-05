@@ -27,8 +27,10 @@ class TorchDiagGaussian(TorchDistributionWrapper):
         ), "Inputs must be a torch.Tensor"
         mean, log_std, masks = torch.chunk(self.inputs, 3, dim=1)
         log_std = torch.exp(log_std)
-        log_std[masks == 0] = 1e-9
-        mean[masks == 0] = -1
+
+        # Modify values based on masks using torch.where
+        log_std = torch.where(masks == 0, torch.tensor(1e-9), log_std)
+        mean = torch.where(masks == 0, torch.tensor(-1), mean)
         self.dist = torch.distributions.normal.Normal(mean, log_std)
         # Remember to squeeze action samples in case action space is Box(shape)
         self.zero_action_dim = action_space and action_space.shape == ()
