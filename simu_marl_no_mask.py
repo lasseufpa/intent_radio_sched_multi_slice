@@ -13,9 +13,7 @@ from ray.tune.registry import register_env
 from ray.util import inspect_serializability
 from tqdm import tqdm
 
-from agents.action_mask_model import TorchActionMaskModel
-from agents.ib_sched import IBSched
-from agents.masked_action_distribution import TorchDiagGaussian
+from agents.ib_sched_no_mask import IBSched
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
@@ -56,19 +54,6 @@ def env_creator(env_config):
     return marl_comm_env
 
 
-ModelCatalog.register_custom_action_dist("masked_gaussian", TorchDiagGaussian)
-
-
-def action_mask_policy():
-    config = PPOConfig.overrides(
-        model={
-            "custom_model": TorchActionMaskModel,
-            "custom_action_dist": "masked_gaussian",
-        },
-    )
-    return PolicySpec(config=config)
-
-
 # Ray RLlib
 register_env("marl_comm_env", lambda config: env_creator(config))
 
@@ -87,7 +72,7 @@ env_config = {
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched",
+    "agent": "ib_sched_no_mask",
     "root_path": str(getcwd()),
     "number_agents": 11,
 }
@@ -104,7 +89,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": action_mask_policy(),
+                "inter_slice_sched": PolicySpec(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,

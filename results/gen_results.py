@@ -30,13 +30,15 @@ def gen_results(
                 plt.xticks(fontsize=12)
                 plt.legend(fontsize=12)
                 os.makedirs(
-                    f"./results/{scenario}/ep_{episode}",
+                    f"./results/{scenario}/ep_{episode}"
+                    if len(agent_names) > 1
+                    else f"./results/{scenario}/ep_{episode}/{agent_names[0]}/",
                     exist_ok=True,
                 )
                 plt.savefig(
-                    "./results/{}/ep_{}/{}.pdf".format(
-                        scenario, episode, metric
-                    ),
+                    f"./results/{scenario}/ep_{episode}/{metric}.pdf"
+                    if len(agent_names) > 1
+                    else f"./results/{scenario}/ep_{episode}/{agent_names[0]}/{metric}.pdf",
                     bbox_inches="tight",
                     pad_inches=0,
                     format="pdf",
@@ -361,7 +363,10 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 
 
 scenario_names = ["mult_slice"]
-agent_names = ["ib_sched"]  # ["round_robin", "ib_sched"]
+agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask"]
+episodes = np.array([0], dtype=int)
+slices = np.arange(10)
+
 # metrics = [
 #     "pkt_incoming",
 #     "pkt_effective_thr",
@@ -379,13 +384,18 @@ agent_names = ["ib_sched"]  # ["round_robin", "ib_sched"]
 #     "spectral_efficiencies",
 #     "sched_decision",
 # ]
+
+# One graph per agent
 metrics = [
     "sched_decision",
     "basestation_slice_assoc",
     "reward",
+]
+for agent in agent_names:
+    gen_results(scenario_names, [agent], episodes, metrics, slices)
+
+# One graph for all agents
+metrics = [
     "reward_cumsum",
 ]
-episodes = np.array([0], dtype=int)
-slices = np.arange(10)
-
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
