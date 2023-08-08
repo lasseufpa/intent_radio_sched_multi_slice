@@ -420,6 +420,7 @@ class IBSched(Agent):
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
         ), "RR: Number of allocated RBs is different than available RBs"
+        assert np.sum(rbs_per_ue < 0) == 0, "Negative RBs on rbs_per_ue are not allowed"
 
         if distribute_rbs:
             allocation_rbs = self.distribute_rbs_ues(
@@ -429,7 +430,6 @@ class IBSched(Agent):
                 np.sum(allocation_rbs[0, slice_ues, :])
                 == rbs_per_slice[slice_idx]
             ), "Distribute RBs is different from RR distribution"
-
             assert np.sum(allocation_rbs) == np.sum(
                 rbs_per_slice[0 : slice_idx + 1]
             ), f"allocation_rbs is different from rbs_per_slice at slice {slice_idx}"
@@ -456,7 +456,7 @@ class IBSched(Agent):
         )
         snt_thoughput = self.last_unformatted_obs[0]["pkt_effective_thr"][
             slice_ues
-        ]
+        ] * self.env.comm_env.ues.pkt_sizes[slice_ues]
         buffer_occ = self.last_unformatted_obs[0]["buffer_occupancies"][
             slice_ues
         ]
@@ -498,13 +498,13 @@ class IBSched(Agent):
             rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
         )
 
+        assert np.sum(rbs_per_ue < 0) == 0, "Negative RBs on rbs_per_ue are not allowed"
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
         ), "PF: Number of allocated RBs is different than available RBs"
         assert (
             np.sum(allocation_rbs[0, slice_ues, :]) == rbs_per_slice[slice_idx]
         ), "Distribute RBs is different from RR distribution"
-
         assert np.sum(allocation_rbs) == np.sum(
             rbs_per_slice[0 : slice_idx + 1]
         ), f"allocation_rbs is different from rbs_per_slice at slice {slice_idx}"
@@ -564,6 +564,7 @@ class IBSched(Agent):
             rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
         )
 
+        assert np.sum(rbs_per_ue < 0) == 0, "Negative RBs on rbs_per_ue are not allowed"
         assert (
             np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
         ), "MT: Number of allocated RBs is different than available RBs"
