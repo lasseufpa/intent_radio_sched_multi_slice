@@ -39,8 +39,8 @@ class IBSched(Agent):
         )
         formatted_obs_space = {}
         for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
-            formatted_obs_space[f"player_{agent_idx}"] = (
-                {
+            if agent_idx == 0:
+                formatted_obs_space[f"player_{agent_idx}"] = {
                     "observations": np.append(
                         np.mean(intent_drift_slice_ue, axis=1),
                         self.last_unformatted_obs[0][
@@ -51,9 +51,43 @@ class IBSched(Agent):
                         "basestation_slice_assoc"
                     ][0].astype(np.int8),
                 }
-                if agent_idx == 0
-                else intent_drift_slice_ue[agent_idx - 1, :]
-            )
+            else:
+                assert isinstance(
+                    self.env, MARLCommEnv
+                ), "Environment must be MARLCommEnv"
+                slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                    agent_idx - 1
+                ].nonzero()[0]
+                spectral_eff = np.pad(
+                    np.mean(
+                        self.last_unformatted_obs[0]["spectral_efficiencies"][
+                            0, slice_ues, :
+                        ],
+                        axis=1,
+                    ),
+                    (0, self.max_number_ues_slice - slice_ues.shape[0]),
+                    "constant",
+                )
+                max_spectral_eff = np.max(spectral_eff)
+                spectral_eff = (
+                    spectral_eff / max_spectral_eff
+                    if max_spectral_eff != 0
+                    else spectral_eff
+                )
+                buffer_occ = np.pad(
+                    self.last_unformatted_obs[0]["buffer_occupancies"][
+                        slice_ues
+                    ],
+                    (0, self.max_number_ues_slice - slice_ues.shape[0]),
+                    "constant",
+                )
+                formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
+                    (
+                        intent_drift_slice_ue[agent_idx - 1, :],
+                        buffer_occ,
+                        spectral_eff,
+                    )
+                )
         self.last_formatted_obs = formatted_obs_space
 
         return formatted_obs_space
@@ -701,7 +735,7 @@ class IBSched(Agent):
                     }
                 )
                 if idx == 0
-                else spaces.Box(low=-1, high=1, shape=(10,), dtype=np.float64)
+                else spaces.Box(low=-1, high=1, shape=(30,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )
