@@ -24,7 +24,12 @@ from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = "./ray_results/PPO"
 training_flag = True  # False for reading from checkpoint
-ray.init(local_mode=True)
+debug_mode = (
+    True  # When true executes in a local mode where GPU cannot be used
+)
+
+
+ray.init(local_mode=debug_mode)
 
 
 def env_creator(env_config):
@@ -116,7 +121,13 @@ if training_flag:
             enable_connectors=False,
             num_envs_per_worker=1,
         )
-        .resources(num_gpus=1)
+        .resources(
+            num_gpus=1, num_gpus_per_worker=1, num_gpus_per_learner_worker=1
+        )
+        .training(
+            _enable_learner_api=False
+        )  # TODO Remove after migrating from ModelV2 to RL Module
+        .rl_module(_enable_rl_module_api=False)
     )
     stop = {
         "episodes_total": 5,
