@@ -74,6 +74,7 @@ def plot_graph(
         "sched_decision": data["sched_decision"],
         "reward": data["reward"],
         "slice_req": data["slice_req"],
+        "obs": data["obs"],
     }
     for slice in slices:
         match metric:
@@ -191,34 +192,14 @@ def plot_graph(
                     ylabel = "Thoughput capacity per RB (Mbps)"
             case "violations":
                 violations = calc_slice_violations(data_metrics)
-                plt.plot(
-                    np.sum(violations[:1, :], axis=0),
-                    label=f"{agent}, slice 0",
-                )
-                plt.plot(
-                    np.sum(violations[2:4, :], axis=0),
-                    label=f"{agent}, slice 1",
-                )
-                plt.plot(violations[4, :], label=f"{agent}, slice 2")
-                plt.plot(np.sum(violations, axis=0), label=f"{agent}, total")
+                plt.plot(violations, label=f"{agent}, total")
                 xlabel = "Step (n)"
                 ylabel = "# Violations"
                 break
             case "violations_cumsum":
                 violations = calc_slice_violations(data_metrics)
                 plt.plot(
-                    np.cumsum(np.sum(violations[:1, :], axis=0)),
-                    label=f"{agent}, slice 0",
-                )
-                plt.plot(
-                    np.cumsum(np.sum(violations[2:4, :], axis=0)),
-                    label=f"{agent}, slice 1",
-                )
-                plt.plot(
-                    np.cumsum(violations[4, :]), label=f"{agent}, slice 2"
-                )
-                plt.plot(
-                    np.cumsum(np.sum(violations, axis=0)),
+                    np.cumsum(violations),
                     label=f"{agent}, total",
                 )
                 xlabel = "Step (n)"
@@ -319,45 +300,23 @@ def calc_slice_average(
 
 
 def calc_slice_violations(data_metrics) -> np.ndarray:
-    # 1st dimension: eMBB throughput violations
-    # 2nd dimension: eMBB latency violations
-    # 3rd dimension: URLLC throughput violations
-    # 4th dimension: URLLC latency violations
-    # 5th dimension: mMTC latency violations
-    violations = np.zeros((5, data_metrics["pkt_throughputs"].shape[0]))
-
-    # Requirements
-    embb_throughput_req = 20
-    embb_latency_req = 20
-    urllc_throughput_req = 5
-    urllc_latency_req = 1
-    mmtc_latency_req = 5
-
-    # eMBB violations
-    violations[0, :] = (
-        calc_throughput_slice(data_metrics, "pkt_throughputs", 0)
-        < embb_throughput_req
-    ).astype(int)
-    violations[1, :] = (
-        calc_slice_average(data_metrics, "buffer_latencies", 0)
-        > embb_latency_req
-    ).astype(int)
-
-    # URLLC violations
-    violations[2, :] = (
-        calc_throughput_slice(data_metrics, "pkt_throughputs", 1)
-        < urllc_throughput_req
-    ).astype(int)
-    violations[3, :] = (
-        calc_slice_average(data_metrics, "buffer_latencies", 1)
-        > urllc_latency_req
-    ).astype(int)
-
-    # mMTC violations
-    violations[4, :] = (
-        calc_slice_average(data_metrics, "buffer_latencies", 2)
-        > mmtc_latency_req
-    ).astype(int)
+    violations = (
+        np.array(
+            [
+                np.sum(step_obs["player_0"]["observations"][0:10] < 0).astype(
+                    int
+                )
+                for step_obs in data_metrics["obs"]
+            ]
+        )
+        if "observations" in data_metrics["obs"][0]["player_0"]
+        else np.array(
+            [
+                np.sum(step_obs["player_0"][0:10] < 0).astype(int)
+                for step_obs in data_metrics["obs"]
+            ]
+        )
+    )
 
     return violations
 
@@ -387,16 +346,18 @@ slices = np.arange(10)
 # ]
 
 # One graph per agent
-metrics = [
-    "sched_decision",
-    "basestation_slice_assoc",
-    "reward",
-]
-for agent in agent_names:
-    gen_results(scenario_names, [agent], episodes, metrics, slices)
+# metrics = [
+#     "sched_decision",
+#     "basestation_slice_assoc",
+#     "reward",
+# ]
+# for agent in agent_names:
+# gen_results(scenario_names, [agent], episodes, metrics, slices)
 
 # One graph for all agents
 metrics = [
-    "reward_cumsum",
+    # "reward_cumsum",
+    "violations",
+    "violations_cumsum",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
