@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from iteround import saferound
+from scipy.optimize import minimize
 
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
@@ -394,13 +394,13 @@ class IBSchedIntraNN(Agent):
             )
             if np.sum(action + 1) != 0
             else self.round_int_equal_sum(
-                np.floor(total_rbs / np.sum(association)) * association,
+                (total_rbs / np.sum(association)) * association,
                 total_rbs,
             )
         )
         assert np.sum(rbs_per_unit < 0) == 0, "Negative RBs"
         assert (
-            np.sum(rbs_per_unit * association) == total_rbs
+            np.sum(rbs_per_unit * association).astype(int) == total_rbs
         ), "Allocated RBs are different from available RBs"
 
         return rbs_per_unit
@@ -425,53 +425,26 @@ class IBSchedIntraNN(Agent):
     def round_int_equal_sum(
         self, float_array: np.ndarray, target_sum: int
     ) -> np.ndarray:
-        # Create a mask for zero and non-zero elements
-        zero_mask = float_array == 0
-        non_zero_mask = ~zero_mask
+        non_zero_indices = np.where(float_array != 0)[0]
+        non_zero_values = float_array[non_zero_indices]
 
-        # Calculate the sum of the non-zero elements
-        non_zero_sum = np.sum(float_array[non_zero_mask])
+        # Proportional distribution to get as close as possible to the target sum
+        proportional_integers = np.floor(
+            target_sum * non_zero_values / np.sum(non_zero_values)
+        ).astype(int)
 
-        # Round the non-zero elements proportionally
-        rounded_integers = np.zeros_like(float_array)
-        if non_zero_sum != 0:
-            proportion = target_sum / non_zero_sum
-            rounded_integers[non_zero_mask] = np.floor(
-                float_array[non_zero_mask] * proportion
-            ).astype(int)
+        # Calculate the remaining adjustment
+        adjustment = target_sum - np.sum(proportional_integers)
 
-        # Calculate the current sum of rounded_integers
-        current_sum = np.sum(rounded_integers)
+        # Distribute the remaining adjustment among the highest values
+        sorted_indices = np.argsort(non_zero_values)[::-1]
+        for i in range(adjustment):
+            index = sorted_indices[i % len(sorted_indices)]
+            proportional_integers[index] += 1
 
-        # Calculate the rounding adjustment needed to reach the target sum
-        adjustment = target_sum - current_sum
-
-        if adjustment > 0:
-            # If the adjustment is positive, distribute it among the non-zero elements
-            for i in range(
-                int(adjustment)
-            ):  # Convert adjustment to an integer here
-                non_zero_indices = np.nonzero(rounded_integers != 0)[0]
-                index = non_zero_indices[i % len(non_zero_indices)]
-                rounded_integers[index] += 1
-        elif adjustment < 0:
-            # If the adjustment is negative, proportionally adjust the rounded integers
-            if np.any(rounded_integers[non_zero_mask] == 0):
-                # If any non-zero element becomes zero after proportionally adjusting, revert to the previous approach
-                rounded_integers = np.zeros_like(float_array)
-                if non_zero_sum != 0:
-                    proportion = target_sum / non_zero_sum
-                    rounded_integers[non_zero_mask] = np.floor(
-                        float_array[non_zero_mask] * proportion
-                    ).astype(int)
-            else:
-                # Proportionally adjust the non-zero elements
-                proportion = target_sum / np.sum(
-                    rounded_integers[non_zero_mask]
-                )
-                rounded_integers[non_zero_mask] = np.floor(
-                    rounded_integers[non_zero_mask] * proportion
-                ).astype(int)
+        # Reconstruct the rounded result
+        rounded_integers = np.zeros_like(float_array, dtype=int)
+        rounded_integers[non_zero_indices] = proportional_integers
 
         return rounded_integers
 

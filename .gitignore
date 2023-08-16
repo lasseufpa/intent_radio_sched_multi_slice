@@ -11,6 +11,8 @@ hist/*
 #results/*
 *.pdf
 *.npz
+*.jpg
+*.jpeg
 
 # Associations data
 associations/data/
