@@ -299,16 +299,19 @@ class IBSchedIntraNN(Agent):
         for player_idx, agent_obs in enumerate(
             self.last_formatted_obs.items()
         ):
-            association_len = (
-                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :]
-                if player_idx == 0
-                else self.last_unformatted_obs[0]["slice_ue_assoc"][
-                    player_idx - 1, :
-                ]
-            ).shape[0]
-            reward[agent_obs[0]] = np.mean(
-                agent_obs[1]["observations"][0:association_len]
+            elements_idx = agent_obs[1]["action_mask"].nonzero()[0]
+            active_observations = (
+                agent_obs[1]["observations"][elements_idx]
+                if elements_idx.shape[0] > 0
+                else np.array([1])
             )
+            if np.sum(active_observations < 0) == 0:
+                reward[agent_obs[0]] = np.mean(active_observations)
+            else:
+                negative_obs_idx = (active_observations < 0).nonzero()[0]
+                reward[agent_obs[0]] = np.mean(
+                    active_observations[negative_obs_idx]
+                )
 
         return reward
 

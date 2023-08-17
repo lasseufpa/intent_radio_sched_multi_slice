@@ -22,10 +22,10 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/PPO"
-training_flag = True  # False for reading from checkpoint
+read_checkpoint = "./ray_results/"
+training_flag = False  # False for reading from checkpoint
 debug_mode = (
-    True  # When true executes in a local mode where GPU cannot be used
+    False  # When true executes in a local mode where GPU cannot be used
 )
 
 
@@ -130,13 +130,13 @@ if training_flag:
         .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 5,
+        "episodes_total": 1,
     }
     results = tune.Tuner(
         "PPO",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
-            storage_path="./ray_results/",
+            storage_path=f"./ray_results/{env_config['agent']}/",
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
@@ -148,7 +148,7 @@ if training_flag:
     ).fit()
 
 # Testing
-analysis = tune.ExperimentAnalysis(read_checkpoint)
+analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/")
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
