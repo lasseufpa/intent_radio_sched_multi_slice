@@ -356,8 +356,8 @@ slices = np.arange(10)
 
 # One graph for all agents
 metrics = [
-    "reward_cumsum",
-    "violations",
+    # "reward_cumsum",
+    # "violations",
     "violations_cumsum",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)

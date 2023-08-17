@@ -20,9 +20,14 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/PPO"
+read_checkpoint = "./ray_results/"
 training_flag = True  # False for reading from checkpoint
-ray.init(local_mode=True)
+debug_mode = (
+    True  # When true executes in a local mode where GPU cannot be used
+)
+
+
+ray.init(local_mode=debug_mode)
 
 
 def env_creator(env_config):
@@ -101,16 +106,22 @@ if training_flag:
             enable_connectors=False,
             num_envs_per_worker=1,
         )
-        .resources(num_gpus=1)
+        .resources(
+            num_gpus=1, num_gpus_per_worker=1, num_gpus_per_learner_worker=1
+        )
+        .training(
+            _enable_learner_api=False
+        )  # TODO Remove after migrating from ModelV2 to RL Module
+        .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 5,
+        "episodes_total": 1,
     }
     results = tune.Tuner(
         "PPO",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
-            storage_path="./ray_results/",
+            storage_path=f"./ray_results/{env_config['agent']}/",
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
@@ -122,7 +133,7 @@ if training_flag:
     ).fit()
 
 # Testing
-analysis = tune.ExperimentAnalysis(read_checkpoint)
+analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/")
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
