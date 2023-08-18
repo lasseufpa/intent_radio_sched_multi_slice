@@ -4,7 +4,6 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from iteround import saferound
 
 from agents.common import (
     calculate_reward_no_mask,
@@ -13,7 +12,6 @@ from agents.common import (
     proportional_fairness,
     round_int_equal_sum,
     round_robin,
-    scores_to_rbs,
 )
 from sixg_radio_mgmt import Agent, MARLCommEnv
 

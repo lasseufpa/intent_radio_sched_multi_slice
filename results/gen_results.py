@@ -323,7 +323,14 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 
 scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
-agent_names = ["round_robin", "random", "ib_sched_intra_nn", "ib_sched"]
+agent_names = [
+    "round_robin",
+    "random",
+    "ib_sched_intra_nn",
+    "ib_sched",
+    "ib_sched_no_mask",
+    "ib_sched_intra_rr",
+]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
 
