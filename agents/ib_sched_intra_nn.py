@@ -53,25 +53,37 @@ class IBSchedIntraNN(Agent):
             self.env,
         )
         formatted_obs_space = {}
-        for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
-            if agent_idx == 0:
-                association = self.last_unformatted_obs[0][
-                    "basestation_slice_assoc"
-                ][0, :]
-            else:
-                association = np.zeros(self.max_number_ues_slice)
-                num_connected_ues = np.sum(
-                    self.last_unformatted_obs[0]["slice_ue_assoc"][
-                        agent_idx - 1, :
-                    ]
-                ).astype(int)
-                association[0:num_connected_ues] = 1
+
+        # Inter-slice observation
+        formatted_obs_space["player_0"] = {
+            "observations": np.append(
+                np.zeros(obs_space["slice_ue_assoc"].shape[0]),
+                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
+            ),
+            "action_mask": self.last_unformatted_obs[0][
+                "basestation_slice_assoc"
+            ][0].astype(np.int8),
+        }
+
+        # intra-slice observations
+        for agent_idx in range(1, obs_space["slice_ue_assoc"].shape[0] + 1):
+            assert isinstance(
+                self.env, MARLCommEnv
+            ), "Environment must be MARLCommEnv"
+            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                agent_idx - 1
+            ].nonzero()[0]
+            intent_ue_values = intent_drift_slice_ue[agent_idx - 1, :]
+            formatted_obs_space["player_0"]["observations"][agent_idx - 1] = (
+                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
+                if slice_ues.shape[0] != 0
+                else 1
+            )
+            association = np.zeros(self.max_number_ues_slice)
+            association[0 : slice_ues.shape[0]] = 1
             formatted_obs_space[f"player_{agent_idx}"] = {
                 "observations": np.append(
-                    np.mean(intent_drift_slice_ue, axis=1)
-                    if agent_idx == 0
-                    else intent_drift_slice_ue[agent_idx - 1, :],
-                    association,
+                    intent_ue_values, association
                 ).astype(np.float64),
                 "action_mask": association.astype(np.int8),
             }

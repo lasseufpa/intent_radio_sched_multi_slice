@@ -52,56 +52,63 @@ class IBSched(Agent):
             self.env,
         )
         formatted_obs_space = {}
-        for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
-            if agent_idx == 0:
-                formatted_obs_space[f"player_{agent_idx}"] = {
-                    "observations": np.append(
-                        np.mean(intent_drift_slice_ue, axis=1),
-                        self.last_unformatted_obs[0][
-                            "basestation_slice_assoc"
-                        ][0, :],
-                    ),
-                    "action_mask": self.last_unformatted_obs[0][
-                        "basestation_slice_assoc"
-                    ][0].astype(np.int8),
-                }
-            else:
-                assert isinstance(
-                    self.env, MARLCommEnv
-                ), "Environment must be MARLCommEnv"
-                slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
-                    agent_idx - 1
-                ].nonzero()[0]
-                spectral_eff = np.pad(
-                    np.mean(
-                        self.last_unformatted_obs[0]["spectral_efficiencies"][
-                            0, slice_ues, :
-                        ],
-                        axis=1,
-                    ),
-                    (0, self.max_number_ues_slice - slice_ues.shape[0]),
-                    "constant",
-                )
-                max_spectral_eff = np.max(spectral_eff)
-                spectral_eff = (
-                    spectral_eff / max_spectral_eff
-                    if max_spectral_eff != 0
-                    else spectral_eff
-                )
-                buffer_occ = np.pad(
-                    self.last_unformatted_obs[0]["buffer_occupancies"][
-                        slice_ues
+
+        # Inter-slice observation
+        formatted_obs_space["player_0"] = {
+            "observations": np.append(
+                np.zeros(obs_space["slice_ue_assoc"].shape[0]),
+                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
+            ),
+            "action_mask": self.last_unformatted_obs[0][
+                "basestation_slice_assoc"
+            ][0].astype(np.int8),
+        }
+
+        # intra-slice observations
+        for agent_idx in range(1, obs_space["slice_ue_assoc"].shape[0] + 1):
+            assert isinstance(
+                self.env, MARLCommEnv
+            ), "Environment must be MARLCommEnv"
+            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                agent_idx - 1
+            ].nonzero()[0]
+            intent_ue_values = intent_drift_slice_ue[agent_idx - 1, :]
+            formatted_obs_space["player_0"]["observations"][agent_idx - 1] = (
+                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
+                if slice_ues.shape[0] != 0
+                else 1
+            )
+
+            spectral_eff = np.pad(
+                np.mean(
+                    self.last_unformatted_obs[0]["spectral_efficiencies"][
+                        0, slice_ues, :
                     ],
-                    (0, self.max_number_ues_slice - slice_ues.shape[0]),
-                    "constant",
+                    axis=1,
+                ),
+                (0, self.max_number_ues_slice - slice_ues.shape[0]),
+                "constant",
+            )
+            max_spectral_eff = np.max(spectral_eff)
+            spectral_eff = (
+                spectral_eff / max_spectral_eff
+                if max_spectral_eff != 0
+                else spectral_eff
+            )
+            buffer_occ = np.pad(
+                self.last_unformatted_obs[0]["buffer_occupancies"][slice_ues],
+                (0, self.max_number_ues_slice - slice_ues.shape[0]),
+                "constant",
+            )
+
+            formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
+                (
+                    intent_ue_values,
+                    buffer_occ,
+                    spectral_eff,
                 )
-                formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
-                    (
-                        intent_drift_slice_ue[agent_idx - 1, :],
-                        buffer_occ,
-                        spectral_eff,
-                    )
-                )
+            )
+
         self.last_formatted_obs = formatted_obs_space
 
         return formatted_obs_space
