@@ -467,39 +467,27 @@ def max_throughput(
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
-    # minimum_buffer_level = 0.2
+    minimum_buffer_level = 0.2
     spectral_eff = np.mean(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
     )
-    buffer_occ = np.array(
-        [
-            last_unformatted_obs[idx]["buffer_occupancies"][slice_ues]
-            for idx in range(0, len(last_unformatted_obs))
-        ]
-    )
-    buffer_occ = np.maximum(
-        np.mean(buffer_occ, axis=0),
-        last_unformatted_obs[0]["buffer_occupancies"][slice_ues],
-    )
+    buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
     # print(
     #     f"Buffer less {np.sum(buffer_occ < minimum_buffer_level)} more {np.sum(buffer_occ > minimum_buffer_level)} from {buffer_occ.shape[0]}"
     # )
-    # buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
-    throughput_available = np.min(
-        [
-            spectral_eff
-            * (
-                rbs_per_slice[slice_idx]
-                * env.comm_env.bandwidths[0]
-                / num_available_rbs[0]
-            )
-            / slice_ues.shape[0],
-            buffer_occ
-            * env.comm_env.ues.max_buffer_pkts[slice_ues]
-            * env.comm_env.ues.pkt_sizes[slice_ues],
-        ],
-        axis=0,
+    buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
+    throughput_available = np.minimum(
+        spectral_eff
+        * (
+            rbs_per_slice[slice_idx]
+            * env.comm_env.bandwidths[0]
+            / num_available_rbs[0]
+        )
+        / slice_ues.shape[0],
+        buffer_occ
+        * env.comm_env.ues.max_buffer_pkts[slice_ues]
+        * env.comm_env.ues.pkt_sizes[slice_ues],
     )
     # print(
     #     f"Number UEs: {np.sum(np.isclose(throughput_available, np.zeros_like(throughput_available)))} from {throughput_available.shape[0]} Buffer {np.sum(np.isclose(buffer_occ, np.zeros_like(buffer_occ)))}"
