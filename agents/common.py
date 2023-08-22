@@ -1,7 +1,6 @@
 from collections import deque
 
 import numpy as np
-from iteround import saferound
 
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
@@ -387,6 +386,7 @@ def proportional_fairness(
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
+    minimum_buffer_level = 0.2
     spectral_eff = np.mean(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
@@ -396,6 +396,7 @@ def proportional_fairness(
         * env.comm_env.ues.pkt_sizes[slice_ues]
     )
     buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
+    buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
     throughput_available = np.min(
         [
             spectral_eff
@@ -424,14 +425,9 @@ def proportional_fairness(
         + throughput_available * np.ones_like(snt_throughput),
     )
     rbs_per_ue = (
-        np.array(
-            saferound(
-                (rbs_per_slice[slice_idx] * weights / np.sum(weights)).astype(
-                    float
-                ),
-                places=0,
-                topline=rbs_per_slice[slice_idx],
-            )
+        round_int_equal_sum(
+            rbs_per_slice[slice_idx] * weights / np.sum(weights),
+            rbs_per_slice[slice_idx],
         )
         if np.sum(weights) != 0
         else round_robin(
@@ -471,11 +467,25 @@ def max_throughput(
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
+    # minimum_buffer_level = 0.2
     spectral_eff = np.mean(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
     )
-    buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
+    buffer_occ = np.array(
+        [
+            last_unformatted_obs[idx]["buffer_occupancies"][slice_ues]
+            for idx in range(0, len(last_unformatted_obs))
+        ]
+    )
+    buffer_occ = np.maximum(
+        np.mean(buffer_occ, axis=0),
+        last_unformatted_obs[0]["buffer_occupancies"][slice_ues],
+    )
+    # print(
+    #     f"Buffer less {np.sum(buffer_occ < minimum_buffer_level)} more {np.sum(buffer_occ > minimum_buffer_level)} from {buffer_occ.shape[0]}"
+    # )
+    # buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
     throughput_available = np.min(
         [
             spectral_eff
@@ -491,17 +501,15 @@ def max_throughput(
         ],
         axis=0,
     )
+    # print(
+    #     f"Number UEs: {np.sum(np.isclose(throughput_available, np.zeros_like(throughput_available)))} from {throughput_available.shape[0]} Buffer {np.sum(np.isclose(buffer_occ, np.zeros_like(buffer_occ)))}"
+    # )
     rbs_per_ue = (
-        np.array(
-            saferound(
-                (
-                    rbs_per_slice[slice_idx]
-                    * throughput_available
-                    / np.sum(throughput_available)
-                ).astype(float),
-                places=0,
-                topline=rbs_per_slice[slice_idx],
-            )
+        round_int_equal_sum(
+            rbs_per_slice[slice_idx]
+            * throughput_available
+            / np.sum(throughput_available),
+            rbs_per_slice[slice_idx],
         )
         if np.sum(throughput_available) != 0
         else round_robin(

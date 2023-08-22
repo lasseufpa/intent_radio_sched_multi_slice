@@ -4,7 +4,6 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from iteround import saferound
 
 from agents.common import (
     calculate_reward_no_mask,
@@ -157,11 +156,11 @@ class IBSchedInterRR(Agent):
                 if slice_ues.shape[0] == 0:
                     continue
                 match action[f"player_{slice_idx+1}"]:
-                    case 0:
+                    case 3:
                         allocation_rbs = round_robin(
                             allocation_rbs, slice_idx, rbs_per_slice, slice_ues
                         )
-                    case 1:
+                    case 4:
                         allocation_rbs = proportional_fairness(
                             allocation_rbs,
                             slice_idx,
@@ -171,7 +170,7 @@ class IBSchedInterRR(Agent):
                             self.last_unformatted_obs,
                             self.num_available_rbs,
                         )
-                    case 2:
+                    case 0 | 1 | 2:
                         allocation_rbs = max_throughput(
                             allocation_rbs,
                             slice_idx,

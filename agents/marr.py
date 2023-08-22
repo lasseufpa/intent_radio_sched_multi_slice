@@ -3,15 +3,12 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from iteround import saferound
 
 from agents.common import (
     calculate_reward_no_mask,
     intent_drift_calc,
-    max_throughput,
-    proportional_fairness,
-    round_int_equal_sum,
     round_robin,
+    scores_to_rbs,
 )
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
@@ -96,20 +93,10 @@ class MARR(Agent):
             != 0
         ):
             # Inter-slice scheduling
-            rbs_per_slice = (
-                np.array(
-                    saferound(
-                        self.num_available_rbs[0]
-                        * (action["player_0"] + 1)
-                        / np.sum(action["player_0"] + 1),
-                        0,
-                    )
-                )
-                if np.sum(action["player_0"] + 1) != 0
-                else np.floor(
-                    self.num_available_rbs[0] / action["player_0"].shape[0]
-                )
-                * np.ones_like(action["player_0"], dtype=int)
+            rbs_per_slice = scores_to_rbs(
+                action["player_0"],
+                self.num_available_rbs[0],
+                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
             )
             assert (
                 np.sum(
