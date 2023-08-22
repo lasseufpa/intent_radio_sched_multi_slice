@@ -294,7 +294,7 @@ def scores_to_rbs(
     assert np.sum(rbs_per_unit < 0) == 0, "Negative RBs"
     assert (
         np.sum(rbs_per_unit * association).astype(int) == total_rbs
-    ), "Allocated RBs are different from available RBs"
+    ), f"Allocated RBs {np.sum(rbs_per_unit * association)} are different from available RBs {total_rbs}\n{action}\n{rbs_per_unit}\n{association}"
 
     return rbs_per_unit
 
@@ -391,7 +391,7 @@ def proportional_fairness(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
     )
-    snt_thoughput = (
+    snt_throughput = (
         last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
         * env.comm_env.ues.pkt_sizes[slice_ues]
     )
@@ -411,11 +411,17 @@ def proportional_fairness(
         ],
         axis=0,
     )
+    snt_throughput[
+        np.isclose(
+            throughput_available, np.zeros_like(throughput_available)
+        ).nonzero()[0]
+    ] = 1  # Avoiding 0/0
     weights = np.divide(
         throughput_available,
-        snt_thoughput,
-        where=snt_thoughput != 0,
-        out=0.00001 * np.ones_like(snt_thoughput),
+        snt_throughput,
+        where=snt_throughput != 0,
+        out=np.max(throughput_available)
+        + throughput_available * np.ones_like(snt_throughput),
     )
     rbs_per_ue = (
         np.array(

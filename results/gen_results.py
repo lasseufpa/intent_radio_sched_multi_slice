@@ -330,6 +330,7 @@ agent_names = [
     "ib_sched",
     "ib_sched_no_mask",
     "ib_sched_intra_rr",
+    "ib_sched_inter_rr",
 ]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
