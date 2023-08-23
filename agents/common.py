@@ -28,7 +28,7 @@ def intent_drift_calc(
 
         if metric_name == "throughput":
             metric_value = (
-                last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
+                last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
                 * last_unformatted_obs[0]["slice_req"][f"slice_{slice_idx}"][
                     "ues"
                 ]["message_size"]
@@ -86,6 +86,26 @@ def intent_drift_calc(
                 slice_idx,
                 slice_ues,
             )
+            if parameter["name"] == "throughput":
+                # In case the throughput is below the minimum required but the
+                # buffer occupancy is zero, we consider the intent as overfulfilled
+                # because the UE is not requesting the target throughput at this time
+                buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][
+                    slice_ues
+                ]
+                zero_mask = np.isclose(buffer_occ, np.zeros_like(buffer_occ))
+                if len(last_unformatted_obs) > 1:
+                    previous_buffer_occ = last_unformatted_obs[1][
+                        "buffer_occupancies"
+                    ][slice_ues]
+                    previous_zero_mask = np.isclose(
+                        previous_buffer_occ,
+                        np.zeros_like(previous_buffer_occ),
+                    )
+                    zero_mask = np.logical_or(zero_mask, previous_zero_mask)
+                metric_value[zero_mask.nonzero()[0]] = parameter["value"] * (
+                    1.1 + intent_overfulfillment_rate
+                )
             intent_fulfillment = (
                 parameter["operator"](metric_value, parameter["value"]).astype(
                     int
@@ -391,38 +411,34 @@ def proportional_fairness(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
     )
-    snt_throughput = (
-        last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
-        * env.comm_env.ues.pkt_sizes[slice_ues]
-    )
     buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
     buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
-    throughput_available = np.min(
-        [
-            spectral_eff
-            * (
-                rbs_per_slice[slice_idx]
-                * env.comm_env.bandwidths[0]
-                / num_available_rbs[0]
-            )
-            / slice_ues.shape[0],
-            buffer_occ
-            * env.comm_env.ues.max_buffer_pkts[slice_ues]
-            * env.comm_env.ues.pkt_sizes[slice_ues],
-        ],
-        axis=0,
+    throughput_available = np.minimum(
+        spectral_eff
+        * (
+            rbs_per_slice[slice_idx]
+            * env.comm_env.bandwidths[0]
+            / num_available_rbs[0]
+        )
+        / slice_ues.shape[0],
+        buffer_occ
+        * env.comm_env.ues.max_buffer_pkts[slice_ues]
+        * env.comm_env.ues.pkt_sizes[slice_ues],
     )
-    snt_throughput[
-        np.isclose(
-            throughput_available, np.zeros_like(throughput_available)
-        ).nonzero()[0]
-    ] = 1  # Avoiding 0/0
+    snt_throughput = (
+        last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
+        * env.comm_env.ues.pkt_sizes[slice_ues]
+    )
+    print(
+        f"Snt throughput {np.sum(np.isclose(snt_throughput, np.zeros_like(snt_throughput)))} from {snt_throughput.shape[0]}"
+    )
     weights = np.divide(
         throughput_available,
         snt_throughput,
-        where=snt_throughput != 0,
-        out=np.max(throughput_available)
-        + throughput_available * np.ones_like(snt_throughput),
+        where=np.logical_not(
+            np.isclose(snt_throughput, np.zeros_like(snt_throughput))
+        ),
+        out=np.max(throughput_available) * np.ones_like(snt_throughput),
     )
     rbs_per_ue = (
         round_int_equal_sum(
@@ -467,16 +483,11 @@ def max_throughput(
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
-    minimum_buffer_level = 0.2
     spectral_eff = np.mean(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
     )
     buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
-    # print(
-    #     f"Buffer less {np.sum(buffer_occ < minimum_buffer_level)} more {np.sum(buffer_occ > minimum_buffer_level)} from {buffer_occ.shape[0]}"
-    # )
-    buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
     throughput_available = np.minimum(
         spectral_eff
         * (
@@ -489,9 +500,6 @@ def max_throughput(
         * env.comm_env.ues.max_buffer_pkts[slice_ues]
         * env.comm_env.ues.pkt_sizes[slice_ues],
     )
-    # print(
-    #     f"Number UEs: {np.sum(np.isclose(throughput_available, np.zeros_like(throughput_available)))} from {throughput_available.shape[0]} Buffer {np.sum(np.isclose(buffer_occ, np.zeros_like(buffer_occ)))}"
-    # )
     rbs_per_ue = (
         round_int_equal_sum(
             rbs_per_slice[slice_idx]
