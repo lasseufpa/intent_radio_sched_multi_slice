@@ -327,8 +327,8 @@ agent_names = [
     "round_robin",
     "random",
     "ib_sched_intra_nn",
-    "ib_sched",
-    "ib_sched_no_mask",
+    # "ib_sched",
+    # "ib_sched_no_mask",
     "ib_sched_intra_rr",
     "ib_sched_inter_rr",
 ]

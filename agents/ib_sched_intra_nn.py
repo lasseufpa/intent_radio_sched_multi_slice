@@ -1,10 +1,8 @@
 from collections import deque
-from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from scipy.optimize import minimize
 
 from agents.common import (
     calculate_reward_mask,

@@ -5,12 +5,8 @@ import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.env import PettingZooEnv
-from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
-from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
-from ray.util import inspect_serializability
 from tqdm import tqdm
 
 from agents.ib_sched_intra_rr import IBSchedIntraRR

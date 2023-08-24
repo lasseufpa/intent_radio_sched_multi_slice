@@ -8,8 +8,6 @@ from gymnasium import spaces
 from agents.common import (
     calculate_reward_no_mask,
     intent_drift_calc,
-    max_throughput,
-    proportional_fairness,
     round_robin,
     scores_to_rbs,
 )

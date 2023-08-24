@@ -156,11 +156,11 @@ class IBSchedInterRR(Agent):
                 if slice_ues.shape[0] == 0:
                     continue
                 match action[f"player_{slice_idx+1}"]:
-                    case 3:
+                    case 0:
                         allocation_rbs = round_robin(
                             allocation_rbs, slice_idx, rbs_per_slice, slice_ues
                         )
-                    case 4:
+                    case 1:
                         allocation_rbs = proportional_fairness(
                             allocation_rbs,
                             slice_idx,
@@ -170,7 +170,7 @@ class IBSchedInterRR(Agent):
                             self.last_unformatted_obs,
                             self.num_available_rbs,
                         )
-                    case 0 | 1 | 2:
+                    case 2:
                         allocation_rbs = max_throughput(
                             allocation_rbs,
                             slice_idx,

@@ -406,13 +406,11 @@ def proportional_fairness(
     last_unformatted_obs: deque,
     num_available_rbs: np.ndarray,
 ) -> np.ndarray:
-    minimum_buffer_level = 0.2
     spectral_eff = np.mean(
         last_unformatted_obs[0]["spectral_efficiencies"][0, slice_ues, :],
         axis=1,
     )
     buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
-    buffer_occ[buffer_occ < minimum_buffer_level] = minimum_buffer_level
     throughput_available = np.minimum(
         spectral_eff
         * (
@@ -425,20 +423,24 @@ def proportional_fairness(
         * env.comm_env.ues.max_buffer_pkts[slice_ues]
         * env.comm_env.ues.pkt_sizes[slice_ues],
     )
-    snt_throughput = (
-        last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
-        * env.comm_env.ues.pkt_sizes[slice_ues]
+    pkt_snt_throughput = np.mean(
+        [
+            last_unformatted_obs[idx]["pkt_effective_thr"][slice_ues]
+            for idx in range(len(last_unformatted_obs))
+        ],
+        axis=0,
     )
-    print(
-        f"Snt throughput {np.sum(np.isclose(snt_throughput, np.zeros_like(snt_throughput)))} from {snt_throughput.shape[0]}"
-    )
+    snt_throughput = pkt_snt_throughput * env.comm_env.ues.pkt_sizes[slice_ues]
+    snt_throughput[
+        np.isclose(throughput_available, np.zeros_like(throughput_available))
+    ] = 1
     weights = np.divide(
         throughput_available,
         snt_throughput,
         where=np.logical_not(
             np.isclose(snt_throughput, np.zeros_like(snt_throughput))
         ),
-        out=np.max(throughput_available) * np.ones_like(snt_throughput),
+        out=2 * np.max(throughput_available) * np.ones_like(snt_throughput),
     )
     rbs_per_ue = (
         round_int_equal_sum(
