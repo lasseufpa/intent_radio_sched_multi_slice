@@ -64,10 +64,12 @@ def intent_drift_calc(
         return metric_value
 
     last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
+    metrics = {"throughput": 0, "reliability": 1, "latency": 2}
     observations = np.zeros(
         (
             last_unformatted_obs[0]["slice_ue_assoc"].shape[0],
             max_number_ues_slice,
+            len(metrics),
         ),
         dtype=float,
     )
@@ -133,16 +135,28 @@ def intent_drift_calc(
                         ).nonzero()[0]
                         overfulfilled_mask = overfulfilled_mask.nonzero()[0]
                         # Fulfilled intent
-                        observations[slice_idx, fulfilled_mask] += (
+                        observations[
+                            slice_idx,
+                            fulfilled_mask,
+                            metrics[parameter["name"]],
+                        ] += (
                             metric_value[fulfilled_mask] - parameter["value"]
-                        ) / (parameter["value"] * intent_overfulfillment_rate)
+                        ) / (
+                            parameter["value"] * intent_overfulfillment_rate
+                        )
                         # Overfulfilled intent
-                        observations[slice_idx, overfulfilled_mask] += 1
+                        observations[
+                            slice_idx,
+                            overfulfilled_mask,
+                            metrics[parameter["name"]],
+                        ] += 1
 
                     # Intent unfulfillment
                     if np.sum(intent_unfulfillment) > 0:
                         observations[
-                            slice_idx, intent_unfulfillment.nonzero()[0]
+                            slice_idx,
+                            intent_unfulfillment.nonzero()[0],
+                            metrics[parameter["name"]],
                         ] -= (
                             parameter["value"]
                             - metric_value[intent_unfulfillment.nonzero()[0]]
@@ -167,7 +181,11 @@ def intent_drift_calc(
 
                         overfulfilled_mask = overfulfilled_mask.nonzero()[0]
                         # Fulfilled intent
-                        observations[slice_idx, fulfilled_mask] += (
+                        observations[
+                            slice_idx,
+                            fulfilled_mask,
+                            metrics[parameter["name"]],
+                        ] += (
                             (100 - parameter["value"]) / 100
                             - metric_value[fulfilled_mask]
                         ) / (
@@ -175,12 +193,18 @@ def intent_drift_calc(
                             * intent_overfulfillment_rate
                         )
                         # Overfulfilled intent
-                        observations[slice_idx, overfulfilled_mask] += 1
+                        observations[
+                            slice_idx,
+                            overfulfilled_mask,
+                            metrics[parameter["name"]],
+                        ] += 1
 
                     # Intent unfulfillment
                     if np.sum(intent_unfulfillment) > 0:
                         observations[
-                            slice_idx, intent_unfulfillment.nonzero()[0]
+                            slice_idx,
+                            intent_unfulfillment.nonzero()[0],
+                            metrics[parameter["name"]],
                         ] -= (
                             metric_value[intent_unfulfillment.nonzero()[0]]
                             - ((100 - parameter["value"]) / 100)
@@ -209,16 +233,28 @@ def intent_drift_calc(
                             intent_fulfillment * overfulfilled_mask
                         ).nonzero()[0]
                         # Fulfilled intent
-                        observations[slice_idx, fulfilled_mask] += (
+                        observations[
+                            slice_idx,
+                            fulfilled_mask,
+                            metrics[parameter["name"]],
+                        ] += (
                             parameter["value"] - metric_value[fulfilled_mask]
-                        ) / (parameter["value"] * intent_overfulfillment_rate)
+                        ) / (
+                            parameter["value"] * intent_overfulfillment_rate
+                        )
                         # Overfulfilled intent
-                        observations[slice_idx, overfulfilled_mask] += 1
+                        observations[
+                            slice_idx,
+                            overfulfilled_mask,
+                            metrics[parameter["name"]],
+                        ] += 1
 
                     # Intent unfulfillment
                     if np.sum(intent_unfulfillment) > 0:
                         observations[
-                            slice_idx, intent_unfulfillment.nonzero()[0]
+                            slice_idx,
+                            intent_unfulfillment.nonzero()[0],
+                            metrics[parameter["name"]],
                         ] -= (
                             metric_value[intent_unfulfillment.nonzero()[0]]
                             - parameter["value"]
@@ -232,7 +268,7 @@ def intent_drift_calc(
                 case _:
                     raise ValueError("Invalid parameter name")
 
-        observations[slice_idx, :] = observations[slice_idx, :] / len(
+        observations[slice_idx, :, :] = observations[slice_idx, :, :] / len(
             last_obs_slice_req[slice]["parameters"]
         )
 
