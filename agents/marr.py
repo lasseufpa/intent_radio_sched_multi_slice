@@ -20,6 +20,7 @@ class MARR(Agent):
         max_number_ues: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
+        debug_violations: bool = False,
     ) -> None:
         super().__init__(
             env, max_number_ues, max_number_basestations, num_available_rbs
@@ -32,6 +33,18 @@ class MARR(Agent):
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
+        self.debug_violations = debug_violations
+        if self.debug_violations:
+            self.number_metrics = 3
+            self.violations = np.zeros(
+                (
+                    self.env.comm_env.max_number_steps,
+                    self.env.comm_env.max_number_slices,
+                    self.max_number_ues_slice,
+                    self.number_metrics,
+                ),
+                dtype=float,
+            )
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> dict:
         slice_ue_assoc = self.last_unformatted_obs[0]["slice_ue_assoc"]
@@ -55,6 +68,31 @@ class MARR(Agent):
             self.intent_overfulfillment_rate,
             self.env,
         )
+        if self.debug_violations:
+            self.violations[
+                self.env.comm_env.step_number - 1,
+                :,
+                :,
+                :,
+            ] = intent_drift_slice_ue
+            if (
+                self.env.comm_env.step_number
+                == self.env.comm_env.max_number_steps
+            ):
+                np.savez_compressed(
+                    "violations_ep_0.npz", violations=self.violations
+                )
+                self.violations = np.zeros(
+                    (
+                        self.env.comm_env.max_number_steps,
+                        self.env.comm_env.max_number_slices,
+                        self.max_number_ues_slice,
+                        self.number_metrics,
+                    ),
+                    dtype=float,
+                )
+        intent_drift_slice_ue = np.sum(intent_drift_slice_ue, 2)
+
         formatted_obs_space = {}
         for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
             if agent_idx == 0:

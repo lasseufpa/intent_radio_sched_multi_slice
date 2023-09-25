@@ -42,6 +42,7 @@ marr_agent = env_config["agent_class"](
     marl_comm_env.comm_env.max_number_ues,
     marl_comm_env.comm_env.max_number_basestations,
     marl_comm_env.comm_env.num_available_rbs,
+    debug_violations=True,
 )
 marl_comm_env.comm_env.set_agent_functions(
     marr_agent.obs_space_format,
