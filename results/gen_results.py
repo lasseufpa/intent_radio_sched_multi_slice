@@ -17,7 +17,6 @@ def gen_results(
     for scenario in scenario_names:
         for episode in episodes:
             for metric in metrics:
-                plt.figure()
                 w, h = matfig.figaspect(0.6)
                 plt.figure(figsize=(w, h))
                 for agent in agent_names:
@@ -215,7 +214,7 @@ def plot_graph(
                     axis=1,
                 )
                 plt.plot(slice_rbs, label=f"{agent}, slice {slice}")
-                plt.xlim([5000, 5200])
+                plt.xlim([0, 500])
                 xlabel = "Step (n)"
                 ylabel = "# allocated RBs"
             case _:
@@ -303,17 +302,29 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
     violations = (
         np.array(
             [
-                np.sum(step_obs["player_0"]["observations"][0:10] < 0).astype(
-                    int
-                )
-                for step_obs in data_metrics["obs"]
+                np.sum(
+                    (
+                        data_metrics["obs"][step_idx]["player_0"][
+                            "observations"
+                        ][0:10]
+                        * data_metrics["basestation_slice_assoc"][step_idx][0]
+                    )
+                    < 0
+                ).astype(int)
+                for step_idx in np.arange(data_metrics["obs"].shape[0])
             ]
         )
         if "observations" in data_metrics["obs"][0]["player_0"]
         else np.array(
             [
-                np.sum(step_obs["player_0"][0:10] < 0).astype(int)
-                for step_obs in data_metrics["obs"]
+                np.sum(
+                    (
+                        data_metrics["obs"][step_idx]["player_0"][0:10]
+                        * data_metrics["basestation_slice_assoc"][step_idx][0]
+                    )
+                    < 0
+                ).astype(int)
+                for step_idx in np.arange(data_metrics["obs"].shape[0])
             ]
         )
     )
@@ -325,12 +336,12 @@ scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
     "round_robin",
-    "random",
-    "ib_sched_intra_nn",
+    # "random",
+    # "ib_sched_intra_nn",
     # "ib_sched",
     # "ib_sched_no_mask",
     "ib_sched_intra_rr",
-    "ib_sched_inter_rr",
+    # "ib_sched_inter_rr",
 ]
 episodes = np.array([0], dtype=int)
 slices = np.arange(10)
@@ -367,5 +378,7 @@ metrics = [
     # "reward_cumsum",
     # "violations",
     "violations_cumsum",
+    # "sched_decision",
+    # "basestation_slice_assoc",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
