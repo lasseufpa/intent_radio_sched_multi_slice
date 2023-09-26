@@ -89,10 +89,7 @@ class IBSchedIntraRR(Agent):
 
         # Inter-slice observation
         formatted_obs_space["player_0"] = {
-            "observations": np.append(
-                np.zeros(obs_space["slice_ue_assoc"].shape[0]),
-                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
-            ),
+            "observations": np.zeros(obs_space["slice_ue_assoc"].shape[0]),
             "action_mask": self.last_unformatted_obs[0][
                 "basestation_slice_assoc"
             ][0].astype(np.int8),
@@ -110,7 +107,7 @@ class IBSchedIntraRR(Agent):
             formatted_obs_space["player_0"]["observations"][agent_idx - 1] = (
                 np.mean(intent_ue_values[0 : slice_ues.shape[0]])
                 if slice_ues.shape[0] != 0
-                else 1
+                else -2
             )
 
             spectral_eff = np.pad(
@@ -233,7 +230,7 @@ class IBSchedIntraRR(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-1, high=1, shape=(20,), dtype=np.float64
+                            low=-2, high=1, shape=(10,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
                             0.0, 1.0, shape=(10,), dtype=np.int8
