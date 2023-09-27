@@ -17,15 +17,6 @@ def intent_drift_calc(
         slice_idx: int,
         slice_ues: np.ndarray,
     ) -> np.ndarray:
-        def calc_metric_interval(metric: str, slice_ues: np.ndarray) -> float:
-            return np.sum(
-                [
-                    last_unformatted_obs[i][metric][slice_ues]
-                    for i in range(len(last_unformatted_obs))
-                ],
-                axis=0,
-            )
-
         if metric_name == "throughput":
             metric_value = (
                 last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
@@ -34,26 +25,9 @@ def intent_drift_calc(
                 ]["message_size"]
             ) / 1e6  # Mbps
         elif metric_name == "reliability":
-            pkts_snt_over_interval = calc_metric_interval(
-                "pkt_effective_thr", slice_ues
-            )
-            dropped_pkts_over_interval = calc_metric_interval(
-                "dropped_pkts", slice_ues
-            )
-            buffer_pkts = (
-                last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
-                * last_unformatted_obs[0]["slice_req"][f"slice_{slice_idx}"][
-                    "ues"
-                ]["buffer_size"]
-                + dropped_pkts_over_interval
-                + pkts_snt_over_interval
-            )
-            metric_value = np.divide(
-                dropped_pkts_over_interval,
-                buffer_pkts,
-                where=buffer_pkts != 0,
-                out=np.zeros_like(buffer_pkts),
-            )  # Rate [0,1]
+            metric_value = last_unformatted_obs[0]["buffer_occupancies"][
+                slice_ues
+            ]  # Buffer occupancy rate [0,1]
         elif metric_name == "latency":
             metric_value = last_unformatted_obs[0]["buffer_latencies"][
                 slice_ues
@@ -108,13 +82,14 @@ def intent_drift_calc(
                 metric_value[zero_mask.nonzero()[0]] = parameter["value"] * (
                     1.1 + intent_overfulfillment_rate
                 )
+            buffer_occupancy_threshold = 0.6
             intent_fulfillment = (
                 parameter["operator"](metric_value, parameter["value"]).astype(
                     int
                 )
                 if parameter["name"] != "reliability"
                 else parameter["operator"](
-                    100 * (1 - metric_value), parameter["value"]
+                    1 - metric_value, (1 - buffer_occupancy_threshold)
                 ).astype(int)
             )
             intent_unfulfillment = np.logical_not(intent_fulfillment)
@@ -164,15 +139,12 @@ def intent_drift_calc(
                             parameter["value"]
                         )
 
-                case "reliability":
+                case "reliability":  # Using buffer occupancy instead of packet loss
                     # Intent fulfillment
+                    buffer_occupancy_over_threshold = 0.2
                     if np.sum(intent_fulfillment) > 0:
                         overfulfilled_mask = intent_fulfillment * (
-                            metric_value
-                            < (
-                                ((100 - parameter["value"]) / 100)
-                                * (1 - intent_overfulfillment_rate)
-                            )
+                            metric_value <= buffer_occupancy_over_threshold
                         )
                         fulfilled_mask = (
                             intent_fulfillment
@@ -186,11 +158,11 @@ def intent_drift_calc(
                             fulfilled_mask,
                             metrics[parameter["name"]],
                         ] += (
-                            (100 - parameter["value"]) / 100
+                            buffer_occupancy_threshold
                             - metric_value[fulfilled_mask]
                         ) / (
-                            ((100 - parameter["value"]) / 100)
-                            * intent_overfulfillment_rate
+                            buffer_occupancy_threshold
+                            - buffer_occupancy_over_threshold
                         )
                         # Overfulfilled intent
                         observations[
@@ -207,9 +179,9 @@ def intent_drift_calc(
                             metrics[parameter["name"]],
                         ] -= (
                             metric_value[intent_unfulfillment.nonzero()[0]]
-                            - ((100 - parameter["value"]) / 100)
+                            - buffer_occupancy_threshold
                         ) / (
-                            parameter["value"] / 100
+                            1 - buffer_occupancy_threshold
                         )
 
                 case "latency":
