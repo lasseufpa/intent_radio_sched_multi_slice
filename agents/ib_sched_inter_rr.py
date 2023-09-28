@@ -48,7 +48,6 @@ class IBSchedInterRR(Agent):
             self.last_unformatted_obs,
             self.max_number_ues_slice,
             self.intent_overfulfillment_rate,
-            self.env,
         )
         formatted_obs_space = {}
 
