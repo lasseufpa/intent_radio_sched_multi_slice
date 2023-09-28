@@ -9,7 +9,6 @@ def intent_drift_calc(
     last_unformatted_obs: deque[dict],
     max_number_ues_slice: int,
     intent_overfulfillment_rate: float,
-    env: MARLCommEnv,
 ) -> np.ndarray:
     def get_metric_value(
         metric_name: str,
@@ -185,9 +184,10 @@ def intent_drift_calc(
                         )
 
                 case "latency":
-                    max_latency_per_ue = env.comm_env.ues.max_buffer_latencies[
-                        slice_ues
-                    ]
+                    max_latency_per_ue = (
+                        np.ones_like(slice_ues)
+                        * last_obs_slice_req[slice]["ues"]["buffer_latency"]
+                    )
                     # Intent fulfillment
                     if np.sum(intent_fulfillment) > 0:
                         overfulfilled_mask = intent_fulfillment * (

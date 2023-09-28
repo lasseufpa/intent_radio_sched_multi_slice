@@ -59,7 +59,6 @@ class IBSchedIntraRR(Agent):
             self.last_unformatted_obs,
             self.max_number_ues_slice,
             self.intent_overfulfillment_rate,
-            self.env,
         )
         if self.debug_violations:
             self.violations[
