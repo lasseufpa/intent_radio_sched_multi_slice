@@ -2,7 +2,7 @@ from collections import deque
 
 import numpy as np
 
-from sixg_radio_mgmt import Agent, MARLCommEnv
+from sixg_radio_mgmt import MARLCommEnv
 
 
 def intent_drift_calc(

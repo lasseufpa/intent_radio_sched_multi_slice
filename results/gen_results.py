@@ -1,9 +1,16 @@
 import os
+import sys
+from collections import deque
 from typing import Tuple
 
 import matplotlib.figure as matfig
 import matplotlib.pyplot as plt
 import numpy as np
+
+# Import intent_drift_calc function
+sys.path.append(os.path.abspath("agents/"))
+sys.path.append(os.path.abspath("sixg_radio_mgmt/"))
+from common import intent_drift_calc  # type: ignore # noqa: E402
 
 
 def gen_results(
@@ -298,36 +305,48 @@ def calc_slice_average(
     return result_values
 
 
+def get_intent_drift(data_metrics) -> np.ndarray:
+    max_number_ues_slice = 10
+    intent_overfulfillment_rate = 0.2
+    last_unformatted_obs = deque(maxlen=10)
+    intent_drift_slice_ue = np.zeros((data_metrics["obs"].shape[0], 10, 10, 3))
+    for step_idx in np.arange(data_metrics["obs"].shape[0]):
+        dict_info = {
+            "pkt_effective_thr": data_metrics["pkt_effective_thr"][step_idx],
+            "slice_req": data_metrics["slice_req"][step_idx],
+            "buffer_occupancies": data_metrics["buffer_occupancies"][step_idx],
+            "buffer_latencies": data_metrics["buffer_latencies"][step_idx],
+            "slice_ue_assoc": data_metrics["slice_ue_assoc"][step_idx],
+            "dropped_pkts": data_metrics["dropped_pkts"][step_idx],
+        }
+        last_unformatted_obs.appendleft(dict_info)
+        intent_drift_slice_ue[step_idx, :, :, :] = intent_drift_calc(
+            last_unformatted_obs,
+            max_number_ues_slice,
+            intent_overfulfillment_rate,
+            True,
+        )
+
+    return intent_drift_slice_ue
+
+
 def calc_slice_violations(data_metrics) -> np.ndarray:
-    violations = (
-        np.array(
-            [
-                np.sum(
-                    (
-                        data_metrics["obs"][step_idx]["player_0"][
-                            "observations"
-                        ][0:10]
-                        * data_metrics["basestation_slice_assoc"][step_idx][0]
-                    )
-                    < 0
-                ).astype(int)
-                for step_idx in np.arange(data_metrics["obs"].shape[0])
-            ]
+    if True:
+        intent_drift_slice_ue = get_intent_drift(data_metrics)
+        intent_drift_slice_ue = np.sum(
+            np.sum(intent_drift_slice_ue, 3), axis=2
         )
-        if "observations" in data_metrics["obs"][0]["player_0"]
-        else np.array(
-            [
-                np.sum(
-                    (
-                        data_metrics["obs"][step_idx]["player_0"][0:10]
-                        * data_metrics["basestation_slice_assoc"][step_idx][0]
-                    )
-                    < 0
-                ).astype(int)
-                for step_idx in np.arange(data_metrics["obs"].shape[0])
-            ]
+        slice_ue_assoc = data_metrics["slice_ue_assoc"]
+        number_ues_slice = np.sum(slice_ue_assoc, axis=2)
+        intent_slice_values = np.divide(
+            intent_drift_slice_ue,
+            number_ues_slice,
+            where=np.logical_not(
+                np.isclose(number_ues_slice, np.zeros_like(number_ues_slice))
+            ),
+            out=np.zeros_like(number_ues_slice),
         )
-    )
+        violations = np.sum(intent_slice_values < 0, axis=1).astype(int)
 
     return violations
 
