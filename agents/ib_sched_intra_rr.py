@@ -104,7 +104,7 @@ class IBSchedIntraRR(Agent):
             ].nonzero()[0]
             intent_ue_values = intent_drift_slice_ue[agent_idx - 1, :]
             formatted_obs_space["player_0"]["observations"][agent_idx - 1] = (
-                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
+                np.min(intent_ue_values[0 : slice_ues.shape[0]])
                 if slice_ues.shape[0] != 0
                 else -2
             )
