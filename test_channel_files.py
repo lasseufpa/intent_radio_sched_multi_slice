@@ -3,11 +3,11 @@ import numpy as np
 
 from channels.quadriga import QuadrigaChannel
 
-max_number_ues = 100
+max_number_ues = 25
 max_number_basestations = 1
 num_available_rbs = np.array([135])
 channel_gen = QuadrigaChannel(
-    max_number_ues, max_number_basestations, num_available_rbs
+    max_number_ues, max_number_basestations, num_available_rbs, root_path="."
 )
 episode = 0
 steps_per_episode = 1000

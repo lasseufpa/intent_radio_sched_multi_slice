@@ -21,7 +21,7 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "random",
     "root_path": str(getcwd()),
-    "number_agents": 11,
+    "number_agents": 6,
 }
 
 marl_comm_env = MARLCommEnv(

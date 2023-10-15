@@ -75,7 +75,7 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "ib_sched_intra_rr",
     "root_path": str(getcwd()),
-    "number_agents": 11,
+    "number_agents": 6,
 }
 
 # Training
@@ -111,7 +111,7 @@ if training_flag:
         .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 10,
+        "episodes_total": 50,
     }
     results = tune.Tuner(
         "PPO",
@@ -121,7 +121,7 @@ if training_flag:
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
-                num_to_keep=10,
+                num_to_keep=100,
                 checkpoint_frequency=1,
                 checkpoint_at_end=True,
             ),

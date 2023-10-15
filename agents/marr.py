@@ -174,7 +174,7 @@ class MARR(Agent):
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(10,), dtype=np.float64
+                    low=-1, high=1, shape=(5,), dtype=np.float64
                 )
                 if idx == 0
                 else spaces.Discrete(
@@ -188,11 +188,11 @@ class MARR(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Dict:
-        num_agents = 11
+        num_agents = 6
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(10,), dtype=np.float64
+                    low=-1, high=1, shape=(5,), dtype=np.float64
                 )
                 for idx in range(num_agents)
             }

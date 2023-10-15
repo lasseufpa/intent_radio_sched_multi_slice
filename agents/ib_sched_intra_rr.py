@@ -30,7 +30,7 @@ class IBSchedIntraRR(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         max_obs_memory = 10
-        self.max_number_ues_slice = 10
+        self.max_number_ues_slice = 5
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
@@ -88,7 +88,7 @@ class IBSchedIntraRR(Agent):
 
         # Inter-slice observation
         formatted_obs_space["player_0"] = {
-            "observations": np.zeros(obs_space["slice_ue_assoc"].shape[0]),
+            "observations": np.zeros(obs_space["slice_ue_assoc"].shape[0] * 3),
             "action_mask": self.last_unformatted_obs[0][
                 "basestation_slice_assoc"
             ][0].astype(np.int8),
@@ -103,11 +103,6 @@ class IBSchedIntraRR(Agent):
                 agent_idx - 1
             ].nonzero()[0]
             intent_ue_values = intent_drift_slice_ue[agent_idx - 1, :]
-            formatted_obs_space["player_0"]["observations"][agent_idx - 1] = (
-                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
-                if slice_ues.shape[0] != 0
-                else -2
-            )
 
             spectral_eff = np.pad(
                 np.mean(
@@ -130,7 +125,48 @@ class IBSchedIntraRR(Agent):
                 (0, self.max_number_ues_slice - slice_ues.shape[0]),
                 "constant",
             )
+            slice_traffic_req = (
+                self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["ues"]["traffic"]
+                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, agent_idx - 1
+                ]
+                == 1
+                else 0
+            )
+            intent_slice = (
+                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
+                if slice_ues.shape[0] != 0
+                else -2
+            )
 
+            # Inter-slice scheduling
+            formatted_obs_space["player_0"]["observations"][
+                [
+                    (agent_idx - 1),
+                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0],
+                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0] * 2,
+                ]
+            ] = (
+                np.array(
+                    [
+                        intent_slice,
+                        slice_traffic_req / 200,
+                        np.mean(
+                            spectral_eff[0 : slice_ues.shape[0]]
+                            * max_spectral_eff
+                        )
+                        / 20,
+                    ]
+                )
+                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, agent_idx - 1
+                ]
+                == 1
+                else np.array([intent_slice, 0, 0])
+            )
+            # Intra-slice scheduling
             formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
                 (
                     intent_ue_values,
@@ -209,7 +245,7 @@ class IBSchedIntraRR(Agent):
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(10,), dtype=np.float64
+                    low=-1, high=1, shape=(5,), dtype=np.float64
                 )
                 if idx == 0
                 else spaces.Discrete(
@@ -229,15 +265,15 @@ class IBSchedIntraRR(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(10,), dtype=np.float64
+                            low=-2, high=1, shape=(15,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(10,), dtype=np.int8
+                            0.0, 1.0, shape=(5,), dtype=np.int8
                         ),
                     }
                 )
                 if idx == 0
-                else spaces.Box(low=-1, high=1, shape=(30,), dtype=np.float64)
+                else spaces.Box(low=-1, high=1, shape=(15,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )

@@ -246,8 +246,8 @@ class MultSliceAssociation(Association):
                     "message_size": 1 * 1024 * 8,  # bits
                     "mobility": 0,  # Km/h
                     "traffic": 2,  # Mbps
-                    "min_number_ues": 8,
-                    "max_number_ues": 10,
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
                 },
             },
             "monitoring_case_1": {
@@ -266,8 +266,8 @@ class MultSliceAssociation(Association):
                     "message_size": 1 * 1024 * 8,
                     "mobility": 72,  # Km/h
                     "traffic": 5,  # Mbps
-                    "min_number_ues": 8,
-                    "max_number_ues": 10,
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
                 },
             },
             "robotic_surgery_case_1": {
@@ -298,8 +298,8 @@ class MultSliceAssociation(Association):
                     "message_size": 2000 * 8,
                     "mobility": 0,  # Km/h
                     "traffic": 16,  # Mbps
-                    "min_number_ues": 4,
-                    "max_number_ues": 8,
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
                 },
             },
             "robotic_diagnosis": {
@@ -330,8 +330,8 @@ class MultSliceAssociation(Association):
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
                     "traffic": 16,  # Mbps,
-                    "min_number_ues": 4,
-                    "max_number_ues": 8,
+                    "min_number_ues": 2,
+                    "max_number_ues": 5,
                 },
             },
             "medical_monitoring": {
@@ -362,8 +362,8 @@ class MultSliceAssociation(Association):
                     "message_size": 1000 * 8,
                     "mobility": 200,  # Km/h
                     "traffic": 1,  # Mbps
-                    "min_number_ues": 8,
-                    "max_number_ues": 10,
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
                 },
             },
             "uav_app_case_1": {
@@ -388,8 +388,8 @@ class MultSliceAssociation(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                     "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
                 },
             },
             "uav_control_non_vlos": {
@@ -421,7 +421,7 @@ class MultSliceAssociation(Association):
                     "mobility": 30,  # Km/h
                     "traffic": 4,  # Mbps
                     "min_number_ues": 4,
-                    "max_number_ues": 10,
+                    "max_number_ues": 5,
                 },
             },
             "vr_gaming": {
@@ -453,7 +453,7 @@ class MultSliceAssociation(Association):
                     "mobility": 0,  # Km/h
                     "traffic": 200,  # Mbps
                     "min_number_ues": 1,
-                    "max_number_ues": 1,
+                    "max_number_ues": 2,
                 },
             },
             "cloud_gaming": {
@@ -498,8 +498,8 @@ class MultSliceAssociation(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
                     "traffic": 15,  # Mbps
-                    "min_number_ues": 5,
-                    "max_number_ues": 10,
+                    "min_number_ues": 2,
+                    "max_number_ues": 5,
                 },
             },
         }

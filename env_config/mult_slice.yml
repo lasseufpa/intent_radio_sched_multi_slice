@@ -10,5 +10,5 @@ simulation:
     max_number_steps: 10000,
     simu_name: mult_slice,
   }
-slices: { max_number_slices: 10 }
-ues: { max_number_ues: 100 }
+slices: { max_number_slices: 5 }
+ues: { max_number_ues: 25 }

@@ -8,8 +8,8 @@ from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import UEs
 from traffics.mult_slice import MultSliceTraffic
 
-max_number_ues = 100
-max_number_slices = 10
+max_number_ues = 25  # Total in the system
+max_number_slices = 5
 max_number_basestations = 1
 seed = 10
 scenario_name = "scenario_1"
@@ -113,7 +113,7 @@ for episode in np.arange(number_episodes):
     ues_per_slice = np.empty((max_number_slices, 0))
     hist_slices_lifetime = np.empty((number_steps, max_number_slices))
     ues_basestation = np.array([])
-    traffic_slice_watch = 5
+    traffic_slice_watch = 3
     traffic_hist = np.array([])
     traffic_type_hist = [("Initial", 0)]
     hist_total_throughput = np.array([])
@@ -164,7 +164,10 @@ for episode in np.arange(number_episodes):
         print(f"Episode {episode}, Step {step}")
         ues_per_slice = np.append(
             ues_per_slice,
-            np.reshape(np.sum(slice_ue_assoc, axis=1), (10, 1)),
+            np.reshape(
+                np.sum(slice_ue_assoc, axis=1),
+                (int(max_number_ues / max_number_slices), 1),
+            ),
             axis=1,
         )
         hist_slices_lifetime[step] = mult_slice_assoc.slices_lifetime
