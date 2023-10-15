@@ -306,10 +306,10 @@ def calc_slice_average(
 
 
 def get_intent_drift(data_metrics) -> np.ndarray:
-    max_number_ues_slice = 10
+    max_number_ues_slice = 5
     intent_overfulfillment_rate = 0.2
     last_unformatted_obs = deque(maxlen=10)
-    intent_drift_slice_ue = np.zeros((data_metrics["obs"].shape[0], 10, 10, 3))
+    intent_drift_slice_ue = np.zeros((data_metrics["obs"].shape[0], 5, 5, 3))
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
         dict_info = {
             "pkt_effective_thr": data_metrics["pkt_effective_thr"][step_idx],
@@ -354,8 +354,8 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
+    "random",
     "round_robin",
-    # "random",
     # "ib_sched_intra_nn",
     # "ib_sched",
     # "ib_sched_no_mask",
@@ -394,10 +394,11 @@ slices = np.arange(10)
 
 # One graph for all agents
 metrics = [
-    # "reward_cumsum",
-    # "violations",
+    "reward",
+    "reward_cumsum",
+    "violations",
     "violations_cumsum",
-    # "sched_decision",
-    # "basestation_slice_assoc",
+    # # "sched_decision",
+    "basestation_slice_assoc",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
