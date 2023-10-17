@@ -7,6 +7,7 @@ from gymnasium import spaces
 
 from agents.common import (
     calculate_reward_no_mask,
+    calculate_slice_ue_obs,
     intent_drift_calc,
     round_robin,
     scores_to_rbs,
@@ -55,7 +56,7 @@ class IBSchedIntraRR(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        intent_drift_slice_ue = intent_drift_calc(
+        intent_drift = intent_drift_calc(
             self.last_unformatted_obs,
             self.max_number_ues_slice,
             self.intent_overfulfillment_rate,
@@ -66,7 +67,7 @@ class IBSchedIntraRR(Agent):
                 :,
                 :,
                 :,
-            ] = intent_drift_slice_ue
+            ] = intent_drift
             if (
                 self.env.comm_env.step_number
                 == self.env.comm_env.max_number_steps
@@ -83,7 +84,6 @@ class IBSchedIntraRR(Agent):
                     ),
                     dtype=float,
                 )
-        intent_drift_slice_ue = np.sum(intent_drift_slice_ue, 2)
         formatted_obs_space = {}
 
         # Inter-slice observation
@@ -102,7 +102,17 @@ class IBSchedIntraRR(Agent):
             slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
                 agent_idx - 1
             ].nonzero()[0]
-            intent_ue_values = intent_drift_slice_ue[agent_idx - 1, :]
+
+            (
+                intent_drift_ue_values,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                self.max_number_ues_slice,
+                intent_drift,
+                agent_idx - 1,
+                slice_ues,
+                self.last_unformatted_obs[0]["slice_req"],
+            )
 
             spectral_eff = np.pad(
                 np.mean(
@@ -135,11 +145,6 @@ class IBSchedIntraRR(Agent):
                 == 1
                 else 0
             )
-            intent_slice = (
-                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
-                if slice_ues.shape[0] != 0
-                else -2
-            )
 
             # Inter-slice scheduling
             formatted_obs_space["player_0"]["observations"][
@@ -151,7 +156,7 @@ class IBSchedIntraRR(Agent):
             ] = (
                 np.array(
                     [
-                        intent_slice,
+                        intent_drift_slice,
                         slice_traffic_req / 200,
                         np.mean(
                             spectral_eff[0 : slice_ues.shape[0]]
@@ -164,12 +169,12 @@ class IBSchedIntraRR(Agent):
                     0, agent_idx - 1
                 ]
                 == 1
-                else np.array([intent_slice, 0, 0])
+                else np.array([intent_drift_slice, 0, 0])
             )
             # Intra-slice scheduling
             formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
                 (
-                    intent_ue_values,
+                    intent_drift_ue_values,
                     buffer_occ,
                     spectral_eff,
                 )

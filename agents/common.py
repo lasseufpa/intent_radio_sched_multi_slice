@@ -1,4 +1,5 @@
 from collections import deque
+from typing import Tuple, Union
 
 import numpy as np
 
@@ -333,11 +334,48 @@ def intent_drift_calc(
                 case _:
                     raise ValueError("Invalid parameter name")
 
-        observations[slice_idx, :, :] = observations[slice_idx, :, :] / len(
-            last_obs_slice_req[slice]["parameters"]
-        )
-
     return observations
+
+
+def calculate_slice_ue_obs(
+    max_number_ues_slice: int,
+    intent_drift: np.ndarray,
+    slice_idx: int,
+    slice_ues: np.ndarray,
+    slice_req: dict,
+) -> Tuple[np.ndarray, Union[np.float64, int]]:
+    if slice_ues.shape[0] > 0:
+        metrics = {"throughput": 0, "reliability": 1, "latency": 2}
+        metrics_idx = (
+            np.array(
+                [
+                    metrics[parameter["name"]]
+                    for parameter in slice_req[f"slice_{slice_idx}"][
+                        "parameters"
+                    ].values()
+                ]
+            )
+            if slice_req[f"slice_{slice_idx}"] != {}
+            else np.array([])
+        )
+        intent_ue_values = np.ones(max_number_ues_slice)
+        intent_slice = 1
+        for metric_idx in metrics_idx:
+            intent_ue_values = np.minimum(
+                intent_ue_values, intent_drift[slice_idx, :, metric_idx]
+            )
+            intent_slice = np.minimum(
+                intent_slice,
+                np.mean(
+                    intent_drift[slice_idx, 0 : slice_ues.shape[0], metric_idx]
+                ),
+            )
+        intent_ue_values[slice_ues.shape[0] :] = -2
+    else:
+        intent_ue_values = np.ones(max_number_ues_slice) * -2
+        intent_slice = -2
+
+    return (intent_ue_values, intent_slice)
 
 
 def calculate_reward_mask(obs_space: dict, last_formatted_obs: dict) -> dict:
@@ -390,7 +428,7 @@ def calculate_reward_no_mask(
             reward[agent_obs[0]] = np.mean(active_observations)
         else:
             negative_obs_idx = (active_observations < 0).nonzero()[0]
-            reward[agent_obs[0]] = np.sum(
+            reward[agent_obs[0]] = np.mean(
                 active_observations[negative_obs_idx]
             )
 
