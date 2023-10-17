@@ -331,22 +331,19 @@ def get_intent_drift(data_metrics) -> np.ndarray:
 
 
 def calc_slice_violations(data_metrics) -> np.ndarray:
-    if True:
-        intent_drift_slice_ue = get_intent_drift(data_metrics)
-        intent_drift_slice_ue = np.sum(
-            np.sum(intent_drift_slice_ue, 3), axis=2
-        )
-        slice_ue_assoc = data_metrics["slice_ue_assoc"]
-        number_ues_slice = np.sum(slice_ue_assoc, axis=2)
-        intent_slice_values = np.divide(
-            intent_drift_slice_ue,
-            number_ues_slice,
-            where=np.logical_not(
-                np.isclose(number_ues_slice, np.zeros_like(number_ues_slice))
-            ),
-            out=np.zeros_like(number_ues_slice),
-        )
-        violations = np.sum(intent_slice_values < 0, axis=1).astype(int)
+    intent_drift_slice_ue = get_intent_drift(data_metrics)
+    intent_drift_slice_ue = np.sum(np.sum(intent_drift_slice_ue, 3), axis=2)
+    slice_ue_assoc = data_metrics["slice_ue_assoc"]
+    number_ues_slice = np.sum(slice_ue_assoc, axis=2)
+    intent_slice_values = np.divide(
+        intent_drift_slice_ue,
+        number_ues_slice,
+        where=np.logical_not(
+            np.isclose(number_ues_slice, np.zeros_like(number_ues_slice))
+        ),
+        out=np.zeros_like(number_ues_slice),
+    )
+    violations = np.sum(intent_slice_values < 0, axis=1).astype(int)
 
     return violations
 
@@ -354,8 +351,8 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
 scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
-    "random",
-    "round_robin",
+    # "random",
+    # "round_robin",
     # "ib_sched_intra_nn",
     # "ib_sched",
     # "ib_sched_no_mask",
@@ -394,8 +391,8 @@ slices = np.arange(10)
 
 # One graph for all agents
 metrics = [
-    "reward",
-    "reward_cumsum",
+    # "reward",
+    # "reward_cumsum",
     "violations",
     "violations_cumsum",
     # # "sched_decision",
