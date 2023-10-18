@@ -157,7 +157,7 @@ class IBSchedIntraRR(Agent):
                 np.array(
                     [
                         intent_drift_slice,
-                        slice_traffic_req / 200,
+                        slice_traffic_req / 100,
                         np.mean(
                             spectral_eff[0 : slice_ues.shape[0]]
                             * max_spectral_eff
@@ -278,7 +278,7 @@ class IBSchedIntraRR(Agent):
                     }
                 )
                 if idx == 0
-                else spaces.Box(low=-1, high=1, shape=(15,), dtype=np.float64)
+                else spaces.Box(low=-2, high=1, shape=(15,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )

@@ -6,6 +6,7 @@ from gymnasium import spaces
 
 from agents.common import (
     calculate_reward_no_mask,
+    calculate_slice_ue_obs,
     intent_drift_calc,
     round_robin,
     scores_to_rbs,
@@ -58,11 +59,11 @@ class MARR(Agent):
         return action
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
+        self.last_unformatted_obs.appendleft(obs_space)
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        self.last_unformatted_obs.appendleft(obs_space)
-        intent_drift_slice_ue = intent_drift_calc(
+        intent_drift = intent_drift_calc(
             self.last_unformatted_obs,
             self.max_number_ues_slice,
             self.intent_overfulfillment_rate,
@@ -73,7 +74,7 @@ class MARR(Agent):
                 :,
                 :,
                 :,
-            ] = intent_drift_slice_ue
+            ] = intent_drift
             if (
                 self.env.comm_env.step_number
                 == self.env.comm_env.max_number_steps
@@ -90,23 +91,102 @@ class MARR(Agent):
                     ),
                     dtype=float,
                 )
-        intent_drift_slice_ue = np.sum(intent_drift_slice_ue, 2)
-
         formatted_obs_space = {}
-        for agent_idx in range(obs_space["slice_ue_assoc"].shape[0] + 1):
-            if agent_idx == 0:
-                formatted_obs_space[f"player_{agent_idx}"] = {
-                    "observations": np.append(
-                        np.mean(intent_drift_slice_ue, axis=1),
-                        self.last_unformatted_obs[0][
-                            "basestation_slice_assoc"
-                        ][0, :],
-                    )
-                }
-            else:
-                formatted_obs_space[
-                    f"player_{agent_idx}"
-                ] = intent_drift_slice_ue[agent_idx - 1, :]
+
+        # Inter-slice observation
+        formatted_obs_space["player_0"] = {
+            "observations": np.zeros(obs_space["slice_ue_assoc"].shape[0] * 3),
+            "action_mask": self.last_unformatted_obs[0][
+                "basestation_slice_assoc"
+            ][0].astype(np.int8),
+        }
+
+        # intra-slice observations
+        for agent_idx in range(1, obs_space["slice_ue_assoc"].shape[0] + 1):
+            assert isinstance(
+                self.env, MARLCommEnv
+            ), "Environment must be MARLCommEnv"
+            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                agent_idx - 1
+            ].nonzero()[0]
+
+            (
+                intent_drift_ue_values,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                self.max_number_ues_slice,
+                intent_drift,
+                agent_idx - 1,
+                slice_ues,
+                self.last_unformatted_obs[0]["slice_req"],
+            )
+
+            spectral_eff = np.pad(
+                np.mean(
+                    self.last_unformatted_obs[0]["spectral_efficiencies"][
+                        0, slice_ues, :
+                    ],
+                    axis=1,
+                ),
+                (0, self.max_number_ues_slice - slice_ues.shape[0]),
+                "constant",
+            )
+            max_spectral_eff = np.max(spectral_eff)
+            spectral_eff = (
+                spectral_eff / max_spectral_eff
+                if max_spectral_eff != 0
+                else spectral_eff
+            )
+            buffer_occ = np.pad(
+                self.last_unformatted_obs[0]["buffer_occupancies"][slice_ues],
+                (0, self.max_number_ues_slice - slice_ues.shape[0]),
+                "constant",
+            )
+            slice_traffic_req = (
+                self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["ues"]["traffic"]
+                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, agent_idx - 1
+                ]
+                == 1
+                else 0
+            )
+
+            # Inter-slice scheduling
+            formatted_obs_space["player_0"]["observations"][
+                [
+                    (agent_idx - 1),
+                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0],
+                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0] * 2,
+                ]
+            ] = (
+                np.array(
+                    [
+                        intent_drift_slice,
+                        slice_traffic_req / 200,
+                        np.mean(
+                            spectral_eff[0 : slice_ues.shape[0]]
+                            * max_spectral_eff
+                        )
+                        / 20,
+                    ]
+                )
+                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, agent_idx - 1
+                ]
+                == 1
+                else np.array([intent_drift_slice, 0, 0])
+            )
+            # Intra-slice scheduling
+            formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
+                (
+                    intent_drift_ue_values,
+                    buffer_occ,
+                    spectral_eff,
+                )
+            )
+
         self.last_formatted_obs = formatted_obs_space
 
         return formatted_obs_space
@@ -188,12 +268,21 @@ class MARR(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Dict:
-        num_agents = 6
+        num_agents = 11
         obs_space = spaces.Dict(
             {
-                f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(5,), dtype=np.float64
+                f"player_{idx}": spaces.Dict(
+                    {
+                        "observations": spaces.Box(
+                            low=-2, high=1, shape=(15,), dtype=np.float64
+                        ),
+                        "action_mask": spaces.Box(
+                            0.0, 1.0, shape=(5,), dtype=np.int8
+                        ),
+                    }
                 )
+                if idx == 0
+                else spaces.Box(low=-1, high=1, shape=(15,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )

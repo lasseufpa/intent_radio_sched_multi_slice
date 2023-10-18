@@ -10,7 +10,13 @@ import numpy as np
 # Import intent_drift_calc function
 sys.path.append(os.path.abspath("agents/"))
 sys.path.append(os.path.abspath("sixg_radio_mgmt/"))
-from common import intent_drift_calc  # type: ignore # noqa: E402
+from common import (  # type: ignore # noqa: E402
+    calculate_slice_ue_obs,
+    intent_drift_calc,
+)
+
+max_number_ues_slice = 5
+intent_overfulfillment_rate = 0.2
 
 
 def gen_results(
@@ -196,6 +202,24 @@ def plot_graph(
                     plt.plot(spectral_eff, label=f"{agent}, slice {slice}")
                     xlabel = "Step (n)"
                     ylabel = "Thoughput capacity per RB (Mbps)"
+            case "distance_fulfill":
+                distance = calc_intent_distance(data_metrics)
+                plt.plot(distance, label=f"{agent}, total")
+                xlabel = "Step (n)"
+                ylabel = "# Violations"
+                break
+            case "distance_fulfill_cumsum":
+                distance = calc_intent_distance(data_metrics)
+                plt.plot(np.cumsum(distance), label=f"{agent}, total")
+                xlabel = "Step (n)"
+                ylabel = "# Violations"
+                break
+            case "distance_fulfill_metrics":
+                distance = calc_intent_distance(data_metrics)
+                plt.plot(distance, label=f"{agent}, total")
+                xlabel = "Step (n)"
+                ylabel = "# Violations"
+                break
             case "violations":
                 violations = calc_slice_violations(data_metrics)
                 plt.plot(violations, label=f"{agent}, total")
@@ -306,10 +330,8 @@ def calc_slice_average(
 
 
 def get_intent_drift(data_metrics) -> np.ndarray:
-    max_number_ues_slice = 5
-    intent_overfulfillment_rate = 0.2
     last_unformatted_obs = deque(maxlen=10)
-    intent_drift_slice_ue = np.zeros((data_metrics["obs"].shape[0], 5, 5, 3))
+    intent_drift = np.zeros((data_metrics["obs"].shape[0], 5, 5, 3))
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
         dict_info = {
             "pkt_effective_thr": data_metrics["pkt_effective_thr"][step_idx],
@@ -320,39 +342,77 @@ def get_intent_drift(data_metrics) -> np.ndarray:
             "dropped_pkts": data_metrics["dropped_pkts"][step_idx],
         }
         last_unformatted_obs.appendleft(dict_info)
-        intent_drift_slice_ue[step_idx, :, :, :] = intent_drift_calc(
+        intent_drift[step_idx, :, :, :] = intent_drift_calc(
             last_unformatted_obs,
             max_number_ues_slice,
             intent_overfulfillment_rate,
             True,
         )
 
-    return intent_drift_slice_ue
+    return intent_drift
 
 
 def calc_slice_violations(data_metrics) -> np.ndarray:
-    intent_drift_slice_ue = get_intent_drift(data_metrics)
-    intent_drift_slice_ue = np.sum(np.sum(intent_drift_slice_ue, 3), axis=2)
-    slice_ue_assoc = data_metrics["slice_ue_assoc"]
-    number_ues_slice = np.sum(slice_ue_assoc, axis=2)
-    intent_slice_values = np.divide(
-        intent_drift_slice_ue,
-        number_ues_slice,
-        where=np.logical_not(
-            np.isclose(number_ues_slice, np.zeros_like(number_ues_slice))
-        ),
-        out=np.zeros_like(number_ues_slice),
-    )
-    violations = np.sum(intent_slice_values < 0, axis=1).astype(int)
-
+    intent_drift = get_intent_drift(data_metrics)
+    violations = np.zeros(data_metrics["obs"].shape[0])
+    for step_idx in np.arange(data_metrics["obs"].shape[0]):
+        for slice_idx in range(
+            0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
+        ):
+            slice_ues = data_metrics["slice_ue_assoc"][step_idx][
+                slice_idx
+            ].nonzero()[0]
+            (
+                _,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                max_number_ues_slice,
+                intent_drift[step_idx],
+                slice_idx,
+                slice_ues,
+                data_metrics["slice_req"][step_idx],
+            )
+            violations[step_idx] += int(
+                intent_drift_slice < 0
+                and not np.isclose(intent_drift_slice, -2)
+            )
     return violations
+
+
+def calc_intent_distance(data_metrics) -> np.ndarray:
+    intent_drift = get_intent_drift(data_metrics)
+    distance_slice = np.zeros(data_metrics["obs"].shape[0])
+    for step_idx in np.arange(data_metrics["obs"].shape[0]):
+        for slice_idx in range(
+            0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
+        ):
+            slice_ues = data_metrics["slice_ue_assoc"][step_idx][
+                slice_idx
+            ].nonzero()[0]
+            (
+                _,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                max_number_ues_slice,
+                intent_drift[step_idx],
+                slice_idx,
+                slice_ues,
+                data_metrics["slice_req"][step_idx],
+            )
+            distance_slice[step_idx] += (
+                intent_drift_slice
+                if intent_drift_slice < 0
+                and not np.isclose(intent_drift_slice, -2)
+                else 0
+            )
+    return distance_slice
 
 
 scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
     # "random",
-    # "round_robin",
+    "round_robin",
     # "ib_sched_intra_nn",
     # "ib_sched",
     # "ib_sched_no_mask",
@@ -360,42 +420,46 @@ agent_names = [
     # "ib_sched_inter_rr",
 ]
 episodes = np.array([0], dtype=int)
-slices = np.arange(10)
+slices = np.arange(5)
 
-# metrics = [
-#     "pkt_incoming",
-#     "pkt_effective_thr",
-#     "pkt_throughputs",
-#     "dropped_pkts",
-#     "buffer_occupancies",
-#     "buffer_latencies",
-#     "basestation_ue_assoc",
-#     "basestation_slice_assoc",
-#     "slice_ue_assoc",
-#     "reward",
-#     "reward_cumsum",
-#     "total_network_throughput",
-#     "total_network_requested_throughput",
-#     "spectral_efficiencies",
-#     "sched_decision",
-# ]
+metrics = [
+    #     "pkt_incoming",
+    #     "pkt_effective_thr",
+    #     "pkt_throughputs",
+    #     "dropped_pkts",
+    #     "buffer_occupancies",
+    #     "buffer_latencies",
+    #     "basestation_ue_assoc",
+    #     "basestation_slice_assoc",
+    #     "slice_ue_assoc",
+    #     "reward",
+    #     "reward_cumsum",
+    # "total_network_throughput",
+    # "total_network_requested_throughput",
+    #     "spectral_efficiencies",
+    #     "sched_decision",
+]
 
 # One graph per agent
-# metrics = [
-#     "sched_decision",
-#     "basestation_slice_assoc",
-#     "reward",
-# ]
-# for agent in agent_names:
-# gen_results(scenario_names, [agent], episodes, metrics, slices)
+metrics = [
+    # "sched_decision",
+    # "basestation_slice_assoc",
+    # "reward",
+    "total_network_throughput",
+    "total_network_requested_throughput",
+]
+for agent in agent_names:
+    gen_results(scenario_names, [agent], episodes, metrics, slices)
 
 # One graph for all agents
 metrics = [
-    # "reward",
-    # "reward_cumsum",
+    "reward",
+    "reward_cumsum",
     "violations",
     "violations_cumsum",
-    # # "sched_decision",
-    "basestation_slice_assoc",
+    # "sched_decision",
+    # "basestation_slice_assoc",
+    "distance_fulfill",
+    "distance_fulfill_cumsum",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
