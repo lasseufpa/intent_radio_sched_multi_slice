@@ -176,7 +176,7 @@ def plot_drift_per_metric(agent_name: str, slice_idx: int, metrics: list):
 
 
 episode = 0
-slice_idxs = np.arange(0, 10)
+slice_idxs = np.arange(0, 5)
 scenario = "mult_slice"
 agent_names = [
     "round_robin",

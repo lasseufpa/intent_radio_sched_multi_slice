@@ -12,7 +12,7 @@ max_number_ues = 25  # Total in the system
 max_number_slices = 5
 max_number_basestations = 1
 seed = 10
-scenario_name = "scenario_1"
+scenario_name = "mult_slice"
 association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
@@ -85,7 +85,12 @@ for episode in np.arange(number_episodes):
         np.repeat(100, max_number_ues),
     )
     mult_slice_assoc = MultSliceAssociation(
-        ues, max_number_ues, max_number_basestations, max_number_slices, rng
+        ues,
+        max_number_ues,
+        max_number_basestations,
+        max_number_slices,
+        rng,
+        generator_mode=True,
     )
     mult_slice_assoc.generator_mode = True
     mult_slice_traffic = MultSliceTraffic(max_number_ues, rng)

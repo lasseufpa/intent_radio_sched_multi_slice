@@ -14,6 +14,7 @@ class MultSliceAssociation(Association):
         max_number_slices: int,
         rng: np.random.Generator = np.random.default_rng(),
         root_path: str = ".",
+        generator_mode: bool = False,
     ) -> None:
         super().__init__(
             ues,
@@ -29,7 +30,9 @@ class MultSliceAssociation(Association):
         self.min_number_ues_slice = 2
         self.max_number_ues_slice = int(max_number_ues / max_number_slices)
         self.slices_lifetime = np.zeros(self.max_number_slices)
-        self.generator_mode = False  # False for reading from external files
+        self.generator_mode = (
+            generator_mode  # False for reading from external files
+        )
         self.scenario_name = "scenario_1"
         self.current_episode = -1
         self.slices_to_use = np.array([])
@@ -388,8 +391,8 @@ class MultSliceAssociation(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                     "traffic": 100,  # Mbps
-                    "min_number_ues": 2,
-                    "max_number_ues": 4,
+                    "min_number_ues": 1,
+                    "max_number_ues": 1,
                 },
             },
             "uav_control_non_vlos": {
@@ -416,7 +419,7 @@ class MultSliceAssociation(Association):
                 },
                 "ues": {
                     "buffer_size": 1024,  # pkts
-                    "buffer_latency": 180,  # ms
+                    "buffer_latency": 300,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                     "traffic": 4,  # Mbps
@@ -451,9 +454,9 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 20,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 200,  # Mbps
+                    "traffic": 100,  # Mbps
                     "min_number_ues": 1,
-                    "max_number_ues": 2,
+                    "max_number_ues": 1,
                 },
             },
             "cloud_gaming": {
