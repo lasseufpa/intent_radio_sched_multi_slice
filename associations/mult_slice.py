@@ -33,7 +33,7 @@ class MultSliceAssociation(Association):
         self.generator_mode = (
             generator_mode  # False for reading from external files
         )
-        self.scenario_name = "scenario_1"
+        self.scenario_name = "mult_slice"
         self.current_episode = -1
         self.slices_to_use = np.array([])
         self.association_file = dict()
@@ -444,7 +444,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 200,
+                        "value": 100,
                         "unit": "Mbps",
                         "operator": expectation_params["at_least"],
                     },
