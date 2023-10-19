@@ -221,19 +221,34 @@ def plot_graph(
                 ylabel = "# Violations"
                 break
             case "violations":
-                violations = calc_slice_violations(data_metrics)
+                violations, _ = calc_slice_violations(data_metrics)
                 plt.plot(violations, label=f"{agent}, total")
                 xlabel = "Step (n)"
                 ylabel = "# Violations"
                 break
             case "violations_cumsum":
-                violations = calc_slice_violations(data_metrics)
+                violations, _ = calc_slice_violations(data_metrics)
                 plt.plot(
                     np.cumsum(violations),
                     label=f"{agent}, total",
                 )
                 xlabel = "Step (n)"
                 ylabel = "Cumulative # violations"
+                break
+            case "violations_per_slice_type":
+                _, violations_per_slice_type = calc_slice_violations(
+                    data_metrics
+                )
+                slice_violations = list(violations_per_slice_type.values())
+                slice_names = list(violations_per_slice_type.keys())
+
+                plt.bar(
+                    np.arange(len(violations_per_slice_type.keys())),
+                    slice_violations,
+                    tick_label=slice_names,
+                )
+                plt.xticks(rotation=65)
+                ylabel = "# violations"
                 break
             case "sched_decision":
                 slice_rbs = np.sum(
@@ -352,9 +367,10 @@ def get_intent_drift(data_metrics) -> np.ndarray:
     return intent_drift
 
 
-def calc_slice_violations(data_metrics) -> np.ndarray:
+def calc_slice_violations(data_metrics) -> Tuple[np.ndarray, dict]:
     intent_drift = get_intent_drift(data_metrics)
     violations = np.zeros(data_metrics["obs"].shape[0])
+    violations_per_slice_type = {}
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
         for slice_idx in range(
             0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
@@ -372,11 +388,20 @@ def calc_slice_violations(data_metrics) -> np.ndarray:
                 slice_ues,
                 data_metrics["slice_req"][step_idx],
             )
-            violations[step_idx] += int(
+            slice_violation = int(
                 intent_drift_slice < 0
                 and not np.isclose(intent_drift_slice, -2)
             )
-    return violations
+            violations[step_idx] += slice_violation
+            if bool(slice_violation):
+                slice_name = data_metrics["slice_req"][step_idx][
+                    f"slice_{slice_idx}"
+                ]["name"]
+                if slice_name in violations_per_slice_type.keys():
+                    violations_per_slice_type[slice_name] += 1
+                else:
+                    violations_per_slice_type[slice_name] = 1
+    return violations, violations_per_slice_type
 
 
 def calc_intent_distance(data_metrics) -> np.ndarray:
@@ -411,7 +436,7 @@ def calc_intent_distance(data_metrics) -> np.ndarray:
 scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
-    # "random",
+    "random",
     "round_robin",
     # "ib_sched_intra_nn",
     # "ib_sched",
@@ -445,8 +470,9 @@ metrics = [
     # "sched_decision",
     # "basestation_slice_assoc",
     # "reward",
-    "total_network_throughput",
-    "total_network_requested_throughput",
+    # "total_network_throughput",
+    # "total_network_requested_throughput",
+    "violations_per_slice_type",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
