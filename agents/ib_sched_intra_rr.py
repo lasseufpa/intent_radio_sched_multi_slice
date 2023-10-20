@@ -35,6 +35,7 @@ class IBSchedIntraRR(Agent):
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
+        self.rbs_per_rbg = 5  # 135/rbs_per_rbg RBGs
         self.debug_violations = debug_violations
         if self.debug_violations:
             self.number_metrics = 3
@@ -216,10 +217,17 @@ class IBSchedIntraRR(Agent):
             ] = -1
 
             # Inter-slice scheduling
-            rbs_per_slice = scores_to_rbs(
-                action["player_0"],
-                self.num_available_rbs[0],
-                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
+            rbs_per_slice = (
+                scores_to_rbs(
+                    action["player_0"],
+                    np.floor(
+                        self.num_available_rbs[0] / self.rbs_per_rbg
+                    ).astype(int),
+                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
+                    ],
+                )
+                * self.rbs_per_rbg
             )
 
             # Intra-slice scheduling

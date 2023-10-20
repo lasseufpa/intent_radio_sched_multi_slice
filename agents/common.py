@@ -425,7 +425,7 @@ def calculate_reward_no_mask(
                 else np.array([1])
             )
         if np.sum(active_observations < 0) == 0:
-            reward[agent_obs[0]] = np.mean(active_observations)
+            reward[agent_obs[0]] = 0  # np.mean(active_observations)
         else:
             negative_obs_idx = (active_observations < 0).nonzero()[0]
             reward[agent_obs[0]] = np.mean(
