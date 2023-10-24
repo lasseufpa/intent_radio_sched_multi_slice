@@ -343,9 +343,9 @@ def calculate_slice_ue_obs(
     slice_idx: int,
     slice_ues: np.ndarray,
     slice_req: dict,
-) -> Tuple[np.ndarray, Union[np.float64, int]]:
+) -> Tuple[np.ndarray, np.ndarray]:
+    metrics = {"throughput": 0, "reliability": 1, "latency": 2}
     if slice_ues.shape[0] > 0:
-        metrics = {"throughput": 0, "reliability": 1, "latency": 2}
         metrics_idx = (
             np.array(
                 [
@@ -359,23 +359,20 @@ def calculate_slice_ue_obs(
             else np.array([])
         )
         intent_ue_values = np.ones(max_number_ues_slice)
-        intent_slice = 1
+        intent_ue_values = -2 * np.ones((max_number_ues_slice, len(metrics)))
+        intent_slice_values = -2 * np.ones(len(metrics))
         for metric_idx in metrics_idx:
-            intent_ue_values = np.minimum(
-                intent_ue_values, intent_drift[slice_idx, :, metric_idx]
+            intent_ue_values[
+                0 : slice_ues.shape[0], metric_idx
+            ] = intent_drift[slice_idx, 0 : slice_ues.shape[0], metric_idx]
+            intent_slice_values[metric_idx] = np.mean(
+                intent_drift[slice_idx, 0 : slice_ues.shape[0], metric_idx]
             )
-            intent_slice = np.minimum(
-                intent_slice,
-                np.mean(
-                    intent_drift[slice_idx, 0 : slice_ues.shape[0], metric_idx]
-                ),
-            )
-        intent_ue_values[slice_ues.shape[0] :] = -2
     else:
         intent_ue_values = np.ones(max_number_ues_slice) * -2
-        intent_slice = -2
+        intent_slice_values = np.ones(len(metrics)) * -2
 
-    return (intent_ue_values, intent_slice)
+    return (intent_ue_values, intent_slice_values)
 
 
 def calculate_reward_mask(obs_space: dict, last_formatted_obs: dict) -> dict:
@@ -409,12 +406,18 @@ def calculate_reward_no_mask(
             elements_idx = last_unformatted_obs[0]["basestation_slice_assoc"][
                 0, :
             ].nonzero()[0]
-            active_observations = (
-                agent_obs[1]["observations"][elements_idx]
-                if elements_idx.shape[0] > 0
-                else np.array([1])
-            )
+            active_observations = np.array([])
+            for element_idx in elements_idx:
+                metrics = agent_obs[1]["observations"][
+                    (element_idx * 5) : (element_idx * 5) + 3
+                ]
+                metrics = metrics[np.logical_not(np.isclose(metrics, -2))]
+                metrics = np.min(metrics) if metrics.shape[0] > 0 else 1
+                active_observations = np.append(
+                    active_observations, np.array([metrics])
+                )
         else:
+            # TODO Adapt to other players
             number_ues_slice = np.sum(
                 last_unformatted_obs[0]["slice_ue_assoc"][player_idx - 1, :]
             )

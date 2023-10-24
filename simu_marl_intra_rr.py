@@ -75,7 +75,7 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "ib_sched_intra_rr",
     "root_path": str(getcwd()),
-    "number_agents": 6,
+    "number_agents": 2,
 }
 
 # Training

@@ -89,7 +89,7 @@ class IBSchedIntraRR(Agent):
 
         # Inter-slice observation
         formatted_obs_space["player_0"] = {
-            "observations": np.zeros(obs_space["slice_ue_assoc"].shape[0] * 3),
+            "observations": np.array([]),
             "action_mask": self.last_unformatted_obs[0][
                 "basestation_slice_assoc"
             ][0].astype(np.int8),
@@ -148,38 +148,44 @@ class IBSchedIntraRR(Agent):
             )
 
             # Inter-slice scheduling
-            formatted_obs_space["player_0"]["observations"][
-                [
-                    (agent_idx - 1),
-                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0],
-                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0] * 2,
-                ]
-            ] = (
-                np.array(
-                    [
+            formatted_obs_space["player_0"]["observations"] = (
+                np.concatenate(
+                    (
+                        formatted_obs_space["player_0"]["observations"],
                         intent_drift_slice,
-                        slice_traffic_req / 100,
-                        np.mean(
-                            spectral_eff[0 : slice_ues.shape[0]]
-                            * max_spectral_eff
-                        )
-                        / 20,
-                    ]
+                        np.array([slice_traffic_req / 100]),
+                        np.array(
+                            [
+                                np.mean(
+                                    spectral_eff[0 : slice_ues.shape[0]]
+                                    * max_spectral_eff
+                                )
+                                / 20
+                            ]
+                        ),
+                    )
                 )
                 if self.last_unformatted_obs[0]["basestation_slice_assoc"][
                     0, agent_idx - 1
                 ]
                 == 1
-                else np.array([intent_drift_slice, 0, 0])
-            )
-            # Intra-slice scheduling
-            formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
-                (
-                    intent_drift_ue_values,
-                    buffer_occ,
-                    spectral_eff,
+                else np.append(
+                    formatted_obs_space["player_0"]["observations"],
+                    np.concatenate((intent_drift_slice, np.array([0, 0]))),
                 )
             )
+
+            # Intra-slice scheduling
+            if agent_idx < len(self.env.agents):
+                formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
+                    (
+                        np.zeros(
+                            5
+                        ),  # TODO Change this in case of using intra scheduler
+                        buffer_occ,
+                        spectral_eff,
+                    )
+                )
 
         self.last_formatted_obs = formatted_obs_space
 
@@ -237,15 +243,9 @@ class IBSchedIntraRR(Agent):
                 ].nonzero()[0]
                 if slice_ues.shape[0] == 0:
                     continue
-                match action[f"player_{slice_idx+1}"]:
-                    case 0 | 1 | 2:
-                        allocation_rbs = round_robin(
-                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
-                        )
-                    case _:
-                        raise ValueError(
-                            "Invalid intra-slice scheduling action"
-                        )
+                allocation_rbs = round_robin(
+                    allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                )
             assert (
                 np.sum(allocation_rbs) == self.num_available_rbs[0]
             ), "Allocated RBs are different from available RBs"
@@ -254,7 +254,7 @@ class IBSchedIntraRR(Agent):
 
     @staticmethod
     def get_action_space() -> spaces.Dict:
-        num_agents = 11
+        num_agents = 2
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
@@ -272,13 +272,13 @@ class IBSchedIntraRR(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Dict:
-        num_agents = 11
+        num_agents = 2
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(15,), dtype=np.float64
+                            low=-2, high=1, shape=(25,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
                             0.0, 1.0, shape=(5,), dtype=np.int8

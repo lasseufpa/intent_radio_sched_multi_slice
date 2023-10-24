@@ -388,6 +388,8 @@ def calc_slice_violations(data_metrics) -> Tuple[np.ndarray, dict]:
                 slice_ues,
                 data_metrics["slice_req"][step_idx],
             )
+            intent_drift_slice[intent_drift_slice == -2] = 1
+            intent_drift_slice = np.min(intent_drift_slice)
             slice_violation = int(
                 intent_drift_slice < 0
                 and not np.isclose(intent_drift_slice, -2)
@@ -424,11 +426,19 @@ def calc_intent_distance(data_metrics) -> np.ndarray:
                 slice_ues,
                 data_metrics["slice_req"][step_idx],
             )
-            distance_slice[step_idx] += (
-                intent_drift_slice
-                if intent_drift_slice < 0
-                and not np.isclose(intent_drift_slice, -2)
+            intent_drift_slice = np.delete(
+                intent_drift_slice,
+                np.logical_or(
+                    np.isclose(intent_drift_slice, -2), intent_drift_slice >= 0
+                ),
+            )
+            intent_drift_slice = (
+                np.min(intent_drift_slice)
+                if intent_drift_slice.shape[0] > 0
                 else 0
+            )
+            distance_slice[step_idx] += (
+                intent_drift_slice if intent_drift_slice < 0 else 0
             )
     return distance_slice
 
@@ -472,7 +482,7 @@ metrics = [
     # "reward",
     # "total_network_throughput",
     # "total_network_requested_throughput",
-    "violations_per_slice_type",
+    # "violations_per_slice_type",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
