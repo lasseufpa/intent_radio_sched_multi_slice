@@ -401,6 +401,8 @@ def calculate_reward_no_mask(
     last_unformatted_obs: deque,
 ) -> dict:
     reward = {}
+    obs_per_slice = 6
+    metrics_per_slice = 3
     for player_idx, agent_obs in enumerate(last_formatted_obs.items()):
         if player_idx == 0:
             elements_idx = last_unformatted_obs[0]["basestation_slice_assoc"][
@@ -409,7 +411,10 @@ def calculate_reward_no_mask(
             active_observations = np.array([])
             for element_idx in elements_idx:
                 metrics = agent_obs[1]["observations"][
-                    (element_idx * 5) : (element_idx * 5) + 3
+                    (element_idx * obs_per_slice) : (
+                        element_idx * obs_per_slice
+                    )
+                    + metrics_per_slice
                 ]
                 metrics = metrics[np.logical_not(np.isclose(metrics, -2))]
                 metrics = np.min(metrics) if metrics.shape[0] > 0 else 1

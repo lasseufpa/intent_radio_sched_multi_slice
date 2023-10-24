@@ -163,6 +163,9 @@ class IBSchedIntraRR(Agent):
                                 / 20
                             ]
                         ),
+                        np.array(
+                            [slice_ues.shape[0] / self.max_number_ues_slice]
+                        ),
                     )
                 )
                 if self.last_unformatted_obs[0]["basestation_slice_assoc"][
@@ -171,7 +174,7 @@ class IBSchedIntraRR(Agent):
                 == 1
                 else np.append(
                     formatted_obs_space["player_0"]["observations"],
-                    np.concatenate((intent_drift_slice, np.array([0, 0]))),
+                    np.concatenate((intent_drift_slice, np.array([0, 0, 0]))),
                 )
             )
 
@@ -278,7 +281,7 @@ class IBSchedIntraRR(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(25,), dtype=np.float64
+                            low=-2, high=1, shape=(30,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
                             0.0, 1.0, shape=(5,), dtype=np.int8

@@ -111,7 +111,7 @@ if training_flag:
         .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 10,
+        "episodes_total": 30,
     }
     results = tune.Tuner(
         "PPO",
