@@ -5,11 +5,14 @@ import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
 from ray.tune.registry import register_env
 from tqdm import tqdm
 
+from agents.action_mask_model import TorchActionMaskModel
 from agents.ib_sched_intra_rr import IBSchedIntraRR
+from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
@@ -17,7 +20,7 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = "./ray_results/"
-training_flag = True  # False for reading from checkpoint
+training_flag = False  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
@@ -55,6 +58,19 @@ def env_creator(env_config):
     return marl_comm_env
 
 
+ModelCatalog.register_custom_action_dist("masked_gaussian", TorchDiagGaussian)
+
+
+def action_mask_policy():
+    config = PPOConfig.overrides(
+        model={
+            "custom_model": TorchActionMaskModel,
+            "custom_action_dist": "masked_gaussian",
+        },
+    )
+    return PolicySpec(config=config)
+
+
 # Ray RLlib
 register_env("marl_comm_env", lambda config: env_creator(config))
 
@@ -90,7 +106,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": PolicySpec(),
+                "inter_slice_sched": action_mask_policy(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,
@@ -111,7 +127,7 @@ if training_flag:
         .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 10,
+        "episodes_total": 300,
     }
     results = tune.Tuner(
         "PPO",
@@ -122,7 +138,7 @@ if training_flag:
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
                 num_to_keep=100,
-                checkpoint_frequency=1,
+                checkpoint_frequency=3,
                 checkpoint_at_end=True,
             ),
         ),
@@ -135,6 +151,7 @@ best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
 )
 assert best_checkpoint is not None, "Best checkpoint is None"
+# last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
 algo = Algorithm.from_checkpoint(best_checkpoint)
 marl_comm_env = env_creator(env_config)
 seed = 10

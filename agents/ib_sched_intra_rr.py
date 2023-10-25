@@ -35,7 +35,7 @@ class IBSchedIntraRR(Agent):
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
-        self.rbs_per_rbg = 5  # 135/rbs_per_rbg RBGs
+        self.rbs_per_rbg = 1  # 135/rbs_per_rbg RBGs
         self.debug_violations = debug_violations
         if self.debug_violations:
             self.number_metrics = 3

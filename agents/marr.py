@@ -95,7 +95,7 @@ class MARR(Agent):
 
         # Inter-slice observation
         formatted_obs_space["player_0"] = {
-            "observations": np.zeros(obs_space["slice_ue_assoc"].shape[0] * 3),
+            "observations": np.array([]),
             "action_mask": self.last_unformatted_obs[0][
                 "basestation_slice_assoc"
             ][0].astype(np.int8),
@@ -154,38 +154,44 @@ class MARR(Agent):
             )
 
             # Inter-slice scheduling
-            formatted_obs_space["player_0"]["observations"][
-                [
-                    (agent_idx - 1),
-                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0],
-                    (agent_idx - 1) + obs_space["slice_ue_assoc"].shape[0] * 2,
-                ]
-            ] = (
-                np.array(
-                    [
+            formatted_obs_space["player_0"]["observations"] = (
+                np.concatenate(
+                    (
+                        formatted_obs_space["player_0"]["observations"],
                         intent_drift_slice,
-                        slice_traffic_req / 200,
-                        np.mean(
-                            spectral_eff[0 : slice_ues.shape[0]]
-                            * max_spectral_eff
-                        )
-                        / 20,
-                    ]
+                        np.array([slice_traffic_req / 100]),
+                        np.array(
+                            [
+                                np.mean(
+                                    spectral_eff[0 : slice_ues.shape[0]]
+                                    * max_spectral_eff
+                                )
+                                / 20
+                            ]
+                        ),
+                    )
                 )
                 if self.last_unformatted_obs[0]["basestation_slice_assoc"][
                     0, agent_idx - 1
                 ]
                 == 1
-                else np.array([intent_drift_slice, 0, 0])
-            )
-            # Intra-slice scheduling
-            formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
-                (
-                    intent_drift_ue_values,
-                    buffer_occ,
-                    spectral_eff,
+                else np.append(
+                    formatted_obs_space["player_0"]["observations"],
+                    np.concatenate((intent_drift_slice, np.array([0, 0]))),
                 )
             )
+
+            # Intra-slice scheduling
+            if agent_idx < len(self.env.agents):
+                formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
+                    (
+                        np.zeros(
+                            5
+                        ),  # TODO Change this in case of using intra scheduler
+                        buffer_occ,
+                        spectral_eff,
+                    )
+                )
 
         self.last_formatted_obs = formatted_obs_space
 
@@ -274,7 +280,7 @@ class MARR(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(15,), dtype=np.float64
+                            low=-2, high=1, shape=(25,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
                             0.0, 1.0, shape=(5,), dtype=np.int8
