@@ -138,22 +138,33 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Number of UEs"
             case "reward":
-                reward = [
-                    data_metrics["reward"][idx]["player_0"]
-                    for idx in range(data_metrics["reward"].shape[0])
-                ]
+                if agent != "sb3_ib_sched_intra_rr":
+                    reward = [
+                        data_metrics["reward"][idx]["player_0"]
+                        for idx in range(data_metrics["reward"].shape[0])
+                    ]
+                else:
+                    reward = [
+                        data_metrics["reward"][idx]
+                        for idx in range(data_metrics["reward"].shape[0])
+                    ]
                 plt.plot(reward, label=f"{agent}")
                 xlabel = "Step (n)"
                 ylabel = "Reward (inter-slice agent)"
                 break
             case "reward_cumsum":
+                if agent != "sb3_ib_sched_intra_rr":
+                    reward = [
+                        data_metrics["reward"][idx]["player_0"]
+                        for idx in range(data_metrics["reward"].shape[0])
+                    ]
+                else:
+                    reward = [
+                        data_metrics["reward"][idx]
+                        for idx in range(data_metrics["reward"].shape[0])
+                    ]
                 plt.plot(
-                    np.cumsum(
-                        [
-                            data_metrics["reward"][idx]["player_0"]
-                            for idx in range(data_metrics["reward"].shape[0])
-                        ]
-                    ),
+                    np.cumsum(reward),
                     label=f"{agent}",
                 )
                 xlabel = "Step (n)"
@@ -451,7 +462,8 @@ agent_names = [
     # "ib_sched_intra_nn",
     # "ib_sched",
     # "ib_sched_no_mask",
-    "ib_sched_intra_rr",
+    # "ib_sched_intra_rr",
+    "sb3_ib_sched_intra_rr",
     # "ib_sched_inter_rr",
 ]
 episodes = np.array([0], dtype=int)
