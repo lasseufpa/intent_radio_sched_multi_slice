@@ -106,7 +106,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": action_mask_policy(),
+                "inter_slice_sched": PolicySpec(),  # action_mask_policy(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,
@@ -122,12 +122,13 @@ if training_flag:
             num_gpus=1, num_gpus_per_worker=1, num_gpus_per_learner_worker=1
         )
         .training(
-            _enable_learner_api=False
+            _enable_learner_api=False,
+            vf_clip_param=np.inf,  # type: ignore
         )  # TODO Remove after migrating from ModelV2 to RL Module
         .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 300,
+        "episodes_total": 10,
     }
     results = tune.Tuner(
         "PPO",

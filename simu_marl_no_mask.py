@@ -110,7 +110,8 @@ if training_flag:
             num_gpus=1, num_gpus_per_worker=1, num_gpus_per_learner_worker=1
         )
         .training(
-            _enable_learner_api=False
+            _enable_learner_api=False,
+            vf_clip_param=np.inf,  # type: ignore
         )  # TODO Remove after migrating from ModelV2 to RL Module
         .rl_module(_enable_rl_module_api=False)
     )

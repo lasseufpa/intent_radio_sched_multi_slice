@@ -59,7 +59,10 @@ for step in np.arange(number_steps):
         sched_decisions[0]
     )
     reward_hist.append(reward)
-    if terminated["__all__"]:
+    if isinstance(terminated, dict):
+        if terminated["__all__"]:
+            break
+    elif terminated:
         break
 
 print(reward_hist)

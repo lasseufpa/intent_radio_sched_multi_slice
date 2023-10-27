@@ -88,4 +88,4 @@ total_test_steps = 10000
 obs, _ = marl_comm_env.reset(seed=seed)
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)
-    obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+    obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore

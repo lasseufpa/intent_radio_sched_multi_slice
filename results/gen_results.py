@@ -462,7 +462,7 @@ agent_names = [
     # "ib_sched_intra_nn",
     # "ib_sched",
     # "ib_sched_no_mask",
-    # "ib_sched_intra_rr",
+    "ib_sched_intra_rr",
     "sb3_ib_sched_intra_rr",
     # "ib_sched_inter_rr",
 ]
