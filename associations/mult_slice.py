@@ -43,6 +43,307 @@ class MultSliceAssociation(Association):
         self.hist_basestation_slice_assoc = np.array([])
         self.hist_basestation_ue_assoc = np.array([])
         self.hist_slices_lifetime = np.array([])
+        self.slice_types = [
+            "control_case_2",
+            "monitoring_case_1",
+            "robotic_surgery_case_1",
+            "robotic_diagnosis",
+            "medical_monitoring",
+            "uav_app_case_1",
+            "uav_control_non_vlos",
+            "vr_gaming",
+            "cloud_gaming",
+            "video_streaming_4k",
+        ]
+        self.expectation_params = {
+            "at_least": np.greater_equal,
+            "at_most": np.less_equal,
+            "exactly": np.equal,
+            "greater": np.greater,
+            "one_of": np.isin,
+            "smaller": np.less,
+        }
+
+        self.slice_type_model = {
+            "control_case_2": {
+                "name": "control_case_2",
+                "parameters": {
+                    "par1": {
+                        "name": "reliability",
+                        "value": 99.999999,
+                        "unit": "rate",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                    "par2": {
+                        "name": "latency",
+                        "value": 50,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 100,  # ms
+                    "message_size": 1 * 1024 * 8,  # bits
+                    "mobility": 0,  # Km/h
+                    "traffic": 2,  # Mbps
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
+                },
+            },
+            "monitoring_case_1": {
+                "name": "monitoring_case_1",
+                "parameters": {
+                    "par1": {
+                        "name": "throughput",
+                        "value": 5,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts,
+                    "buffer_latency": 100,  # ms
+                    "message_size": 1 * 1024 * 8,
+                    "mobility": 72,  # Km/h
+                    "traffic": 5,  # Mbps
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
+                },
+            },
+            "robotic_surgery_case_1": {
+                "name": "robotic_surgery_case_1",
+                "parameters": {
+                    "par1": {
+                        "name": "reliability",
+                        "value": 99.9999,
+                        "unit": "rate",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                    "par2": {
+                        "name": "latency",
+                        "value": 20,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par3": {
+                        "name": "throughput",
+                        "value": 16,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 40,  # ms
+                    "message_size": 2000 * 8,
+                    "mobility": 0,  # Km/h
+                    "traffic": 16,  # Mbps
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
+                },
+            },
+            "robotic_diagnosis": {
+                "name": "robotic_diagnosis",
+                "parameters": {
+                    "par1": {
+                        "name": "reliability",
+                        "value": 99.999,
+                        "unit": "rate",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                    "par2": {
+                        "name": "latency",
+                        "value": 20,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par3": {
+                        "name": "throughput",
+                        "value": 16,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 40,  # ms
+                    "message_size": 80 * 8,
+                    "mobility": 0,  # Km/h
+                    "traffic": 16,  # Mbps,
+                    "min_number_ues": 2,
+                    "max_number_ues": 5,
+                },
+            },
+            "medical_monitoring": {
+                "name": "medical_monitoring",
+                "parameters": {
+                    "par1": {
+                        "name": "reliability",
+                        "value": 99.9999,
+                        "unit": "rate",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                    "par2": {
+                        "name": "latency",
+                        "value": 100,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par3": {
+                        "name": "throughput",
+                        "value": 1,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 200,  # ms
+                    "message_size": 1000 * 8,
+                    "mobility": 200,  # Km/h
+                    "traffic": 1,  # Mbps
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
+                },
+            },
+            "uav_app_case_1": {
+                "name": "uav_app_case_1",
+                "parameters": {
+                    "par1": {
+                        "name": "latency",
+                        "value": 200,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par2": {
+                        "name": "throughput",
+                        "value": 100,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 400,  # ms
+                    "message_size": 8192 * 8,  # bits
+                    "mobility": 30,  # Km/h
+                    "traffic": 100,  # Mbps
+                    "min_number_ues": 1,
+                    "max_number_ues": 1,
+                },
+            },
+            "uav_control_non_vlos": {
+                "name": "uav_control_non_vlos",
+                "parameters": {
+                    "par1": {
+                        "name": "reliability",
+                        "value": 99.99,
+                        "unit": "rate",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                    "par2": {
+                        "name": "latency",
+                        "value": 140,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par3": {
+                        "name": "throughput",
+                        "value": 4,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 300,  # ms
+                    "message_size": 8192 * 8,  # bits
+                    "mobility": 30,  # Km/h
+                    "traffic": 4,  # Mbps
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
+                },
+            },
+            "vr_gaming": {
+                "name": "vr_gaming",
+                "parameters": {
+                    "par1": {
+                        "name": "reliability",
+                        "value": 99.99,
+                        "unit": "rate",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                    "par2": {
+                        "name": "latency",
+                        "value": 10,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par3": {
+                        "name": "throughput",
+                        "value": 100,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 20,  # ms
+                    "message_size": 8192 * 8,  # bits
+                    "mobility": 0,  # Km/h
+                    "traffic": 100,  # Mbps
+                    "min_number_ues": 1,
+                    "max_number_ues": 1,
+                },
+            },
+            "cloud_gaming": {
+                "name": "cloud_gaming",
+                "parameters": {
+                    "par1": {
+                        "name": "latency",
+                        "value": 80,
+                        "unit": "ms",
+                        "operator": self.expectation_params["at_most"],
+                    },
+                    "par2": {
+                        "name": "throughput",
+                        "value": 25,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 160,  # ms
+                    "message_size": 8192 * 8,  # bits
+                    "mobility": 0,  # Km/h
+                    "traffic": 25,  # Mbps
+                    "min_number_ues": 1,
+                    "max_number_ues": 5,
+                },
+            },
+            "video_streaming_4k": {
+                "name": "video_streaming_4k",
+                "parameters": {
+                    "par1": {
+                        "name": "throughput",
+                        "value": 15,
+                        "unit": "Mbps",
+                        "operator": self.expectation_params["at_least"],
+                    },
+                },
+                "ues": {
+                    "buffer_size": 1024,  # pkts
+                    "buffer_latency": 100,  # ms
+                    "message_size": 8192 * 8,  # bits
+                    "mobility": 0,  # Km/h
+                    "traffic": 15,  # Mbps
+                    "min_number_ues": 2,
+                    "max_number_ues": 5,
+                },
+            },
+        }
 
     def step(
         self,
@@ -205,315 +506,13 @@ class MultSliceAssociation(Association):
     def slice_generator(
         self, slice_req: dict, slices_to_use: np.ndarray
     ) -> dict:
-        slice_types = [
-            "control_case_2",
-            "monitoring_case_1",
-            "robotic_surgery_case_1",
-            "robotic_diagnosis",
-            "medical_monitoring",
-            "uav_app_case_1",
-            "uav_control_non_vlos",
-            "vr_gaming",
-            "cloud_gaming",
-            "video_streaming_4k",
-        ]
-        expectation_params = {
-            "at_least": np.greater_equal,
-            "at_most": np.less_equal,
-            "exactly": np.equal,
-            "greater": np.greater,
-            "one_of": np.isin,
-            "smaller": np.less,
-        }
-
-        slice_type_model = {
-            "control_case_2": {
-                "name": "control_case_2",
-                "parameters": {
-                    "par1": {
-                        "name": "reliability",
-                        "value": 99.999999,
-                        "unit": "rate",
-                        "operator": expectation_params["at_least"],
-                    },
-                    "par2": {
-                        "name": "latency",
-                        "value": 50,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 100,  # ms
-                    "message_size": 1 * 1024 * 8,  # bits
-                    "mobility": 0,  # Km/h
-                    "traffic": 2,  # Mbps
-                    "min_number_ues": 4,
-                    "max_number_ues": 5,
-                },
-            },
-            "monitoring_case_1": {
-                "name": "monitoring_case_1",
-                "parameters": {
-                    "par1": {
-                        "name": "throughput",
-                        "value": 5,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts,
-                    "buffer_latency": 100,  # ms
-                    "message_size": 1 * 1024 * 8,
-                    "mobility": 72,  # Km/h
-                    "traffic": 5,  # Mbps
-                    "min_number_ues": 4,
-                    "max_number_ues": 5,
-                },
-            },
-            "robotic_surgery_case_1": {
-                "name": "robotic_surgery_case_1",
-                "parameters": {
-                    "par1": {
-                        "name": "reliability",
-                        "value": 99.9999,
-                        "unit": "rate",
-                        "operator": expectation_params["at_least"],
-                    },
-                    "par2": {
-                        "name": "latency",
-                        "value": 20,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par3": {
-                        "name": "throughput",
-                        "value": 16,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 40,  # ms
-                    "message_size": 2000 * 8,
-                    "mobility": 0,  # Km/h
-                    "traffic": 16,  # Mbps
-                    "min_number_ues": 2,
-                    "max_number_ues": 4,
-                },
-            },
-            "robotic_diagnosis": {
-                "name": "robotic_diagnosis",
-                "parameters": {
-                    "par1": {
-                        "name": "reliability",
-                        "value": 99.999,
-                        "unit": "rate",
-                        "operator": expectation_params["at_least"],
-                    },
-                    "par2": {
-                        "name": "latency",
-                        "value": 20,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par3": {
-                        "name": "throughput",
-                        "value": 16,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 40,  # ms
-                    "message_size": 80 * 8,
-                    "mobility": 0,  # Km/h
-                    "traffic": 16,  # Mbps,
-                    "min_number_ues": 2,
-                    "max_number_ues": 5,
-                },
-            },
-            "medical_monitoring": {
-                "name": "medical_monitoring",
-                "parameters": {
-                    "par1": {
-                        "name": "reliability",
-                        "value": 99.9999,
-                        "unit": "rate",
-                        "operator": expectation_params["at_least"],
-                    },
-                    "par2": {
-                        "name": "latency",
-                        "value": 100,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par3": {
-                        "name": "throughput",
-                        "value": 1,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 200,  # ms
-                    "message_size": 1000 * 8,
-                    "mobility": 200,  # Km/h
-                    "traffic": 1,  # Mbps
-                    "min_number_ues": 4,
-                    "max_number_ues": 5,
-                },
-            },
-            "uav_app_case_1": {
-                "name": "uav_app_case_1",
-                "parameters": {
-                    "par1": {
-                        "name": "latency",
-                        "value": 200,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par2": {
-                        "name": "throughput",
-                        "value": 100,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 400,  # ms
-                    "message_size": 8192 * 8,  # bits
-                    "mobility": 30,  # Km/h
-                    "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
-                },
-            },
-            "uav_control_non_vlos": {
-                "name": "uav_control_non_vlos",
-                "parameters": {
-                    "par1": {
-                        "name": "reliability",
-                        "value": 99.99,
-                        "unit": "rate",
-                        "operator": expectation_params["at_least"],
-                    },
-                    "par2": {
-                        "name": "latency",
-                        "value": 140,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par3": {
-                        "name": "throughput",
-                        "value": 4,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 300,  # ms
-                    "message_size": 8192 * 8,  # bits
-                    "mobility": 30,  # Km/h
-                    "traffic": 4,  # Mbps
-                    "min_number_ues": 4,
-                    "max_number_ues": 5,
-                },
-            },
-            "vr_gaming": {
-                "name": "vr_gaming",
-                "parameters": {
-                    "par1": {
-                        "name": "reliability",
-                        "value": 99.99,
-                        "unit": "rate",
-                        "operator": expectation_params["at_least"],
-                    },
-                    "par2": {
-                        "name": "latency",
-                        "value": 10,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par3": {
-                        "name": "throughput",
-                        "value": 100,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 20,  # ms
-                    "message_size": 8192 * 8,  # bits
-                    "mobility": 0,  # Km/h
-                    "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
-                },
-            },
-            "cloud_gaming": {
-                "name": "cloud_gaming",
-                "parameters": {
-                    "par1": {
-                        "name": "latency",
-                        "value": 80,
-                        "unit": "ms",
-                        "operator": expectation_params["at_most"],
-                    },
-                    "par2": {
-                        "name": "throughput",
-                        "value": 25,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 160,  # ms
-                    "message_size": 8192 * 8,  # bits
-                    "mobility": 0,  # Km/h
-                    "traffic": 25,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 5,
-                },
-            },
-            "video_streaming_4k": {
-                "name": "video_streaming_4k",
-                "parameters": {
-                    "par1": {
-                        "name": "throughput",
-                        "value": 15,
-                        "unit": "Mbps",
-                        "operator": expectation_params["at_least"],
-                    },
-                },
-                "ues": {
-                    "buffer_size": 1024,  # pkts
-                    "buffer_latency": 100,  # ms
-                    "message_size": 8192 * 8,  # bits
-                    "mobility": 0,  # Km/h
-                    "traffic": 15,  # Mbps
-                    "min_number_ues": 2,
-                    "max_number_ues": 5,
-                },
-            },
-        }
-
         slices_to_create = self.rng.choice(
-            len(slice_types), len(slices_to_use)
+            len(self.slice_types), len(slices_to_use)
         )
 
         for idx, slice in enumerate(slices_to_create):
-            slice_req[f"slice_{slices_to_use[idx]}"] = slice_type_model[
-                slice_types[slice]
+            slice_req[f"slice_{slices_to_use[idx]}"] = self.slice_type_model[
+                self.slice_types[slice]
             ]
 
         return slice_req

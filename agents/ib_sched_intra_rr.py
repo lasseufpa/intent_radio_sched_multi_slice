@@ -12,6 +12,7 @@ from agents.common import (
     round_robin,
     scores_to_rbs,
 )
+from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
@@ -36,6 +37,16 @@ class IBSchedIntraRR(Agent):
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
         self.rbs_per_rbg = 1  # 135/rbs_per_rbg RBGs
+        assert isinstance(
+            self.env.comm_env.associations, MultSliceAssociation
+        ), "Associations must be MultSliceAssociation"
+        self.max_throughput_slice = np.max(
+            [
+                slice_type["ues"]["traffic"]
+                * slice_type["ues"]["max_number_ues"]
+                for slice_type in self.env.comm_env.associations.slice_type_model.values()
+            ]
+        )
         self.debug_violations = debug_violations
         if self.debug_violations:
             self.number_metrics = 3
@@ -153,7 +164,13 @@ class IBSchedIntraRR(Agent):
                     (
                         formatted_obs_space["player_0"]["observations"],
                         intent_drift_slice,
-                        np.array([slice_traffic_req / 100]),
+                        np.array(
+                            [
+                                slice_traffic_req
+                                * slice_ues.shape[0]
+                                / self.max_throughput_slice
+                            ]
+                        ),
                         np.array(
                             [
                                 np.mean(

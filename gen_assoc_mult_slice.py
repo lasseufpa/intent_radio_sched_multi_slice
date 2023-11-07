@@ -17,7 +17,7 @@ association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
 
 number_steps = 10000
-number_episodes = 1
+number_episodes = 100
 
 
 def generate_quadriga_files(
