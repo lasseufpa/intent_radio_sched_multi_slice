@@ -1,4 +1,5 @@
 from os import getcwd
+from pathlib import Path
 
 import numpy as np
 import ray
@@ -19,8 +20,8 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-# read_checkpoint = "./ray_results/" # Error on Arrow invalid check later
-read_checkpoint = "~/ray_results/"
+read_checkpoint = "./ray_results/"
+read_checkpoint = str(Path(read_checkpoint).resolve())
 
 training_flag = False  # False for reading from checkpoint
 debug_mode = (
@@ -136,7 +137,7 @@ if training_flag:
         "PPO",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
-            # storage_path=f"./ray_results/{env_config['agent']}/", # Error on Arrow invalid check later
+            storage_path=f"./ray_results/{env_config['agent']}/",
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
@@ -148,10 +149,8 @@ if training_flag:
     ).fit()
 
 # Testing
-# analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/") # Error on Arrow invalid check later
-analysis = tune.ExperimentAnalysis(
-    read_checkpoint + "PPO_2023-11-07_10-52-13/"
-)
+analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/")
+
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
