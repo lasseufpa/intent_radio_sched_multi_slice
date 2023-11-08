@@ -9,6 +9,8 @@ from agents.common import (
     calculate_reward_no_mask,
     calculate_slice_ue_obs,
     intent_drift_calc,
+    max_throughput,
+    proportional_fairness,
     round_robin,
     scores_to_rbs,
 )
@@ -196,9 +198,6 @@ class IBSchedIntraRR(Agent):
             if agent_idx < len(self.env.agents):
                 formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
                     (
-                        np.zeros(
-                            5
-                        ),  # TODO Change this in case of using intra scheduler
                         buffer_occ,
                         spectral_eff,
                     )
@@ -214,6 +213,9 @@ class IBSchedIntraRR(Agent):
         )
 
     def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
         allocation_rbs = np.array(
             [
                 np.zeros(
@@ -260,9 +262,35 @@ class IBSchedIntraRR(Agent):
                 ].nonzero()[0]
                 if slice_ues.shape[0] == 0:
                     continue
-                allocation_rbs = round_robin(
-                    allocation_rbs, slice_idx, rbs_per_slice, slice_ues
-                )
+                match action[f"player_{slice_idx+1}"]:
+                    case 0:
+                        allocation_rbs = round_robin(
+                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                        )
+                    case 1:
+                        allocation_rbs = proportional_fairness(
+                            allocation_rbs,
+                            slice_idx,
+                            rbs_per_slice,
+                            slice_ues,
+                            self.env,
+                            self.last_unformatted_obs,
+                            self.num_available_rbs,
+                        )
+                    case 2:
+                        allocation_rbs = max_throughput(
+                            allocation_rbs,
+                            slice_idx,
+                            rbs_per_slice,
+                            slice_ues,
+                            self.env,
+                            self.last_unformatted_obs,
+                            self.num_available_rbs,
+                        )
+                    case _:
+                        raise ValueError(
+                            "Invalid intra-slice scheduling action"
+                        )
             assert (
                 np.sum(allocation_rbs) == self.num_available_rbs[0]
             ), "Allocated RBs are different from available RBs"
@@ -271,7 +299,7 @@ class IBSchedIntraRR(Agent):
 
     @staticmethod
     def get_action_space() -> spaces.Dict:
-        num_agents = 2
+        num_agents = 6
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
@@ -289,7 +317,7 @@ class IBSchedIntraRR(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Dict:
-        num_agents = 2
+        num_agents = 6
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Dict(
@@ -303,7 +331,7 @@ class IBSchedIntraRR(Agent):
                     }
                 )
                 if idx == 0
-                else spaces.Box(low=-2, high=1, shape=(15,), dtype=np.float64)
+                else spaces.Box(low=-2, high=1, shape=(10,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )

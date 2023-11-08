@@ -461,15 +461,15 @@ def calculate_reward_no_mask(
                 )
         else:
             # TODO Adapt to other players
-            #     number_ues_slice = np.sum(
-            #         last_unformatted_obs[0]["slice_ue_assoc"][player_idx - 1, :]
-            #     )
-            #     elements_idx = np.arange(number_ues_slice, dtype=int)
-            #     active_observations = (
-            #         agent_obs[1][elements_idx]
-            #         if elements_idx.shape[0] > 0
-            #         else np.array([1])
-            #     )
+            # number_ues_slice = np.sum(
+            #     last_unformatted_obs[0]["slice_ue_assoc"][player_idx - 1, :]
+            # )
+            # elements_idx = np.arange(number_ues_slice, dtype=int)
+            # active_observations = (
+            #     agent_obs[1][elements_idx]
+            #     if elements_idx.shape[0] > 0
+            #     else np.array([1])
+            # )
             # if np.sum(active_observations < 0) == 0:
             #     reward[agent_obs[0]] = 0  # np.mean(active_observations)
             # else:
@@ -477,8 +477,18 @@ def calculate_reward_no_mask(
             #     reward[agent_obs[0]] = np.mean(
             #         active_observations[negative_obs_idx]
             #     )
+            # reward[agent_obs[0]] = 0
             reward[agent_obs[0]] = 0
-
+            elements_idx = last_unformatted_obs[0]["slice_ue_assoc"][
+                player_idx - 1, :
+            ].nonzero()[0]
+            if elements_idx.shape[0] > 0:
+                buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][
+                    elements_idx
+                ]
+                reward[agent_obs[0]] = -(
+                    np.mean(buffer_occ) + np.std(buffer_occ)
+                )
     return reward
 
 
