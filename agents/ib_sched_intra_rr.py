@@ -198,6 +198,13 @@ class IBSchedIntraRR(Agent):
             if agent_idx < len(self.env.agents):
                 formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
                     (
+                        np.array(
+                            [
+                                slice_traffic_req
+                                * slice_ues.shape[0]
+                                / self.max_throughput_slice
+                            ]
+                        ),
                         buffer_occ,
                         spectral_eff,
                     )
@@ -331,7 +338,7 @@ class IBSchedIntraRR(Agent):
                     }
                 )
                 if idx == 0
-                else spaces.Box(low=-2, high=1, shape=(10,), dtype=np.float64)
+                else spaces.Box(low=-2, high=1, shape=(11,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )

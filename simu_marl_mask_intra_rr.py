@@ -149,7 +149,7 @@ if training_flag:
     ).fit()
 
 # Testing
-analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/")
+analysis = tune.ExperimentAnalysis(f"{read_checkpoint}/{env_config['agent']}/")
 
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
