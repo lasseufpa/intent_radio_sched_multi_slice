@@ -1,20 +1,18 @@
 from os import getcwd
+from pathlib import Path
 
 import numpy as np
 import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.env import PettingZooEnv
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
-from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
-from ray.util import inspect_serializability
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
-from agents.ib_sched_inter_rr import IBSchedInterRR
+from agents.ib_sched_intra_rr import IBSchedIntraRR
 from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
@@ -22,8 +20,8 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/"
-training_flag = True  # False for reading from checkpoint
+read_checkpoint = str(Path("./ray_results/").resolve())
+training_flag = False  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
@@ -86,15 +84,15 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSchedInterRR,
+    "agent_class": IBSchedIntraRR,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched_inter_rr",
+    "agent": "ib_sched_intra_rr_deepmind",
     "root_path": str(getcwd()),
-    "number_agents": 11,
+    "number_agents": 6,
 }
 
 # Training
@@ -109,7 +107,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": action_mask_policy(),
+                "inter_slice_sched": PolicySpec(),  # action_mask_policy(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,
@@ -120,6 +118,7 @@ if training_flag:
             num_rollout_workers=0,
             enable_connectors=False,
             num_envs_per_worker=1,
+            preprocessor_pref="deepmind",
         )
         .resources(
             num_gpus=1, num_gpus_per_worker=1, num_gpus_per_learner_worker=1
@@ -137,24 +136,26 @@ if training_flag:
         "PPO",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
-            storage_path=f"./ray_results/{env_config['agent']}/",
+            storage_path=read_checkpoint,
+            name=env_config["agent"],
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
-                num_to_keep=10,
-                checkpoint_frequency=1,
+                num_to_keep=100,
+                checkpoint_frequency=3,
                 checkpoint_at_end=True,
             ),
         ),
     ).fit()
 
 # Testing
-analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/")
+analysis = tune.ExperimentAnalysis(f"{read_checkpoint}/{env_config['agent']}/")
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
 )
 assert best_checkpoint is not None, "Best checkpoint is None"
+# last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
 algo = Algorithm.from_checkpoint(best_checkpoint)
 marl_comm_env = env_creator(env_config)
 seed = 10

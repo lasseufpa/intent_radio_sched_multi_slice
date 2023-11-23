@@ -1,27 +1,27 @@
 from os import getcwd
+from pathlib import Path
 
 import numpy as np
 import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.env import PettingZooEnv
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
-from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
-from ray.util import inspect_serializability
 from tqdm import tqdm
 
-from agents.ib_sched_no_mask import IBSched
+from agents.action_mask_model import TorchActionMaskModel
+from agents.ib_sched_intra_rr import IBSchedIntraRR
+from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/"
-training_flag = True  # False for reading from checkpoint
+read_checkpoint = str(Path("./ray_results/").resolve())
+training_flag = False  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
@@ -59,6 +59,19 @@ def env_creator(env_config):
     return marl_comm_env
 
 
+ModelCatalog.register_custom_action_dist("masked_gaussian", TorchDiagGaussian)
+
+
+def action_mask_policy():
+    config = PPOConfig.overrides(
+        model={
+            "custom_model": TorchActionMaskModel,
+            "custom_action_dist": "masked_gaussian",
+        },
+    )
+    return PolicySpec(config=config)
+
+
 # Ray RLlib
 register_env("marl_comm_env", lambda config: env_creator(config))
 
@@ -71,15 +84,15 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSched,
+    "agent_class": IBSchedIntraRR,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched_no_mask",
+    "agent": "ib_sched_intra_rr_attention",
     "root_path": str(getcwd()),
-    "number_agents": 11,
+    "number_agents": 6,
 }
 
 # Training
@@ -94,7 +107,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": PolicySpec(),
+                "inter_slice_sched": PolicySpec(),  # action_mask_policy(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,
@@ -112,6 +125,7 @@ if training_flag:
         .training(
             _enable_learner_api=False,
             vf_clip_param=np.inf,  # type: ignore
+            model={"use_attention": True},
         )  # TODO Remove after migrating from ModelV2 to RL Module
         .rl_module(_enable_rl_module_api=False)
     )
@@ -122,28 +136,31 @@ if training_flag:
         "PPO",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
-            storage_path=f"./ray_results/{env_config['agent']}/",
+            storage_path=read_checkpoint,
+            name=env_config["agent"],
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
-                num_to_keep=10,
-                checkpoint_frequency=1,
+                num_to_keep=100,
+                checkpoint_frequency=3,
                 checkpoint_at_end=True,
             ),
         ),
     ).fit()
 
 # Testing
-analysis = tune.ExperimentAnalysis(read_checkpoint + env_config["agent"] + "/")
+analysis = tune.ExperimentAnalysis(f"{read_checkpoint}/{env_config['agent']}/")
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
 )
 assert best_checkpoint is not None, "Best checkpoint is None"
+# last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
 algo = Algorithm.from_checkpoint(best_checkpoint)
 marl_comm_env = env_creator(env_config)
 seed = 10
 total_test_steps = 10000
+# state = algo.get_policy().get_initial_state()
 obs, _ = marl_comm_env.reset(seed=seed)
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = {}

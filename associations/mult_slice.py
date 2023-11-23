@@ -67,6 +67,7 @@ class MultSliceAssociation(Association):
         self.slice_type_model = {
             "control_case_2": {
                 "name": "control_case_2",
+                "priority": 1,
                 "parameters": {
                     "par1": {
                         "name": "reliability",
@@ -93,6 +94,7 @@ class MultSliceAssociation(Association):
             },
             "monitoring_case_1": {
                 "name": "monitoring_case_1",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "throughput",
@@ -113,6 +115,7 @@ class MultSliceAssociation(Association):
             },
             "robotic_surgery_case_1": {
                 "name": "robotic_surgery_case_1",
+                "priority": 1,
                 "parameters": {
                     "par1": {
                         "name": "reliability",
@@ -145,6 +148,7 @@ class MultSliceAssociation(Association):
             },
             "robotic_diagnosis": {
                 "name": "robotic_diagnosis",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "reliability",
@@ -177,6 +181,7 @@ class MultSliceAssociation(Association):
             },
             "medical_monitoring": {
                 "name": "medical_monitoring",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "reliability",
@@ -209,6 +214,7 @@ class MultSliceAssociation(Association):
             },
             "uav_app_case_1": {
                 "name": "uav_app_case_1",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "latency",
@@ -235,6 +241,7 @@ class MultSliceAssociation(Association):
             },
             "uav_control_non_vlos": {
                 "name": "uav_control_non_vlos",
+                "priority": 1,
                 "parameters": {
                     "par1": {
                         "name": "reliability",
@@ -267,6 +274,7 @@ class MultSliceAssociation(Association):
             },
             "vr_gaming": {
                 "name": "vr_gaming",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "reliability",
@@ -299,6 +307,7 @@ class MultSliceAssociation(Association):
             },
             "cloud_gaming": {
                 "name": "cloud_gaming",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "latency",
@@ -325,6 +334,7 @@ class MultSliceAssociation(Association):
             },
             "video_streaming_4k": {
                 "name": "video_streaming_4k",
+                "priority": 0,
                 "parameters": {
                     "par1": {
                         "name": "throughput",

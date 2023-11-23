@@ -12,8 +12,8 @@ from ray.tune.registry import register_env
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
-from agents.ib_sched_intra_rr import IBSchedIntraRR
 from agents.masked_action_distribution import TorchDiagGaussian
+from agents.sched_twc import TWC
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
@@ -84,7 +84,7 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSchedIntraRR,
+    "agent_class": TWC,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
@@ -92,7 +92,7 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "ib_sched_intra_rr",
     "root_path": str(getcwd()),
-    "number_agents": 6,
+    "number_agents": 2,
 }
 
 # Training

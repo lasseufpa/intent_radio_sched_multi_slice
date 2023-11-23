@@ -20,10 +20,9 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/"
-read_checkpoint = str(Path(read_checkpoint).resolve())
+read_checkpoint = str(Path("./ray_results/").resolve())
 
-training_flag = False  # False for reading from checkpoint
+training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
@@ -94,7 +93,7 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "ib_sched_mask_intra_rr",
     "root_path": str(getcwd()),
-    "number_agents": 2,
+    "number_agents": 6,
 }
 
 # Training
@@ -137,7 +136,8 @@ if training_flag:
         "PPO",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
-            storage_path=f"./ray_results/{env_config['agent']}/",
+            storage_path=read_checkpoint,
+            name=env_config["agent"],
             stop=stop,
             verbose=2,
             checkpoint_config=air.CheckpointConfig(

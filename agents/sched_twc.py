@@ -18,14 +18,13 @@ from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
-class IBSchedIntraRR(Agent):
+class TWC(Agent):
     def __init__(
         self,
         env: MARLCommEnv,
         max_number_ues: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
-        debug_violations: bool = False,
     ) -> None:
         super().__init__(
             env, max_number_ues, max_number_basestations, num_available_rbs
@@ -49,55 +48,21 @@ class IBSchedIntraRR(Agent):
                 for slice_type in self.env.comm_env.associations.slice_type_model.values()
             ]
         )
-        self.debug_violations = debug_violations
-        if self.debug_violations:
-            self.number_metrics = 3
-            self.violations = np.zeros(
-                (
-                    self.env.comm_env.max_number_steps,
-                    self.env.comm_env.max_number_slices,
-                    self.max_number_ues_slice,
-                    self.number_metrics,
-                ),
-                dtype=float,
-            )
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
-        self.last_unformatted_obs.appendleft(obs_space)
+        # For each slice keep  nine metrics defined
+        # for each slice and UE: spectral efficiency, served throughput,
+        # effective throughput, buffer occupancy, packet loss rate, re-
+        # quested throughput, average buffer latency, long-term served
+        # throughput and the fifth-percentile served throughput.
+        #           "slice_ue_assoc": np.zeros(
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        intent_drift = intent_drift_calc(
-            self.last_unformatted_obs,
-            self.max_number_ues_slice,
-            self.intent_overfulfillment_rate,
-        )
-        if self.debug_violations:
-            self.violations[
-                self.env.comm_env.step_number - 1,
-                :,
-                :,
-                :,
-            ] = intent_drift
-            if (
-                self.env.comm_env.step_number
-                == self.env.comm_env.max_number_steps
-            ):
-                np.savez_compressed(
-                    "violations_ep_0.npz", violations=self.violations
-                )
-                self.violations = np.zeros(
-                    (
-                        self.env.comm_env.max_number_steps,
-                        self.env.comm_env.max_number_slices,
-                        self.max_number_ues_slice,
-                        self.number_metrics,
-                    ),
-                    dtype=float,
-                )
+
         formatted_obs_space = {}
 
         # Inter-slice observation
@@ -117,26 +82,12 @@ class IBSchedIntraRR(Agent):
                 agent_idx - 1
             ].nonzero()[0]
 
-            (
-                intent_drift_ue_values,
-                intent_drift_slice,
-            ) = calculate_slice_ue_obs(
-                self.max_number_ues_slice,
-                intent_drift,
-                agent_idx - 1,
-                slice_ues,
-                self.last_unformatted_obs[0]["slice_req"],
-            )
-
-            spectral_eff = np.pad(
-                np.mean(
-                    self.last_unformatted_obs[0]["spectral_efficiencies"][
-                        0, slice_ues, :
-                    ],
-                    axis=1,
-                ),
-                (0, self.max_number_ues_slice - slice_ues.shape[0]),
-                "constant",
+            # Spectral efficiency
+            spectral_eff = np.mean(
+                self.last_unformatted_obs[0]["spectral_efficiencies"][
+                    0, slice_ues, :
+                ],
+                axis=1,
             )
             max_spectral_eff = np.max(spectral_eff)
             spectral_eff = (
@@ -144,11 +95,30 @@ class IBSchedIntraRR(Agent):
                 if max_spectral_eff != 0
                 else spectral_eff
             )
-            buffer_occ = np.pad(
-                self.last_unformatted_obs[0]["buffer_occupancies"][slice_ues],
-                (0, self.max_number_ues_slice - slice_ues.shape[0]),
-                "constant",
-            )
+
+            # Served Throughput
+            served_thr = self.last_unformatted_obs[0]["pkt_throughputs"][
+                slice_ues
+            ]  # TODO convert to Mbps
+
+            # Effective Throughput
+            served_thr = self.last_unformatted_obs[0]["pkt_effective_thr"][
+                slice_ues
+            ]  # TODO convert to Mbps
+
+            # Buffer Occ.
+            buffer_occ = self.last_unformatted_obs[0]["buffer_occupancies"][
+                slice_ues
+            ]
+
+            # Buffer latencies
+            buffer_latencies = self.last_unformatted_obs[0][
+                "buffer_latencies"  # TODO Normalize per max buffer latency
+            ][slice_ues]
+
+            # Packet loss rate
+            # TODO Calculate packet loss rate
+
             slice_traffic_req = (
                 self.last_unformatted_obs[0]["slice_req"][
                     f"slice_{agent_idx-1}"
@@ -222,9 +192,62 @@ class IBSchedIntraRR(Agent):
         return formatted_obs_space
 
     def calculate_reward(self, obs_space: dict) -> dict:
-        return calculate_reward_no_mask(
-            obs_space, self.last_formatted_obs, self.last_unformatted_obs
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
+        intent_drift = intent_drift_calc(
+            self.last_unformatted_obs,
+            self.max_number_ues_slice,
+            self.intent_overfulfillment_rate,
         )
+        valid_intents = np.array([])
+        weights = np.array([])
+        reward = {}
+        for player_idx in np.arange(self.env.comm_env.max_number_slices + 1):
+            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
+                player_idx - 1
+            ].nonzero()[0]
+            if player_idx == 0 or slice_ues.shape[0] == 0:
+                continue
+            (
+                _,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                self.max_number_ues_slice,
+                intent_drift,
+                player_idx - 1,
+                slice_ues,
+                self.last_unformatted_obs[0]["slice_req"],
+            )
+            valid_intents = np.append(
+                valid_intents,
+                intent_drift_slice[
+                    np.logical_not(np.isclose(intent_drift_slice, -2))
+                ],
+            )
+            valid_intents[
+                valid_intents > 0
+            ] = 0  # It does not consider positive values
+            weight_value = (
+                2
+                if bool(
+                    self.last_unformatted_obs[0]["slice_req"][
+                        f"slice_{player_idx - 1}"
+                    ]["priority"]
+                )
+                else 1
+            )
+            weights = weight_value * np.ones_like(valid_intents)
+            reward[
+                f"player_{player_idx}"
+            ] = 0  # TWC agent uses round-robin in the intra-slice scheduler
+        reward["player_0"] = (
+            np.sum(valid_intents * weights / np.sum(weights))
+            if np.sum(weights) != 0
+            else 0
+        )
+
+        return reward
 
     def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
         assert isinstance(
@@ -276,35 +299,9 @@ class IBSchedIntraRR(Agent):
                 ].nonzero()[0]
                 if slice_ues.shape[0] == 0:
                     continue
-                match action[f"player_{slice_idx+1}"]:
-                    case 0:
-                        allocation_rbs = round_robin(
-                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
-                        )
-                    case 1:
-                        allocation_rbs = proportional_fairness(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.env,
-                            self.last_unformatted_obs,
-                            self.num_available_rbs,
-                        )
-                    case 2:
-                        allocation_rbs = max_throughput(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.env,
-                            self.last_unformatted_obs,
-                            self.num_available_rbs,
-                        )
-                    case _:
-                        raise ValueError(
-                            "Invalid intra-slice scheduling action"
-                        )
+                allocation_rbs = round_robin(
+                    allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                )
             assert (
                 np.sum(allocation_rbs) == self.num_available_rbs[0]
             ), "Allocated RBs are different from available RBs"
@@ -313,7 +310,7 @@ class IBSchedIntraRR(Agent):
 
     @staticmethod
     def get_action_space() -> spaces.Dict:
-        num_agents = 6
+        num_agents = 2
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
@@ -331,7 +328,7 @@ class IBSchedIntraRR(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Dict:
-        num_agents = 6
+        num_agents = 2
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Dict(
