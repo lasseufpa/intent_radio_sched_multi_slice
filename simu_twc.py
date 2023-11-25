@@ -140,7 +140,7 @@ if training_flag:
             verbose=2,
             checkpoint_config=air.CheckpointConfig(
                 num_to_keep=100,
-                checkpoint_frequency=3,
+                checkpoint_frequency=10,
                 checkpoint_at_end=True,
             ),
         ),

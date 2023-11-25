@@ -244,11 +244,12 @@ class TWC(Agent):
                 slice_ues,
                 self.last_unformatted_obs[0]["slice_req"],
             )
+            valid_intent = intent_drift_slice[
+                np.logical_not(np.isclose(intent_drift_slice, -2))
+            ]
             valid_intents = np.append(
                 valid_intents,
-                intent_drift_slice[
-                    np.logical_not(np.isclose(intent_drift_slice, -2))
-                ],
+                valid_intent,
             )
             valid_intents[
                 valid_intents > 0
@@ -262,7 +263,9 @@ class TWC(Agent):
                 )
                 else 1
             )
-            weights = weight_value * np.ones_like(valid_intents)
+            weights = np.append(
+                weights, weight_value * np.ones_like(valid_intent)
+            )
         reward["player_0"] = (
             np.sum(valid_intents * weights / np.sum(weights))
             if np.sum(weights) != 0

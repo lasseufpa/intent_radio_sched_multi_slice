@@ -15,6 +15,7 @@ class MultSliceAssociation(Association):
         rng: np.random.Generator = np.random.default_rng(),
         root_path: str = ".",
         generator_mode: bool = False,
+        slice_req_changed: bool = True,  # When you change slice_type_model after using gen_assoc_mult_slice.py
     ) -> None:
         super().__init__(
             ues,
@@ -33,6 +34,7 @@ class MultSliceAssociation(Association):
         self.generator_mode = (
             generator_mode  # False for reading from external files
         )
+        self.slice_req_changed = slice_req_changed
         self.scenario_name = "mult_slice"
         self.current_episode = -1
         self.slices_to_use = np.array([])
@@ -404,7 +406,16 @@ class MultSliceAssociation(Association):
         else:
             if episode_number != self.current_episode:
                 self.load_episode_data(episode_number)  # Update variables
-
+            if self.slice_req_changed:
+                tmp_slice_req = {}
+                for slice_key in self.hist_slice_req[step_number].keys():
+                    if self.hist_slice_req[step_number][slice_key] != {}:
+                        tmp_slice_req[slice_key] = self.slice_type_model[
+                            self.hist_slice_req[step_number][slice_key]["name"]
+                        ]
+                    else:
+                        tmp_slice_req[slice_key] = {}
+                self.hist_slice_req[step_number] = tmp_slice_req
             if step_number % self.update_steps == 0:
                 self.update_ues(
                     self.hist_slice_ue_assoc[step_number],
