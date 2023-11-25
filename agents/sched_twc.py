@@ -6,11 +6,9 @@ import numpy as np
 from gymnasium import spaces
 
 from agents.common import (
-    calculate_reward_no_mask,
     calculate_slice_ue_obs,
+    get_metric_value,
     intent_drift_calc,
-    max_throughput,
-    proportional_fairness,
     round_robin,
     scores_to_rbs,
 )
@@ -58,14 +56,13 @@ class TWC(Agent):
         # effective throughput, buffer occupancy, packet loss rate, re-
         # quested throughput, average buffer latency, long-term served
         # throughput and the fifth-percentile served throughput.
-        #           "slice_ue_assoc": np.zeros(
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-
-        formatted_obs_space = {}
+        self.last_unformatted_obs.appendleft(obs_space)
 
         # Inter-slice observation
+        formatted_obs_space = {}
         formatted_obs_space["player_0"] = {
             "observations": np.array([]),
             "action_mask": self.last_unformatted_obs[0][
@@ -73,52 +70,125 @@ class TWC(Agent):
             ][0].astype(np.int8),
         }
 
+        dict_metrics = {
+            "requirements": np.array([]),
+            "spectral_efficiencies": np.array([]),
+            "pkt_throughputs": np.array([]),
+            "pkt_effective_thrs": np.array([]),
+            "buffer_occupancies": np.array([]),
+            "buffer_latencies": np.array([]),
+            "pkt_loss_rates": np.array([]),
+            "requested_thrs": np.array([]),
+        }
+
         # intra-slice observations
         for agent_idx in range(1, obs_space["slice_ue_assoc"].shape[0] + 1):
-            assert isinstance(
-                self.env, MARLCommEnv
-            ), "Environment must be MARLCommEnv"
             slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
                 agent_idx - 1
             ].nonzero()[0]
 
-            # Spectral efficiency
-            spectral_eff = np.mean(
-                self.last_unformatted_obs[0]["spectral_efficiencies"][
-                    0, slice_ues, :
-                ],
-                axis=1,
+            requirements = np.zeros(3)
+            if slice_ues.shape[0] != 0:
+                for parameter in self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["parameters"].values():
+                    if parameter["name"] == "reliability":
+                        requirements[0] = parameter["value"]
+                    elif parameter["name"] == "latency":
+                        requirements[1] = parameter["value"]
+                    elif parameter["name"] == "throughput":
+                        requirements[2] = parameter["value"]
+            dict_metrics["requirements"] = np.append(
+                dict_metrics["requirements"], requirements
             )
-            max_spectral_eff = np.max(spectral_eff)
-            spectral_eff = (
-                spectral_eff / max_spectral_eff
-                if max_spectral_eff != 0
-                else spectral_eff
+            # Pkt size
+            pkt_size = (
+                self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["ues"]["message_size"]
+                if slice_ues.shape[0] != 0
+                else 0
+            )
+
+            # Spectral efficiency
+            if slice_ues.shape[0] != 0:
+                spectral_eff = np.mean(
+                    self.last_unformatted_obs[0]["spectral_efficiencies"][
+                        0, slice_ues, :
+                    ],
+                    axis=1,
+                )
+                max_spectral_eff = np.max(spectral_eff)
+                spectral_eff = (
+                    spectral_eff / max_spectral_eff
+                    if max_spectral_eff != 0
+                    else spectral_eff
+                )
+            else:
+                spectral_eff = np.array([0])
+            dict_metrics["spectral_efficiencies"] = np.append(
+                dict_metrics["spectral_efficiencies"], np.mean(spectral_eff)
             )
 
             # Served Throughput
-            served_thr = self.last_unformatted_obs[0]["pkt_throughputs"][
-                slice_ues
-            ]  # TODO convert to Mbps
+            served_thr = (
+                self.last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
+                if slice_ues.shape[0] != 0
+                else np.array([0])
+            )
+            dict_metrics["pkt_throughputs"] = np.append(
+                dict_metrics["pkt_throughputs"],
+                np.mean(self.pkts_to_mbps(served_thr, pkt_size)),
+            )
 
             # Effective Throughput
-            served_thr = self.last_unformatted_obs[0]["pkt_effective_thr"][
-                slice_ues
-            ]  # TODO convert to Mbps
+            eff_thr = (
+                self.last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
+                if slice_ues.shape[0] != 0
+                else np.array([0])
+            )
+            dict_metrics["pkt_effective_thrs"] = np.append(
+                dict_metrics["pkt_effective_thrs"],
+                np.mean(self.pkts_to_mbps(eff_thr, pkt_size)),
+            )
 
             # Buffer Occ.
-            buffer_occ = self.last_unformatted_obs[0]["buffer_occupancies"][
-                slice_ues
-            ]
+            buffer_occ = (
+                self.last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
+                if slice_ues.shape[0] != 0
+                else np.array([0])
+            )
+            dict_metrics["buffer_occupancies"] = np.append(
+                dict_metrics["buffer_occupancies"], np.mean(buffer_occ)
+            )
 
             # Buffer latencies
-            buffer_latencies = self.last_unformatted_obs[0][
-                "buffer_latencies"  # TODO Normalize per max buffer latency
-            ][slice_ues]
+            buffer_latencies = (
+                self.last_unformatted_obs[0]["buffer_latencies"][slice_ues]
+                if slice_ues.shape[0] != 0
+                else np.array([0])
+            )
+            dict_metrics["buffer_latencies"] = np.append(
+                dict_metrics["buffer_latencies"], np.mean(buffer_latencies)
+            )
 
             # Packet loss rate
-            # TODO Calculate packet loss rate
+            pkt_loss_rate = (
+                get_metric_value(
+                    "reliability",
+                    self.last_unformatted_obs,
+                    agent_idx - 1,
+                    slice_ues,
+                    reliability_pkt_loss=True,
+                )
+                if slice_ues.shape[0] != 0
+                else np.array([0])
+            )
+            dict_metrics["pkt_loss_rates"] = np.append(
+                dict_metrics["pkt_loss_rates"], np.mean(pkt_loss_rate)
+            )
 
+            # Requested throughput
             slice_traffic_req = (
                 self.last_unformatted_obs[0]["slice_req"][
                     f"slice_{agent_idx-1}"
@@ -129,63 +199,18 @@ class TWC(Agent):
                 == 1
                 else 0
             )
-
-            # Inter-slice scheduling
-            formatted_obs_space["player_0"]["observations"] = (
-                np.concatenate(
-                    (
-                        formatted_obs_space["player_0"]["observations"],
-                        intent_drift_slice,
-                        np.array(
-                            [
-                                slice_traffic_req
-                                * slice_ues.shape[0]
-                                / self.max_throughput_slice
-                            ]
-                        ),
-                        np.array(
-                            [
-                                np.mean(
-                                    spectral_eff[0 : slice_ues.shape[0]]
-                                    * max_spectral_eff
-                                )
-                                / 20
-                            ]
-                        ),
-                    )
-                )
-                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                    0, agent_idx - 1
-                ]
-                == 1
-                else np.append(
+            dict_metrics["requested_thrs"] = np.append(
+                dict_metrics["requested_thrs"],
+                slice_traffic_req,
+            )
+        for key in dict_metrics.keys():
+            formatted_obs_space["player_0"]["observations"] = np.concatenate(
+                (
                     formatted_obs_space["player_0"]["observations"],
-                    np.concatenate((intent_drift_slice, np.array([0, 0]))),
+                    dict_metrics[key],
                 )
             )
-
-            # Intra-slice scheduling
-            if agent_idx < len(self.env.agents):
-                association_slice_ue = np.zeros(
-                    self.max_number_ues_slice, dtype=np.int8
-                )
-                association_slice_ue[0 : slice_ues.shape[0]] = 1
-                formatted_obs_space[f"player_{agent_idx}"] = {
-                    "observations": np.concatenate(
-                        (
-                            np.array(
-                                [
-                                    slice_traffic_req
-                                    * slice_ues.shape[0]
-                                    / self.max_throughput_slice
-                                ]
-                            ),
-                            buffer_occ,
-                            spectral_eff,
-                        )
-                    ),
-                    "action_mask": association_slice_ue,
-                }
+        formatted_obs_space["player_1"] = np.array([0, 1])
 
         self.last_formatted_obs = formatted_obs_space
 
@@ -238,14 +263,12 @@ class TWC(Agent):
                 else 1
             )
             weights = weight_value * np.ones_like(valid_intents)
-            reward[
-                f"player_{player_idx}"
-            ] = 0  # TWC agent uses round-robin in the intra-slice scheduler
         reward["player_0"] = (
             np.sum(valid_intents * weights / np.sum(weights))
             if np.sum(weights) != 0
             else 0
         )
+        reward["player_1"] = 0  # Keeping a second agent to use MARL ray
 
         return reward
 
@@ -318,7 +341,7 @@ class TWC(Agent):
                 )
                 if idx == 0
                 else spaces.Discrete(
-                    3
+                    1
                 )  # Three algorithms (RR, PF and Maximum Throughput)
                 for idx in range(num_agents)
             }
@@ -334,7 +357,7 @@ class TWC(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(25,), dtype=np.float64
+                            low=-2, high=np.inf, shape=(50,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
                             0.0, 1.0, shape=(5,), dtype=np.int8
@@ -342,18 +365,12 @@ class TWC(Agent):
                     }
                 )
                 if idx == 0
-                else spaces.Dict(
-                    {
-                        "observations": spaces.Box(
-                            low=-2, high=1, shape=(11,), dtype=np.float64
-                        ),
-                        "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(5,), dtype=np.int8
-                        ),
-                    }
-                )
+                else spaces.Box(low=0, high=1, shape=(2,), dtype=np.float64)
                 for idx in range(num_agents)
             }
         )
 
         return obs_space
+
+    def pkts_to_mbps(self, pkts: np.ndarray, pkt_size: float) -> np.ndarray:
+        return pkts * pkt_size / 1e6

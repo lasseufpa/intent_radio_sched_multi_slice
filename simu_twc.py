@@ -5,7 +5,7 @@ import numpy as np
 import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
-from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.sac import SACConfig
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
 from ray.tune.registry import register_env
@@ -63,7 +63,7 @@ ModelCatalog.register_custom_action_dist("masked_gaussian", TorchDiagGaussian)
 
 
 def action_mask_policy():
-    config = PPOConfig.overrides(
+    config = SACConfig.overrides(
         model={
             "custom_model": TorchActionMaskModel,
             "custom_action_dist": "masked_gaussian",
@@ -90,7 +90,7 @@ env_config = {
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched_intra_rr",
+    "agent": "sched_twc",
     "root_path": str(getcwd()),
     "number_agents": 2,
 }
@@ -98,7 +98,7 @@ env_config = {
 # Training
 if training_flag:
     algo_config = (
-        PPOConfig()
+        SACConfig()
         .environment(
             env="marl_comm_env",
             env_config=env_config,
@@ -124,7 +124,6 @@ if training_flag:
         )
         .training(
             _enable_learner_api=False,
-            vf_clip_param=np.inf,  # type: ignore
         )  # TODO Remove after migrating from ModelV2 to RL Module
         .rl_module(_enable_rl_module_api=False)
     )
@@ -132,7 +131,7 @@ if training_flag:
         "episodes_total": 10,
     }
     results = tune.Tuner(
-        "PPO",
+        "SAC",
         param_space=algo_config.to_dict(),
         run_config=air.RunConfig(
             storage_path=read_checkpoint,

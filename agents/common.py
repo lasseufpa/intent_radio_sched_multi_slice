@@ -42,69 +42,71 @@ class ProgressBarManager(object):
             self.pbar.close()
 
 
+def get_metric_value(
+    metric_name: str,
+    last_unformatted_obs: deque,
+    slice_idx: int,
+    slice_ues: np.ndarray,
+    reliability_pkt_loss: bool = False,
+) -> np.ndarray:
+    def calc_metric_interval(metric: str, slice_ues: np.ndarray) -> float:
+        return np.sum(
+            [
+                last_unformatted_obs[i][metric][slice_ues]
+                for i in range(len(last_unformatted_obs))
+            ],
+            axis=0,
+        )
+
+    if metric_name == "throughput":
+        metric_value = (
+            last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
+            * last_unformatted_obs[0]["slice_req"][f"slice_{slice_idx}"][
+                "ues"
+            ]["message_size"]
+        ) / 1e6  # Mbps
+    elif metric_name == "reliability":
+        if reliability_pkt_loss:
+            pkts_snt_over_interval = calc_metric_interval(
+                "pkt_effective_thr", slice_ues
+            )
+            dropped_pkts_over_interval = calc_metric_interval(
+                "dropped_pkts", slice_ues
+            )
+            buffer_pkts = (
+                last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
+                * last_unformatted_obs[0]["slice_req"][f"slice_{slice_idx}"][
+                    "ues"
+                ]["buffer_size"]
+                + dropped_pkts_over_interval
+                + pkts_snt_over_interval
+            )
+            metric_value = np.divide(
+                dropped_pkts_over_interval,
+                buffer_pkts,
+                where=buffer_pkts != 0,
+                out=np.zeros_like(buffer_pkts),
+            )  # Rate [0,1]
+        else:
+            metric_value = last_unformatted_obs[0]["buffer_occupancies"][
+                slice_ues
+            ]  # Buffer occupancy rate [0,1]
+    elif metric_name == "latency":
+        metric_value = last_unformatted_obs[0]["buffer_latencies"][
+            slice_ues
+        ]  # Seconds
+    else:
+        raise ValueError("Invalid metric name")
+
+    return metric_value
+
+
 def intent_drift_calc(
     last_unformatted_obs: deque[dict],
     max_number_ues_slice: int,
     intent_overfulfillment_rate: float,
     reliability_pkt_loss: bool = False,
 ) -> np.ndarray:
-    def get_metric_value(
-        metric_name: str,
-        last_unformatted_obs: deque,
-        slice_idx: int,
-        slice_ues: np.ndarray,
-    ) -> np.ndarray:
-        def calc_metric_interval(metric: str, slice_ues: np.ndarray) -> float:
-            return np.sum(
-                [
-                    last_unformatted_obs[i][metric][slice_ues]
-                    for i in range(len(last_unformatted_obs))
-                ],
-                axis=0,
-            )
-
-        if metric_name == "throughput":
-            metric_value = (
-                last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
-                * last_unformatted_obs[0]["slice_req"][f"slice_{slice_idx}"][
-                    "ues"
-                ]["message_size"]
-            ) / 1e6  # Mbps
-        elif metric_name == "reliability":
-            if reliability_pkt_loss:
-                pkts_snt_over_interval = calc_metric_interval(
-                    "pkt_effective_thr", slice_ues
-                )
-                dropped_pkts_over_interval = calc_metric_interval(
-                    "dropped_pkts", slice_ues
-                )
-                buffer_pkts = (
-                    last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
-                    * last_unformatted_obs[0]["slice_req"][
-                        f"slice_{slice_idx}"
-                    ]["ues"]["buffer_size"]
-                    + dropped_pkts_over_interval
-                    + pkts_snt_over_interval
-                )
-                metric_value = np.divide(
-                    dropped_pkts_over_interval,
-                    buffer_pkts,
-                    where=buffer_pkts != 0,
-                    out=np.zeros_like(buffer_pkts),
-                )  # Rate [0,1]
-            else:
-                metric_value = last_unformatted_obs[0]["buffer_occupancies"][
-                    slice_ues
-                ]  # Buffer occupancy rate [0,1]
-        elif metric_name == "latency":
-            metric_value = last_unformatted_obs[0]["buffer_latencies"][
-                slice_ues
-            ]  # Seconds
-        else:
-            raise ValueError("Invalid metric name")
-
-        return metric_value
-
     last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
     metrics = {"throughput": 0, "reliability": 1, "latency": 2}
     observations = np.zeros(
@@ -129,6 +131,7 @@ def intent_drift_calc(
                 last_unformatted_obs,
                 slice_idx,
                 slice_ues,
+                reliability_pkt_loss,
             )
             if parameter["name"] == "throughput":
                 # In case the throughput is below the minimum required but the
