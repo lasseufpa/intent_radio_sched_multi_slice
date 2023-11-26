@@ -225,12 +225,6 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "# Violations"
                 break
-            case "distance_fulfill_metrics":
-                distance = calc_intent_distance(data_metrics)
-                plt.plot(distance, label=f"{agent}, total")
-                xlabel = "Step (n)"
-                ylabel = "# Violations"
-                break
             case "violations":
                 violations, _ = calc_slice_violations(data_metrics)
                 plt.plot(violations, label=f"{agent}, total")
@@ -421,6 +415,7 @@ def calc_intent_distance(data_metrics) -> np.ndarray:
     intent_drift = get_intent_drift(data_metrics)
     distance_slice = np.zeros(data_metrics["obs"].shape[0])
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
+        intent_array = np.array([])
         for slice_idx in range(
             0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
         ):
@@ -443,14 +438,15 @@ def calc_intent_distance(data_metrics) -> np.ndarray:
                     np.isclose(intent_drift_slice, -2), intent_drift_slice >= 0
                 ),
             )
-            intent_drift_slice = (
+            min_intent = (
                 np.min(intent_drift_slice)
                 if intent_drift_slice.shape[0] > 0
                 else 0
             )
-            distance_slice[step_idx] += (
-                intent_drift_slice if intent_drift_slice < 0 else 0
-            )
+            intent_array = np.append(intent_array, min_intent)
+        distance_slice[step_idx] += (
+            np.mean(intent_array) if intent_array.shape[0] > 0 else 0
+        )
     return distance_slice
 
 
@@ -463,10 +459,11 @@ agent_names = [
     # "ib_sched",
     # "ib_sched_no_mask",
     "ib_sched_intra_rr",
-    "ib_sched_intra_rr_lstm",
+    # "ib_sched_intra_rr_lstm",
     "ib_sched_intra_rr_deepmind",
     "ib_sched_mask_intra_rr",
     "ib_sched_mask_intra_rr_deepmind",
+    # "sched_twc",
     # "sb3_ib_sched_intra_rr",
     # "ib_sched_inter_rr",
 ]
@@ -505,13 +502,13 @@ for agent in agent_names:
 
 # One graph for all agents
 metrics = [
-    "reward",
+    # "reward",
     "reward_cumsum",
-    "violations",
+    # "violations",
     "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
-    "distance_fulfill",
+    # "distance_fulfill",
     "distance_fulfill_cumsum",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)

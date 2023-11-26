@@ -85,7 +85,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 10,  # pkts
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,  # bits
                     "mobility": 0,  # Km/h
@@ -106,7 +106,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts,
+                    "buffer_size": 1024 * 10,  # pkts,
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,
                     "mobility": 72,  # Km/h
@@ -139,7 +139,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 1000,  # pkts
                     "buffer_latency": 40,  # ms
                     "message_size": 2000 * 8,
                     "mobility": 0,  # Km/h
@@ -172,7 +172,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 1000,  # pkts
                     "buffer_latency": 40,  # ms
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
@@ -205,7 +205,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 10,  # pkts
                     "buffer_latency": 200,  # ms
                     "message_size": 1000 * 8,
                     "mobility": 200,  # Km/h
@@ -232,7 +232,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 1000,  # pkts
                     "buffer_latency": 400,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
@@ -265,7 +265,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 10,  # pkts
                     "buffer_latency": 300,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
@@ -298,7 +298,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 1000,  # pkts
                     "buffer_latency": 20,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
@@ -325,7 +325,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 10,  # pkts
                     "buffer_latency": 160,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
@@ -346,7 +346,7 @@ class MultSliceAssociation(Association):
                     },
                 },
                 "ues": {
-                    "buffer_size": 1024,  # pkts
+                    "buffer_size": 1024 * 10,  # pkts
                     "buffer_latency": 100,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
