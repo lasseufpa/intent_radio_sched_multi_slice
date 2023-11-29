@@ -216,7 +216,7 @@ class MultSliceAssociation(Association):
             },
             "uav_app_case_1": {
                 "name": "uav_app_case_1",
-                "priority": 0,
+                "priority": 1,
                 "parameters": {
                     "par1": {
                         "name": "latency",

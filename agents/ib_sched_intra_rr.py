@@ -159,6 +159,13 @@ class IBSchedIntraRR(Agent):
                 == 1
                 else 0
             )
+            slice_priority = (
+                self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["priority"]
+                if slice_ues.shape[0] != 0
+                else 0
+            )
 
             # Inter-slice scheduling
             formatted_obs_space["player_0"]["observations"] = (
@@ -166,6 +173,7 @@ class IBSchedIntraRR(Agent):
                     (
                         formatted_obs_space["player_0"]["observations"],
                         intent_drift_slice,
+                        np.array([slice_priority]),
                         np.array(
                             [
                                 slice_traffic_req
@@ -190,7 +198,7 @@ class IBSchedIntraRR(Agent):
                 == 1
                 else np.append(
                     formatted_obs_space["player_0"]["observations"],
-                    np.concatenate((intent_drift_slice, np.array([0, 0]))),
+                    np.concatenate((intent_drift_slice, np.array([0, 0, 0]))),
                 )
             )
 
@@ -337,7 +345,7 @@ class IBSchedIntraRR(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(25,), dtype=np.float64
+                            low=-2, high=1, shape=(30,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
                             0.0, 1.0, shape=(5,), dtype=np.int8

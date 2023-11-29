@@ -440,23 +440,38 @@ def calculate_reward_no_mask(
     last_unformatted_obs: deque,
 ) -> dict:
     reward = {}
+    var_obs_per_slice = 6
     for player_idx, agent_obs in enumerate(last_formatted_obs.items()):
         if player_idx == 0:
             elements_idx = last_unformatted_obs[0]["basestation_slice_assoc"][
                 0, :
             ].nonzero()[0]
-            active_observations = np.array([])
+            active_observations = np.zeros(len(last_formatted_obs) - 1)
+            slice_priorities = np.zeros(len(last_formatted_obs) - 1)
             for element_idx in elements_idx:
+                slice_priorities[element_idx] = last_unformatted_obs[0][
+                    "slice_req"
+                ][f"slice_{element_idx}"]["priority"]
                 metrics = agent_obs[1]["observations"][
-                    (element_idx * 5) : (element_idx * 5) + 3
+                    (element_idx * var_obs_per_slice) : (
+                        element_idx * var_obs_per_slice
+                    )
+                    + 3
                 ]
                 metrics = metrics[np.logical_not(np.isclose(metrics, -2))]
                 metrics = np.min(metrics) if metrics.shape[0] > 0 else 1
-                active_observations = np.append(
-                    active_observations, np.array([metrics])
-                )
-            if np.sum(active_observations < 0) == 0:
+                active_observations[element_idx] = metrics
+            if np.isclose(np.sum(active_observations < 0), 0):
                 reward[agent_obs[0]] = 0  # np.mean(active_observations)
+            elif not np.isclose(
+                np.sum((slice_priorities * active_observations) < 0), 0
+            ):
+                negative_obs_idx = (
+                    active_observations * slice_priorities < 0
+                ).nonzero()[0]
+                reward[agent_obs[0]] = (
+                    np.mean(active_observations[negative_obs_idx]) - 1
+                )
             else:
                 negative_obs_idx = (active_observations < 0).nonzero()[0]
                 reward[agent_obs[0]] = np.mean(
