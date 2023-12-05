@@ -6,6 +6,8 @@ from typing import Tuple
 import matplotlib.figure as matfig
 import matplotlib.pyplot as plt
 import numpy as np
+from cv2 import line
+from matplotlib import lines
 
 # Import intent_drift_calc function
 sys.path.append(os.path.abspath("agents/"))
@@ -222,12 +224,28 @@ def plot_graph(
             case "distance_fulfill_cumsum":
                 distance = calc_intent_distance(data_metrics)
                 plt.plot(np.cumsum(distance), label=f"{agent}, total")
+                distance = calc_intent_distance(data_metrics, priority=True)
+                plt.plot(
+                    np.cumsum(distance),
+                    label=f"{agent}, prioritary",
+                    color=plt.gca().lines[-1].get_color(),
+                    linestyle="--",
+                )
                 xlabel = "Step (n)"
                 ylabel = "# Violations"
                 break
             case "violations":
                 violations, _ = calc_slice_violations(data_metrics)
                 plt.plot(violations, label=f"{agent}, total")
+                violations, _ = calc_slice_violations(
+                    data_metrics, priority=True
+                )
+                plt.plot(
+                    violations,
+                    label=f"{agent}, prioritary",
+                    color=plt.gca().lines[-1].get_color(),
+                    linestyle="--",
+                )
                 xlabel = "Step (n)"
                 ylabel = "# Violations"
                 break
@@ -236,6 +254,15 @@ def plot_graph(
                 plt.plot(
                     np.cumsum(violations),
                     label=f"{agent}, total",
+                )
+                violations, _ = calc_slice_violations(
+                    data_metrics, priority=True
+                )
+                plt.plot(
+                    np.cumsum(violations),
+                    label=f"{agent}, prioritary",
+                    color=plt.gca().lines[-1].get_color(),
+                    linestyle="--",
                 )
                 xlabel = "Step (n)"
                 ylabel = "Cumulative # violations"
@@ -372,7 +399,9 @@ def get_intent_drift(data_metrics) -> np.ndarray:
     return intent_drift
 
 
-def calc_slice_violations(data_metrics) -> Tuple[np.ndarray, dict]:
+def calc_slice_violations(
+    data_metrics, priority=False
+) -> Tuple[np.ndarray, dict]:
     intent_drift = get_intent_drift(data_metrics)
     violations = np.zeros(data_metrics["obs"].shape[0])
     violations_per_slice_type = {}
@@ -383,6 +412,19 @@ def calc_slice_violations(data_metrics) -> Tuple[np.ndarray, dict]:
             slice_ues = data_metrics["slice_ue_assoc"][step_idx][
                 slice_idx
             ].nonzero()[0]
+            if (
+                data_metrics["basestation_slice_assoc"][step_idx][0, slice_idx]
+                == 0
+            ):
+                continue
+            if (
+                priority
+                and data_metrics["slice_req"][step_idx][f"slice_{slice_idx}"][
+                    "priority"
+                ]
+                == 0
+            ):
+                continue
             (
                 _,
                 intent_drift_slice,
@@ -411,7 +453,7 @@ def calc_slice_violations(data_metrics) -> Tuple[np.ndarray, dict]:
     return violations, violations_per_slice_type
 
 
-def calc_intent_distance(data_metrics) -> np.ndarray:
+def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
     intent_drift = get_intent_drift(data_metrics)
     distance_slice = np.zeros(data_metrics["obs"].shape[0])
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
@@ -419,6 +461,19 @@ def calc_intent_distance(data_metrics) -> np.ndarray:
         for slice_idx in range(
             0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
         ):
+            if (
+                data_metrics["basestation_slice_assoc"][step_idx][0, slice_idx]
+                == 0
+            ):
+                continue
+            if (
+                priority
+                and data_metrics["slice_req"][step_idx][f"slice_{slice_idx}"][
+                    "priority"
+                ]
+                == 0
+            ):
+                continue
             slice_ues = data_metrics["slice_ue_assoc"][step_idx][
                 slice_idx
             ].nonzero()[0]
@@ -445,7 +500,7 @@ def calc_intent_distance(data_metrics) -> np.ndarray:
             )
             intent_array = np.append(intent_array, min_intent)
         distance_slice[step_idx] += (
-            np.mean(intent_array) if intent_array.shape[0] > 0 else 0
+            np.sum(intent_array) if intent_array.shape[0] > 0 else 0
         )
     return distance_slice
 
@@ -455,17 +510,13 @@ scenario_names = ["mult_slice"]
 agent_names = [
     "random",
     "round_robin",
-    # "ib_sched_intra_nn",
-    # "ib_sched",
-    # "ib_sched_no_mask",
     "ib_sched_intra_rr",
-    # "ib_sched_intra_rr_lstm",
     "ib_sched_intra_rr_deepmind",
     "ib_sched_mask_intra_rr",
     "ib_sched_mask_intra_rr_deepmind",
+    # "ib_sched_intra_rr_lstm",
     # "sched_twc",
     # "sb3_ib_sched_intra_rr",
-    # "ib_sched_inter_rr",
 ]
 episodes = np.array([0], dtype=int)
 slices = np.arange(5)
