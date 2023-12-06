@@ -42,7 +42,9 @@ def gen_results(
                 plt.xlabel(xlabel, fontsize=14)
                 plt.ylabel(ylabel, fontsize=14)
                 plt.xticks(fontsize=12)
-                plt.legend(fontsize=12)
+                plt.legend(
+                    fontsize=12, bbox_to_anchor=(1.04, 1), loc="upper left"
+                )
                 os.makedirs(
                     f"./results/{scenario}/ep_{episode}"
                     if len(agent_names) > 1
