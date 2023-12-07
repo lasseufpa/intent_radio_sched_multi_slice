@@ -105,7 +105,7 @@ def intent_drift_calc(
     last_unformatted_obs: deque[dict],
     max_number_ues_slice: int,
     intent_overfulfillment_rate: float,
-    reliability_pkt_loss: bool = False,
+    reliability_pkt_loss: bool = True,
 ) -> np.ndarray:
     last_obs_slice_req = last_unformatted_obs[0]["slice_req"]
     metrics = {"throughput": 0, "reliability": 1, "latency": 2}
@@ -565,13 +565,16 @@ def round_robin(
     slice_ues: np.ndarray,
     last_unformatted_obs: deque,
     distribute_rbs: bool = True,
+    account_buffer: bool = True,
 ) -> np.ndarray:
     buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
-    slice_ues_buffer = slice_ues[
-        np.logical_not(np.isclose(buffer_occ, np.zeros_like(buffer_occ)))
-    ]  # Consider only UEs that have packets available in the buffer
-    if slice_ues_buffer.shape[0] == 0:
-        slice_ues_buffer = slice_ues
+    slice_ues_buffer = slice_ues
+    if account_buffer:
+        slice_ues_buffer = slice_ues[
+            np.logical_not(np.isclose(buffer_occ, np.zeros_like(buffer_occ)))
+        ]  # Consider only UEs that have packets available in the buffer
+        if slice_ues_buffer.shape[0] == 0:
+            slice_ues_buffer = slice_ues
     rbs_per_ue = np.ones_like(slice_ues_buffer, dtype=float) * np.floor(
         rbs_per_slice[slice_idx] / slice_ues_buffer.shape[0]
     )
@@ -663,6 +666,7 @@ def proportional_fairness(
             slice_ues=slice_ues,
             last_unformatted_obs=last_unformatted_obs,
             distribute_rbs=False,
+            account_buffer=False,
         )
     )
     allocation_rbs = distribute_rbs_ues(
@@ -726,6 +730,7 @@ def max_throughput(
             slice_ues=slice_ues,
             last_unformatted_obs=last_unformatted_obs,
             distribute_rbs=False,
+            account_buffer=False,
         )
     )
     allocation_rbs = distribute_rbs_ues(
