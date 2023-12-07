@@ -7,12 +7,14 @@ from gymnasium import spaces
 
 from agents.common import (
     calculate_reward_no_mask,
+    calculate_slice_ue_obs,
     intent_drift_calc,
     max_throughput,
     proportional_fairness,
     round_robin,
     scores_to_rbs,
 )
+from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
@@ -23,6 +25,7 @@ class IBSched(Agent):
         max_number_ues: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
+        debug_violations: bool = False,
     ) -> None:
         super().__init__(
             env, max_number_ues, max_number_basestations, num_available_rbs
@@ -31,10 +34,33 @@ class IBSched(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         max_obs_memory = 10
-        self.max_number_ues_slice = 10
+        self.max_number_ues_slice = 5
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
+        self.rbs_per_rbg = 1  # 135/rbs_per_rbg RBGs
+        assert isinstance(
+            self.env.comm_env.associations, MultSliceAssociation
+        ), "Associations must be MultSliceAssociation"
+        self.max_throughput_slice = np.max(
+            [
+                slice_type["ues"]["traffic"]
+                * slice_type["ues"]["max_number_ues"]
+                for slice_type in self.env.comm_env.associations.slice_type_model.values()
+            ]
+        )
+        self.debug_violations = debug_violations
+        if self.debug_violations:
+            self.number_metrics = 3
+            self.violations = np.zeros(
+                (
+                    self.env.comm_env.max_number_steps,
+                    self.env.comm_env.max_number_slices,
+                    self.max_number_ues_slice,
+                    self.number_metrics,
+                ),
+                dtype=float,
+            )
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")
@@ -44,19 +70,39 @@ class IBSched(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        intent_drift_slice_ue = intent_drift_calc(
+        intent_drift = intent_drift_calc(
             self.last_unformatted_obs,
             self.max_number_ues_slice,
             self.intent_overfulfillment_rate,
         )
+        if self.debug_violations:
+            self.violations[
+                self.env.comm_env.step_number - 1,
+                :,
+                :,
+                :,
+            ] = intent_drift
+            if (
+                self.env.comm_env.step_number
+                == self.env.comm_env.max_number_steps
+            ):
+                np.savez_compressed(
+                    "violations_ep_0.npz", violations=self.violations
+                )
+                self.violations = np.zeros(
+                    (
+                        self.env.comm_env.max_number_steps,
+                        self.env.comm_env.max_number_slices,
+                        self.max_number_ues_slice,
+                        self.number_metrics,
+                    ),
+                    dtype=float,
+                )
         formatted_obs_space = {}
 
         # Inter-slice observation
         formatted_obs_space["player_0"] = {
-            "observations": np.append(
-                np.zeros(obs_space["slice_ue_assoc"].shape[0]),
-                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
-            ),
+            "observations": np.array([]),
             "action_mask": self.last_unformatted_obs[0][
                 "basestation_slice_assoc"
             ][0].astype(np.int8),
@@ -70,11 +116,16 @@ class IBSched(Agent):
             slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
                 agent_idx - 1
             ].nonzero()[0]
-            intent_ue_values = intent_drift_slice_ue[agent_idx - 1, :]
-            formatted_obs_space["player_0"]["observations"][agent_idx - 1] = (
-                np.mean(intent_ue_values[0 : slice_ues.shape[0]])
-                if slice_ues.shape[0] != 0
-                else 1
+
+            (
+                intent_drift_ue_values,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                self.max_number_ues_slice,
+                intent_drift,
+                agent_idx - 1,
+                slice_ues,
+                self.last_unformatted_obs[0]["slice_req"],
             )
 
             spectral_eff = np.pad(
@@ -98,14 +149,81 @@ class IBSched(Agent):
                 (0, self.max_number_ues_slice - slice_ues.shape[0]),
                 "constant",
             )
+            slice_traffic_req = (
+                self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["ues"]["traffic"]
+                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, agent_idx - 1
+                ]
+                == 1
+                else 0
+            )
+            slice_priority = (
+                self.last_unformatted_obs[0]["slice_req"][
+                    f"slice_{agent_idx-1}"
+                ]["priority"]
+                if slice_ues.shape[0] != 0
+                else 0
+            )
 
-            formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
-                (
-                    intent_ue_values,
-                    buffer_occ,
-                    spectral_eff,
+            # Inter-slice scheduling
+            formatted_obs_space["player_0"]["observations"] = (
+                np.concatenate(
+                    (
+                        formatted_obs_space["player_0"]["observations"],
+                        intent_drift_slice,
+                        np.array([slice_priority]),
+                        np.array(
+                            [
+                                slice_traffic_req
+                                * slice_ues.shape[0]
+                                / self.max_throughput_slice
+                            ]
+                        ),
+                        np.array(
+                            [
+                                np.mean(
+                                    spectral_eff[0 : slice_ues.shape[0]]
+                                    * max_spectral_eff
+                                )
+                                / 20
+                            ]
+                        ),
+                    )
+                )
+                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                    0, agent_idx - 1
+                ]
+                == 1
+                else np.append(
+                    formatted_obs_space["player_0"]["observations"],
+                    np.concatenate((intent_drift_slice, np.array([0, 0, 0]))),
                 )
             )
+
+            # Intra-slice scheduling
+            if agent_idx < len(self.env.agents):
+                association_slice_ue = np.zeros(
+                    self.max_number_ues_slice, dtype=np.int8
+                )
+                association_slice_ue[0 : slice_ues.shape[0]] = 1
+                formatted_obs_space[f"player_{agent_idx}"] = {
+                    "observations": np.concatenate(
+                        (
+                            np.array(
+                                [
+                                    slice_traffic_req
+                                    * slice_ues.shape[0]
+                                    / self.max_throughput_slice
+                                ]
+                            ),
+                            buffer_occ,
+                            spectral_eff,
+                        )
+                    ),
+                    "action_mask": association_slice_ue,
+                }
 
         self.last_formatted_obs = formatted_obs_space
 
@@ -116,7 +234,10 @@ class IBSched(Agent):
             obs_space, self.last_formatted_obs, self.last_unformatted_obs
         )
 
-    def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
+    def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
         allocation_rbs = np.array(
             [
                 np.zeros(
@@ -132,27 +253,28 @@ class IBSched(Agent):
             )
             != 0
         ):
-            assert (  # verify if the inactive slices are receiving -1 value
-                np.prod(
-                    action["player_0"][
-                        self.last_unformatted_obs[0][
-                            "basestation_slice_assoc"
-                        ][0, :]
-                        == 0
+            action = deepcopy(action_ori)
+            action["player_0"][
+                np.where(
+                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
                     ]
-                    == -1
-                )
-                == 1
-            ), "Invalid action"
-            assert isinstance(
-                self.env, MARLCommEnv
-            ), "Environment must be MARLCommEnv"
+                    == 0
+                )[0]
+            ] = -1
 
             # Inter-slice scheduling
-            rbs_per_slice = scores_to_rbs(
-                action["player_0"],
-                self.num_available_rbs[0],
-                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :],
+            rbs_per_slice = (
+                scores_to_rbs(
+                    action["player_0"],
+                    np.floor(
+                        self.num_available_rbs[0] / self.rbs_per_rbg
+                    ).astype(int),
+                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
+                        0, :
+                    ],
+                )
+                * self.rbs_per_rbg
             )
 
             # Intra-slice scheduling
@@ -203,11 +325,11 @@ class IBSched(Agent):
 
     @staticmethod
     def get_action_space() -> spaces.Dict:
-        num_agents = 11
+        num_agents = 6
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(10,), dtype=np.float64
+                    low=-1, high=1, shape=(5,), dtype=np.float64
                 )
                 if idx == 0
                 else spaces.Discrete(
@@ -221,21 +343,30 @@ class IBSched(Agent):
 
     @staticmethod
     def get_obs_space() -> spaces.Dict:
-        num_agents = 11
+        num_agents = 6
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-1, high=1, shape=(20,), dtype=np.float64
+                            low=-2, high=1, shape=(30,), dtype=np.float64
                         ),
                         "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(10,), dtype=np.int8
+                            0.0, 1.0, shape=(5,), dtype=np.int8
                         ),
                     }
                 )
                 if idx == 0
-                else spaces.Box(low=-1, high=1, shape=(30,), dtype=np.float64)
+                else spaces.Dict(
+                    {
+                        "observations": spaces.Box(
+                            low=-2, high=1, shape=(11,), dtype=np.float64
+                        ),
+                        "action_mask": spaces.Box(
+                            0.0, 1.0, shape=(5,), dtype=np.int8
+                        ),
+                    }
+                )
                 for idx in range(num_agents)
             }
         )

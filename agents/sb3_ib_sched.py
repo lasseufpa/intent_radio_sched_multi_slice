@@ -4,21 +4,20 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
+from stable_baselines3.ppo.ppo import PPO
 
 from agents.common import (
+    ProgressBarManager,
     calculate_reward_no_mask,
     calculate_slice_ue_obs,
     intent_drift_calc,
-    max_throughput,
-    proportional_fairness,
     round_robin,
     scores_to_rbs,
 )
-from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
-class IBSchedIntraRR(Agent):
+class IBSched(Agent):
     def __init__(
         self,
         env: MARLCommEnv,
@@ -39,16 +38,6 @@ class IBSchedIntraRR(Agent):
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
         self.rbs_per_rbg = 1  # 135/rbs_per_rbg RBGs
-        assert isinstance(
-            self.env.comm_env.associations, MultSliceAssociation
-        ), "Associations must be MultSliceAssociation"
-        self.max_throughput_slice = np.max(
-            [
-                slice_type["ues"]["traffic"]
-                * slice_type["ues"]["max_number_ues"]
-                for slice_type in self.env.comm_env.associations.slice_type_model.values()
-            ]
-        )
         self.debug_violations = debug_violations
         if self.debug_violations:
             self.number_metrics = 3
@@ -61,9 +50,26 @@ class IBSchedIntraRR(Agent):
                 ),
                 dtype=float,
             )
+        self.agent = PPO(
+            "MlpPolicy",
+            env,
+            verbose=0,
+            tensorboard_log="tensorboard-logs/",
+            seed=self.seed,
+        )
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
-        raise NotImplementedError("IBSched does not implement step()")
+        return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
+
+    def train(self, total_timesteps: int) -> None:
+        with ProgressBarManager(total_timesteps) as callback_progress_bar:
+            self.agent.learn(
+                total_timesteps=total_timesteps,
+                callback=[
+                    callback_progress_bar,
+                ],
+            )
+        self.agent.save("./agents/models/final_ssr_protect")
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         self.last_unformatted_obs.appendleft(obs_space)
@@ -159,13 +165,6 @@ class IBSchedIntraRR(Agent):
                 == 1
                 else 0
             )
-            slice_priority = (
-                self.last_unformatted_obs[0]["slice_req"][
-                    f"slice_{agent_idx-1}"
-                ]["priority"]
-                if slice_ues.shape[0] != 0
-                else 0
-            )
 
             # Inter-slice scheduling
             formatted_obs_space["player_0"]["observations"] = (
@@ -173,14 +172,7 @@ class IBSchedIntraRR(Agent):
                     (
                         formatted_obs_space["player_0"]["observations"],
                         intent_drift_slice,
-                        np.array([slice_priority]),
-                        np.array(
-                            [
-                                slice_traffic_req
-                                * slice_ues.shape[0]
-                                / self.max_throughput_slice
-                            ]
-                        ),
+                        np.array([slice_traffic_req / 100]),
                         np.array(
                             [
                                 np.mean(
@@ -198,46 +190,33 @@ class IBSchedIntraRR(Agent):
                 == 1
                 else np.append(
                     formatted_obs_space["player_0"]["observations"],
-                    np.concatenate((intent_drift_slice, np.array([0, 0, 0]))),
+                    np.concatenate((intent_drift_slice, np.array([0, 0]))),
                 )
             )
 
             # Intra-slice scheduling
             if agent_idx < len(self.env.agents):
-                association_slice_ue = np.zeros(
-                    self.max_number_ues_slice, dtype=np.int8
+                formatted_obs_space[f"player_{agent_idx}"] = np.concatenate(
+                    (
+                        np.zeros(
+                            5
+                        ),  # TODO Change this in case of using intra scheduler
+                        buffer_occ,
+                        spectral_eff,
+                    )
                 )
-                association_slice_ue[0 : slice_ues.shape[0]] = 1
-                formatted_obs_space[f"player_{agent_idx}"] = {
-                    "observations": np.concatenate(
-                        (
-                            np.array(
-                                [
-                                    slice_traffic_req
-                                    * slice_ues.shape[0]
-                                    / self.max_throughput_slice
-                                ]
-                            ),
-                            buffer_occ,
-                            spectral_eff,
-                        )
-                    ),
-                    "action_mask": association_slice_ue,
-                }
 
         self.last_formatted_obs = formatted_obs_space
 
-        return formatted_obs_space
+        return formatted_obs_space["player_0"]["observations"]
 
-    def calculate_reward(self, obs_space: dict) -> dict:
-        return calculate_reward_no_mask(
+    def calculate_reward(self, obs_space: dict) -> float:
+        reward = calculate_reward_no_mask(
             obs_space, self.last_formatted_obs, self.last_unformatted_obs
         )
+        return reward["player_0"]
 
     def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
-        assert isinstance(
-            self.env, MARLCommEnv
-        ), "Environment must be MARLCommEnv"
         allocation_rbs = np.array(
             [
                 np.zeros(
@@ -254,7 +233,7 @@ class IBSchedIntraRR(Agent):
             != 0
         ):
             action = deepcopy(action_ori)
-            action["player_0"][
+            action[
                 np.where(
                     self.last_unformatted_obs[0]["basestation_slice_assoc"][
                         0, :
@@ -266,7 +245,7 @@ class IBSchedIntraRR(Agent):
             # Inter-slice scheduling
             rbs_per_slice = (
                 scores_to_rbs(
-                    action["player_0"],
+                    np.array(action),
                     np.floor(
                         self.num_available_rbs[0] / self.rbs_per_rbg
                     ).astype(int),
@@ -284,39 +263,13 @@ class IBSchedIntraRR(Agent):
                 ].nonzero()[0]
                 if slice_ues.shape[0] == 0:
                     continue
-                match action[f"player_{slice_idx+1}"]:
-                    case 0:
-                        allocation_rbs = round_robin(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.last_unformatted_obs,
-                        )
-                    case 1:
-                        allocation_rbs = proportional_fairness(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.env,
-                            self.last_unformatted_obs,
-                            self.num_available_rbs,
-                        )
-                    case 2:
-                        allocation_rbs = max_throughput(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.env,
-                            self.last_unformatted_obs,
-                            self.num_available_rbs,
-                        )
-                    case _:
-                        raise ValueError(
-                            "Invalid intra-slice scheduling action"
-                        )
+                allocation_rbs = round_robin(
+                    allocation_rbs,
+                    slice_idx,
+                    rbs_per_slice,
+                    slice_ues,
+                    self.last_unformatted_obs,
+                )
             assert (
                 np.sum(allocation_rbs) == self.num_available_rbs[0]
             ), "Allocated RBs are different from available RBs"
@@ -324,51 +277,13 @@ class IBSchedIntraRR(Agent):
         return allocation_rbs
 
     @staticmethod
-    def get_action_space() -> spaces.Dict:
-        num_agents = 6
-        action_space = spaces.Dict(
-            {
-                f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(5,), dtype=np.float64
-                )
-                if idx == 0
-                else spaces.Discrete(
-                    3
-                )  # Three algorithms (RR, PF and Maximum Throughput)
-                for idx in range(num_agents)
-            }
-        )
+    def get_action_space() -> spaces.Box:
+        action_space = spaces.Box(low=-1, high=1, shape=(5,), dtype=np.float64)
 
         return action_space
 
     @staticmethod
-    def get_obs_space() -> spaces.Dict:
-        num_agents = 6
-        obs_space = spaces.Dict(
-            {
-                f"player_{idx}": spaces.Dict(
-                    {
-                        "observations": spaces.Box(
-                            low=-2, high=1, shape=(30,), dtype=np.float64
-                        ),
-                        "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(5,), dtype=np.int8
-                        ),
-                    }
-                )
-                if idx == 0
-                else spaces.Dict(
-                    {
-                        "observations": spaces.Box(
-                            low=-2, high=1, shape=(11,), dtype=np.float64
-                        ),
-                        "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(5,), dtype=np.int8
-                        ),
-                    }
-                )
-                for idx in range(num_agents)
-            }
-        )
+    def get_obs_space() -> spaces.Box:
+        obs_space = spaces.Box(low=-2, high=1, shape=(25,), dtype=np.float64)
 
         return obs_space

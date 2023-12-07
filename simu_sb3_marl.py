@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
 from agents.masked_action_distribution import TorchDiagGaussian
-from agents.sb3_ib_sched_intra_rr import IBSchedIntraRR
+from agents.sb3_ib_sched import IBSched
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
@@ -50,13 +50,13 @@ def env_creator(env_config):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSchedIntraRR,
+    "agent_class": IBSched,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "sb3_ib_sched_intra_rr",
+    "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
     "number_agents": 2,
 }
@@ -65,7 +65,7 @@ max_number_ues = 25
 max_number_basestations = 1
 num_available_rbs = np.array([135])
 marl_comm_env = env_creator(env_config)
-sb3_agent = IBSchedIntraRR(
+sb3_agent = IBSched(
     marl_comm_env, max_number_ues, max_number_basestations, num_available_rbs
 )
 marl_comm_env.comm_env.set_agent_functions(

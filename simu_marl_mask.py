@@ -12,7 +12,7 @@ from ray.tune.registry import register_env
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
-from agents.ib_sched_intra_rr import IBSchedIntraRR
+from agents.ib_sched import IBSched
 from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
@@ -21,7 +21,8 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
-training_flag = False  # False for reading from checkpoint
+
+training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
@@ -84,13 +85,13 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSchedIntraRR,
+    "agent_class": IBSched,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched_intra_rr_attention",
+    "agent": "ib_sched_mask",
     "root_path": str(getcwd()),
     "number_agents": 6,
 }
@@ -107,7 +108,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": PolicySpec(),  # action_mask_policy(),
+                "inter_slice_sched": action_mask_policy(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,
@@ -125,7 +126,6 @@ if training_flag:
         .training(
             _enable_learner_api=False,
             vf_clip_param=np.inf,  # type: ignore
-            model={"use_attention": True},
         )  # TODO Remove after migrating from ModelV2 to RL Module
         .rl_module(_enable_rl_module_api=False)
     )
@@ -150,6 +150,7 @@ if training_flag:
 
 # Testing
 analysis = tune.ExperimentAnalysis(f"{read_checkpoint}/{env_config['agent']}/")
+
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"
@@ -160,7 +161,6 @@ algo = Algorithm.from_checkpoint(best_checkpoint)
 marl_comm_env = env_creator(env_config)
 seed = 10
 total_test_steps = 10000
-# state = algo.get_policy().get_initial_state()
 obs, _ = marl_comm_env.reset(seed=seed)
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = {}

@@ -103,7 +103,7 @@ def plot_bar_violations():
     plt.xlabel("Slices")
     plt.xticks(
         [r + barWidth for r in range(number_violations.shape[2])],
-        np.arange(1, number_violations.shape[2] + 1),
+        np.arange(1, number_violations.shape[2] + 1),  # type: ignore
     )
     plt.grid()
     plt.legend()
@@ -180,11 +180,11 @@ slice_idxs = np.arange(0, 5)
 scenario = "mult_slice"
 agent_names = [
     "round_robin",
-    "ib_sched_intra_rr",
+    "ib_sched",
 ]  # Maximum 2 agents
 metrics = ["throughput", "reliability", "latency"]
 
 # plot_drift_per_metric(
-#     "ib_sched_intra_rr", 0, ["throughput", "latency", "pkt_loss"]
+#     "ib_sched", 0, ["throughput", "latency", "pkt_loss"]
 # )
 plot_bar_violations()

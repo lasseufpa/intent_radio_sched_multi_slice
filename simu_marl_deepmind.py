@@ -12,7 +12,7 @@ from ray.tune.registry import register_env
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
-from agents.ib_sched_intra_rr import IBSchedIntraRR
+from agents.ib_sched import IBSched
 from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
@@ -21,7 +21,6 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
-
 training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
@@ -85,13 +84,13 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSchedIntraRR,
+    "agent_class": IBSched,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched_mask_intra_rr_deepmind",
+    "agent": "ib_sched_deepmind",
     "root_path": str(getcwd()),
     "number_agents": 6,
 }
@@ -108,7 +107,7 @@ if training_flag:
         )
         .multi_agent(
             policies={
-                "inter_slice_sched": action_mask_policy(),
+                "inter_slice_sched": PolicySpec(),  # action_mask_policy(),
                 "intra_slice_sched": PolicySpec(),
             },
             policy_mapping_fn=policy_mapping_fn,
@@ -151,7 +150,6 @@ if training_flag:
 
 # Testing
 analysis = tune.ExperimentAnalysis(f"{read_checkpoint}/{env_config['agent']}/")
-
 assert analysis.trials is not None, "Analysis trial is None"
 best_checkpoint = analysis.get_best_checkpoint(
     analysis.trials[0], "episode_reward_mean", "max"

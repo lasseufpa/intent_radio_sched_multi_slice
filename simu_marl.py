@@ -12,7 +12,7 @@ from ray.tune.registry import register_env
 from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
-from agents.ib_sched_intra_rr import IBSchedIntraRR
+from agents.ib_sched import IBSched
 from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
@@ -84,15 +84,18 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSchedIntraRR,
+    "agent_class": IBSched,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched_intra_rr",
+    "agent": "ib_sched",
     "root_path": str(getcwd()),
     "number_agents": 6,
+    "training_episodes": 90,
+    "training_epochs": 10,
+    "testing_episodes": 10,
 }
 
 # Training
@@ -129,7 +132,8 @@ if training_flag:
         .rl_module(_enable_rl_module_api=False)
     )
     stop = {
-        "episodes_total": 10,
+        "episodes_total": env_config["training_episodes"]
+        * env_config["training_epochs"],
     }
     results = tune.Tuner(
         "PPO",
@@ -159,7 +163,12 @@ algo = Algorithm.from_checkpoint(best_checkpoint)
 marl_comm_env = env_creator(env_config)
 seed = 10
 total_test_steps = 10000
-obs, _ = marl_comm_env.reset(seed=seed)
+marl_comm_env.comm_env.max_number_episodes = (
+    env_config["testing_episodes"] + env_config["training_episodes"]
+)
+obs, _ = marl_comm_env.reset(
+    seed=seed, options={"initial_episode": env_config["training_episodes"]}
+)
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = {}
     assert isinstance(obs, dict), "Observation must be a dict"
@@ -171,5 +180,18 @@ for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
             explore=False,
         )
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+    assert isinstance(terminated, dict), "Termination must be a dict"
+    if terminated["__all__"]:
+        initial_episode = (
+            -1
+            if marl_comm_env.comm_env.episode_number
+            != env_config["training_episodes"]
+            + env_config["testing_episodes"]
+            - 1
+            else env_config["training_episodes"]
+        )
+        obs, _ = marl_comm_env.reset(
+            options={"initial_episode": initial_episode}
+        )
 
 ray.shutdown()

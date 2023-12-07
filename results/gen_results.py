@@ -142,7 +142,7 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Number of UEs"
             case "reward":
-                if agent != "sb3_ib_sched_intra_rr":
+                if agent != "sb3_ib_sched":
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
@@ -157,7 +157,7 @@ def plot_graph(
                 ylabel = "Reward (inter-slice agent)"
                 break
             case "reward_cumsum":
-                if agent != "sb3_ib_sched_intra_rr":
+                if agent != "sb3_ib_sched":
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
@@ -512,13 +512,13 @@ scenario_names = ["mult_slice"]
 agent_names = [
     "random",
     "round_robin",
-    "ib_sched_intra_rr",
-    "ib_sched_intra_rr_deepmind",
-    "ib_sched_mask_intra_rr",
-    "ib_sched_mask_intra_rr_deepmind",
-    # "ib_sched_intra_rr_lstm",
+    "ib_sched",
+    "ib_sched_deepmind",
+    "ib_sched_mask",
+    "ib_sched_mask_deepmind",
+    # "ib_sched_lstm",
     # "sched_twc",
-    # "sb3_ib_sched_intra_rr",
+    # "sb3_ib_sched",
 ]
 episodes = np.array([0], dtype=int)
 slices = np.arange(5)
