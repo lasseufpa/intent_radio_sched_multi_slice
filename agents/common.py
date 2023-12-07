@@ -563,12 +563,19 @@ def round_robin(
     slice_idx: int,
     rbs_per_slice: np.ndarray,
     slice_ues: np.ndarray,
+    last_unformatted_obs: deque,
     distribute_rbs: bool = True,
 ) -> np.ndarray:
-    rbs_per_ue = np.ones_like(slice_ues, dtype=float) * np.floor(
-        rbs_per_slice[slice_idx] / slice_ues.shape[0]
+    buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
+    slice_ues_buffer = slice_ues[
+        np.logical_not(np.isclose(buffer_occ, np.zeros_like(buffer_occ)))
+    ]  # Consider only UEs that have packets available in the buffer
+    if slice_ues_buffer.shape[0] == 0:
+        slice_ues_buffer = slice_ues
+    rbs_per_ue = np.ones_like(slice_ues_buffer, dtype=float) * np.floor(
+        rbs_per_slice[slice_idx] / slice_ues_buffer.shape[0]
     )
-    remaining_rbs = int(rbs_per_slice[slice_idx] % slice_ues.shape[0])
+    remaining_rbs = int(rbs_per_slice[slice_idx] % slice_ues_buffer.shape[0])
     rbs_per_ue[0:remaining_rbs] += 1
     assert (
         np.sum(rbs_per_ue) == rbs_per_slice[slice_idx]
@@ -579,10 +586,15 @@ def round_robin(
 
     if distribute_rbs:
         allocation_rbs = distribute_rbs_ues(
-            rbs_per_ue, allocation_rbs, slice_ues, rbs_per_slice, slice_idx
+            rbs_per_ue,
+            allocation_rbs,
+            slice_ues_buffer,
+            rbs_per_slice,
+            slice_idx,
         )
         assert (
-            np.sum(allocation_rbs[0, slice_ues, :]) == rbs_per_slice[slice_idx]
+            np.sum(allocation_rbs[0, slice_ues_buffer, :])
+            == rbs_per_slice[slice_idx]
         ), "Distribute RBs is different from RR distribution"
         assert np.sum(allocation_rbs) == np.sum(
             rbs_per_slice[0 : slice_idx + 1]
@@ -649,6 +661,7 @@ def proportional_fairness(
             slice_idx=slice_idx,
             rbs_per_slice=rbs_per_slice,
             slice_ues=slice_ues,
+            last_unformatted_obs=last_unformatted_obs,
             distribute_rbs=False,
         )
     )
@@ -711,6 +724,7 @@ def max_throughput(
             slice_idx=slice_idx,
             rbs_per_slice=rbs_per_slice,
             slice_ues=slice_ues,
+            last_unformatted_obs=last_unformatted_obs,
             distribute_rbs=False,
         )
     )

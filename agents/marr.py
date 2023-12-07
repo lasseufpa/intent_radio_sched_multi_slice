@@ -242,7 +242,11 @@ class MARR(Agent):
                 match action[f"player_{slice_idx+1}"]:
                     case 0:
                         allocation_rbs = round_robin(
-                            allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                            allocation_rbs,
+                            slice_idx,
+                            rbs_per_slice,
+                            slice_ues,
+                            self.last_unformatted_obs,
                         )
                     case _:
                         raise ValueError(

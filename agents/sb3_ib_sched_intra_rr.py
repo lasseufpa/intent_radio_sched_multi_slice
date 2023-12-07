@@ -264,7 +264,11 @@ class IBSchedIntraRR(Agent):
                 if slice_ues.shape[0] == 0:
                     continue
                 allocation_rbs = round_robin(
-                    allocation_rbs, slice_idx, rbs_per_slice, slice_ues
+                    allocation_rbs,
+                    slice_idx,
+                    rbs_per_slice,
+                    slice_ues,
+                    self.last_unformatted_obs,
                 )
             assert (
                 np.sum(allocation_rbs) == self.num_available_rbs[0]
