@@ -6,7 +6,7 @@ basestations:
 simulation:
   {
     hist_root_path: ./,
-    max_number_episodes: 90, # Training
+    max_number_episodes: 100,
     max_number_steps: 10000,
     simu_name: mult_slice,
   }

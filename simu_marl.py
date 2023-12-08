@@ -21,11 +21,16 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
-training_flag = True  # False for reading from checkpoint
+training_flag = False  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
-
+agents_name = [
+    "ib_sched",
+    "ib_sched_mask",
+    "ib_sched_deepmind",
+    "ib_sched_mask_deepmind",
+]
 
 ray.init(local_mode=debug_mode)
 
@@ -44,6 +49,9 @@ def env_creator(env_config):
         root_path=env_config["root_path"],
         number_agents=env_config["number_agents"],
     )
+    marl_comm_env.comm_env.max_number_episodes = env_config[
+        "training_episodes"
+    ]
     agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
@@ -90,7 +98,6 @@ env_config = {
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "ib_sched",
     "root_path": str(getcwd()),
     "number_agents": 6,
     "training_episodes": 90,
@@ -98,100 +105,117 @@ env_config = {
     "testing_episodes": 10,
 }
 
-# Training
-if training_flag:
-    algo_config = (
-        PPOConfig()
-        .environment(
-            env="marl_comm_env",
-            env_config=env_config,
-            is_atari=False,
-            disable_env_checking=True,
-        )
-        .multi_agent(
-            policies={
-                "inter_slice_sched": PolicySpec(),  # action_mask_policy(),
-                "intra_slice_sched": PolicySpec(),
-            },
-            policy_mapping_fn=policy_mapping_fn,
-            count_steps_by="env_steps",
-        )
-        .framework("torch")
-        .rollouts(
-            num_rollout_workers=0,
-            enable_connectors=False,
-            num_envs_per_worker=1,
-        )
-        .resources(
-            num_gpus=1, num_gpus_per_worker=1, num_gpus_per_learner_worker=1
-        )
-        .training(
-            _enable_learner_api=False,
-            vf_clip_param=np.inf,  # type: ignore
-        )  # TODO Remove after migrating from ModelV2 to RL Module
-        .rl_module(_enable_rl_module_api=False)
-    )
-    stop = {
-        "episodes_total": env_config["training_episodes"]
-        * env_config["training_epochs"],
-    }
-    results = tune.Tuner(
-        "PPO",
-        param_space=algo_config.to_dict(),
-        run_config=air.RunConfig(
-            storage_path=read_checkpoint,
-            name=env_config["agent"],
-            stop=stop,
-            verbose=2,
-            checkpoint_config=air.CheckpointConfig(
-                num_to_keep=100,
-                checkpoint_frequency=3,
-                checkpoint_at_end=True,
-            ),
-        ),
-    ).fit()
+for agent in agents_name:
+    env_config["agent"] = agent
+    using_mask = "mask" in agent
+    using_deepmind = "deepmind" in agent
 
-# Testing
-analysis = tune.ExperimentAnalysis(f"{read_checkpoint}/{env_config['agent']}/")
-assert analysis.trials is not None, "Analysis trial is None"
-best_checkpoint = analysis.get_best_checkpoint(
-    analysis.trials[0], "episode_reward_mean", "max"
-)
-assert best_checkpoint is not None, "Best checkpoint is None"
-# last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
-algo = Algorithm.from_checkpoint(best_checkpoint)
-marl_comm_env = env_creator(env_config)
-seed = 10
-total_test_steps = 10000
-marl_comm_env.comm_env.max_number_episodes = (
-    env_config["testing_episodes"] + env_config["training_episodes"]
-)
-obs, _ = marl_comm_env.reset(
-    seed=seed, options={"initial_episode": env_config["training_episodes"]}
-)
-for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
-    action = {}
-    assert isinstance(obs, dict), "Observation must be a dict"
-    for agent_id, agent_obs in obs.items():
-        policy_id = policy_mapping_fn(agent_id)
-        action[agent_id] = algo.compute_single_action(
-            agent_obs,
-            policy_id=policy_id,
-            explore=False,
+    # Training
+    if training_flag:
+        algo_config = (
+            PPOConfig()
+            .environment(
+                env="marl_comm_env",
+                env_config=env_config,
+                is_atari=False,
+                disable_env_checking=True,
+            )
+            .multi_agent(
+                policies={
+                    "inter_slice_sched": action_mask_policy()
+                    if using_mask
+                    else PolicySpec(),
+                    "intra_slice_sched": PolicySpec(),
+                },
+                policy_mapping_fn=policy_mapping_fn,
+                count_steps_by="env_steps",
+            )
+            .framework("torch")
+            .rollouts(
+                num_rollout_workers=0,
+                enable_connectors=False,
+                num_envs_per_worker=1,
+                preprocessor_pref="deepmind" if using_deepmind else None,
+            )
+            .resources(
+                num_gpus=1,
+                num_gpus_per_worker=1,
+                num_gpus_per_learner_worker=1,
+            )
+            .training(
+                _enable_learner_api=False,
+                vf_clip_param=np.inf,  # type: ignore
+            )  # TODO Remove after migrating from ModelV2 to RL Module
+            .rl_module(_enable_rl_module_api=False)
         )
-    obs, reward, terminated, truncated, info = marl_comm_env.step(action)
-    assert isinstance(terminated, dict), "Termination must be a dict"
-    if terminated["__all__"]:
-        initial_episode = (
-            -1
-            if marl_comm_env.comm_env.episode_number
-            != env_config["training_episodes"]
-            + env_config["testing_episodes"]
-            - 1
-            else env_config["training_episodes"]
-        )
-        obs, _ = marl_comm_env.reset(
-            options={"initial_episode": initial_episode}
-        )
+        stop = {
+            "episodes_total": env_config["training_episodes"]
+            * env_config["training_epochs"],
+        }
+        results = tune.Tuner(
+            "PPO",
+            param_space=algo_config.to_dict(),
+            run_config=air.RunConfig(
+                storage_path=read_checkpoint,
+                name=env_config["agent"],
+                stop=stop,
+                verbose=2,
+                checkpoint_config=air.CheckpointConfig(
+                    num_to_keep=100,
+                    checkpoint_frequency=3,
+                    checkpoint_at_end=True,
+                ),
+            ),
+        ).fit()
+
+    # Testing
+    analysis = tune.ExperimentAnalysis(
+        f"{read_checkpoint}/{env_config['agent']}/"
+    )
+    assert analysis.trials is not None, "Analysis trial is None"
+    best_checkpoint = analysis.get_best_checkpoint(
+        analysis.trials[0], "episode_reward_mean", "max"
+    )
+    assert best_checkpoint is not None, "Best checkpoint is None"
+    # last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
+    algo = Algorithm.from_checkpoint(best_checkpoint)
+    marl_comm_env = env_creator(env_config)
+    seed = 10
+    marl_comm_env.comm_env.max_number_episodes = (
+        env_config["testing_episodes"] + env_config["training_episodes"]
+    )
+    obs, _ = marl_comm_env.reset(
+        seed=seed, options={"initial_episode": env_config["training_episodes"]}
+    )
+    for step in tqdm(
+        np.arange(
+            marl_comm_env.comm_env.max_number_steps
+            * env_config["testing_episodes"]
+        ),
+        desc="Testing...",
+    ):
+        action = {}
+        assert isinstance(obs, dict), "Observation must be a dict"
+        for agent_id, agent_obs in obs.items():
+            policy_id = policy_mapping_fn(agent_id)
+            action[agent_id] = algo.compute_single_action(
+                agent_obs,
+                policy_id=policy_id,
+                explore=False,
+            )
+        obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+        assert isinstance(terminated, dict), "Termination must be a dict"
+        if terminated["__all__"]:
+            initial_episode = (
+                -1
+                if marl_comm_env.comm_env.episode_number
+                != env_config["training_episodes"]
+                + env_config["testing_episodes"]
+                - 1
+                else env_config["training_episodes"]
+            )
+            obs, _ = marl_comm_env.reset(
+                options={"initial_episode": initial_episode}
+            )
 
 ray.shutdown()
