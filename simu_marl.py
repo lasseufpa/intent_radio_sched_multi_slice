@@ -21,7 +21,7 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = str(Path("./ray_results/").resolve())
-training_flag = False  # False for reading from checkpoint
+training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
