@@ -161,7 +161,6 @@ for agent in agents_name:
                 stop=stop,
                 verbose=2,
                 checkpoint_config=air.CheckpointConfig(
-                    num_to_keep=100,
                     checkpoint_frequency=3,
                     checkpoint_at_end=True,
                 ),
