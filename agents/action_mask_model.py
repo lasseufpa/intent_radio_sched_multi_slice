@@ -28,8 +28,12 @@ class TorchActionMaskModel(TorchModelV2, nn.Module):
         )
         nn.Module.__init__(self)
 
+        if hasattr(obs_space, "original_space"):
+            tmp_obs_space = obs_space.original_space
+        else:
+            tmp_obs_space = obs_space
         self.internal_model = TorchFC(
-            obs_space.original_space["observations"],
+            tmp_obs_space["observations"],
             action_space,
             num_outputs,
             model_config,

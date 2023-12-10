@@ -1,3 +1,7 @@
+# Zip files
+*.zip
+*.tar.gz
+
 # Vs code files
 .vscode
 
