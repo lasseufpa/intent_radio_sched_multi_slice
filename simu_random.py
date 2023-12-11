@@ -52,9 +52,15 @@ marl_comm_env.comm_env.set_agent_functions(
 
 # testing
 seed = 10
+number_episodes = 10
+initial_episode = 90
 total_test_steps = 10000
-obs, _ = marl_comm_env.reset(seed=seed)
-for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
+obs, _ = marl_comm_env.reset(
+    seed=seed, options={"initial_episode": initial_episode}
+)
+for step in tqdm(
+    np.arange(total_test_steps * number_episodes), desc="Testing..."
+):
     action = random_agent.get_action_space().sample()
     player_0_mask = random_agent.last_unformatted_obs[0][
         "basestation_slice_assoc"
@@ -63,3 +69,6 @@ for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     for player_idx in range(1, len(action)):
         action[f"player_{player_idx}"] = 0
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+    assert isinstance(terminated, dict), "Terminated is not a dict"
+    if terminated["__all__"]:
+        obs, _ = marl_comm_env.reset(seed=seed)

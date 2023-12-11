@@ -53,8 +53,17 @@ marl_comm_env.comm_env.set_agent_functions(
 
 # testing
 seed = 10
+number_episodes = 10
+initial_episode = 90
 total_test_steps = 10000
-obs, _ = marl_comm_env.reset(seed=seed)
-for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
+obs, _ = marl_comm_env.reset(
+    seed=seed, options={"initial_episode": initial_episode}
+)
+for step in tqdm(
+    np.arange(total_test_steps * number_episodes), desc="Testing..."
+):
     action = marr_agent.step(obs)
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)
+    assert isinstance(terminated, dict), "Terminated is not a dict"
+    if terminated["__all__"]:
+        obs, _ = marl_comm_env.reset(seed=seed)
