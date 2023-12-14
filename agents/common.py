@@ -8,40 +8,6 @@ from tqdm.auto import tqdm
 from sixg_radio_mgmt import MARLCommEnv
 
 
-class ProgressBarCallback(BaseCallback):
-    """
-    :param pbar: (tqdm.pbar) Progress bar object
-    """
-
-    def __init__(self, pbar):
-        super(ProgressBarCallback, self).__init__()
-        self._pbar = pbar
-
-    def _on_step(self):
-        # Update the progress bar:
-        self._pbar.n = self.num_timesteps
-        self._pbar.update(0)
-
-
-class ProgressBarManager(object):
-    def __init__(self, total_timesteps):
-        self.pbar = None
-        self.total_timesteps = total_timesteps
-
-    def __enter__(
-        self,
-    ):
-        self.pbar = tqdm(total=self.total_timesteps, desc="Steps", leave=False)
-
-        return ProgressBarCallback(self.pbar)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):  # close the callback
-        if self.pbar is not None:
-            self.pbar.n = self.total_timesteps
-            self.pbar.update(0)
-            self.pbar.close()
-
-
 def get_metric_value(
     metric_name: str,
     last_unformatted_obs: deque,
@@ -463,15 +429,15 @@ def calculate_reward_no_mask(
                 active_observations[element_idx] = metrics
             if np.isclose(np.sum(active_observations < 0), 0):
                 reward[agent_obs[0]] = 0  # np.mean(active_observations)
-            elif not np.isclose(
-                np.sum((slice_priorities * active_observations) < 0), 0
-            ):
-                negative_obs_idx = (
-                    active_observations * slice_priorities < 0
-                ).nonzero()[0]
-                reward[agent_obs[0]] = (
-                    np.mean(active_observations[negative_obs_idx]) - 1
-                )
+            # elif not np.isclose(
+            #     np.sum((slice_priorities * active_observations) < 0), 0
+            # ):
+            #     negative_obs_idx = (
+            #         active_observations * slice_priorities < 0
+            #     ).nonzero()[0]
+            #     reward[agent_obs[0]] = (
+            #         np.mean(active_observations[negative_obs_idx]) - 1
+            #     )
             else:
                 negative_obs_idx = (active_observations < 0).nonzero()[0]
                 reward[agent_obs[0]] = np.mean(

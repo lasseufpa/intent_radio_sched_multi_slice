@@ -28,6 +28,7 @@ gputil = "*"
 h5py = "*"
 iteround = "*"
 tomli = "*"
+rich = "*"
 
 [dev-packages]
 torch-tb-profiler = "*"

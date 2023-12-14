@@ -234,7 +234,9 @@ class IBSched(Agent):
             obs_space, self.last_formatted_obs, self.last_unformatted_obs
         )
 
-    def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
+    def action_format(
+        self, action_ori: Union[np.ndarray, dict], intra_rr: bool = False
+    ) -> np.ndarray:
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
@@ -284,39 +286,48 @@ class IBSched(Agent):
                 ].nonzero()[0]
                 if slice_ues.shape[0] == 0:
                     continue
-                match action[f"player_{slice_idx+1}"]:
-                    case 0:
-                        allocation_rbs = round_robin(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.last_unformatted_obs,
-                        )
-                    case 1:
-                        allocation_rbs = proportional_fairness(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.env,
-                            self.last_unformatted_obs,
-                            self.num_available_rbs,
-                        )
-                    case 2:
-                        allocation_rbs = max_throughput(
-                            allocation_rbs,
-                            slice_idx,
-                            rbs_per_slice,
-                            slice_ues,
-                            self.env,
-                            self.last_unformatted_obs,
-                            self.num_available_rbs,
-                        )
-                    case _:
-                        raise ValueError(
-                            "Invalid intra-slice scheduling action"
-                        )
+                if intra_rr:
+                    allocation_rbs = round_robin(
+                        allocation_rbs,
+                        slice_idx,
+                        rbs_per_slice,
+                        slice_ues,
+                        self.last_unformatted_obs,
+                    )
+                else:
+                    match action[f"player_{slice_idx+1}"]:
+                        case 0:
+                            allocation_rbs = round_robin(
+                                allocation_rbs,
+                                slice_idx,
+                                rbs_per_slice,
+                                slice_ues,
+                                self.last_unformatted_obs,
+                            )
+                        case 1:
+                            allocation_rbs = proportional_fairness(
+                                allocation_rbs,
+                                slice_idx,
+                                rbs_per_slice,
+                                slice_ues,
+                                self.env,
+                                self.last_unformatted_obs,
+                                self.num_available_rbs,
+                            )
+                        case 2:
+                            allocation_rbs = max_throughput(
+                                allocation_rbs,
+                                slice_idx,
+                                rbs_per_slice,
+                                slice_ues,
+                                self.env,
+                                self.last_unformatted_obs,
+                                self.num_available_rbs,
+                            )
+                        case _:
+                            raise ValueError(
+                                "Invalid intra-slice scheduling action"
+                            )
             assert (
                 np.sum(allocation_rbs) == self.num_available_rbs[0]
             ), "Allocated RBs are different from available RBs"

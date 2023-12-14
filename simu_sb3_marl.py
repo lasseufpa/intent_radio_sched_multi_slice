@@ -3,9 +3,7 @@ from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
-from agents.action_mask_model import TorchActionMaskModel
-from agents.masked_action_distribution import TorchDiagGaussian
-from agents.sb3_ib_sched import IBSched
+from agents.sb3_ib_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
@@ -13,7 +11,7 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 read_checkpoint = "./ray_results/"
-training_flag = False  # False for reading from checkpoint
+training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
@@ -50,7 +48,7 @@ def env_creator(env_config):
 
 env_config = {
     "seed": 10,
-    "agent_class": IBSched,
+    "agent_class": IBSchedSB3,
     "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
@@ -58,14 +56,14 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
-    "number_agents": 2,
+    "number_agents": 6,
 }
 
 max_number_ues = 25
 max_number_basestations = 1
 num_available_rbs = np.array([135])
 marl_comm_env = env_creator(env_config)
-sb3_agent = IBSched(
+sb3_agent = IBSchedSB3(
     marl_comm_env, max_number_ues, max_number_basestations, num_available_rbs
 )
 marl_comm_env.comm_env.set_agent_functions(
@@ -75,9 +73,10 @@ marl_comm_env.comm_env.set_agent_functions(
 )
 
 # Training
-number_episodes = 1
+number_episodes = 20
+number_epochs = 100
 steps_per_episode = 10000
-total_time_steps = number_episodes * steps_per_episode
+total_time_steps = number_episodes * steps_per_episode * number_epochs
 
 sb3_agent.train(total_time_steps)
 # sb3_agent.agent.load("./agents/models/final_ssr_protect.zip", marl_comm_env)
