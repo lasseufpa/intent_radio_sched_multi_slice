@@ -15,6 +15,7 @@ training_flag = True  # False for reading from checkpoint
 debug_mode = (
     True  # When true executes in a local mode where GPU cannot be used
 )
+agent_type = "sac"  # "ppo" or "sac"
 
 
 def env_creator(env_config):
@@ -64,7 +65,12 @@ max_number_basestations = 1
 num_available_rbs = np.array([135])
 marl_comm_env = env_creator(env_config)
 sb3_agent = IBSchedSB3(
-    marl_comm_env, max_number_ues, max_number_basestations, num_available_rbs
+    marl_comm_env,
+    max_number_ues,
+    max_number_basestations,
+    num_available_rbs,
+    False,
+    agent_type,
 )
 marl_comm_env.comm_env.set_agent_functions(
     sb3_agent.obs_space_format,
@@ -73,8 +79,8 @@ marl_comm_env.comm_env.set_agent_functions(
 )
 
 # Training
-number_episodes = 20
-number_epochs = 100
+number_episodes = 90
+number_epochs = 1
 steps_per_episode = 10000
 total_time_steps = number_episodes * steps_per_episode * number_epochs
 
@@ -83,7 +89,10 @@ sb3_agent.train(total_time_steps)
 
 # Testing
 seed = 10
-total_test_steps = 10000
+number_test_episodes = 1
+total_test_steps = number_test_episodes * steps_per_episode
+# marl_comm_env.comm_env.max_number_episodes = 10
+
 obs, _ = marl_comm_env.reset(seed=seed)
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)

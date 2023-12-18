@@ -5,14 +5,8 @@ from typing import Optional, Union
 import numpy as np
 from gymnasium import spaces
 from stable_baselines3.ppo.ppo import PPO
+from stable_baselines3.sac.sac import SAC
 
-from agents.common import (
-    calculate_reward_no_mask,
-    calculate_slice_ue_obs,
-    intent_drift_calc,
-    round_robin,
-    scores_to_rbs,
-)
 from agents.ib_sched import IBSched
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
@@ -25,6 +19,7 @@ class IBSchedSB3(Agent):
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         debug_violations: bool = False,
+        agent_type: str = "ppo",
     ) -> None:
         super().__init__(
             env, max_number_ues, max_number_basestations, num_available_rbs
@@ -38,13 +33,24 @@ class IBSchedSB3(Agent):
             max_number_basestations,
             num_available_rbs,
         )
-        self.agent = PPO(
-            "MlpPolicy",
-            env,
-            verbose=0,
-            tensorboard_log="tensorboard-logs/",
-            seed=self.seed,
-        )
+        if agent_type == "ppo":
+            self.agent = PPO(
+                "MlpPolicy",
+                env,
+                verbose=0,
+                tensorboard_log="tensorboard-logs/",
+                seed=self.seed,
+            )
+        elif agent_type == "sac":
+            self.agent = SAC(
+                "MlpPolicy",
+                env,
+                verbose=0,
+                tensorboard_log="tensorboard-logs/",
+                seed=self.seed,
+            )
+        else:
+            raise ValueError("Invalid agent type")
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
