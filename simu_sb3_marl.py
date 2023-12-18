@@ -37,6 +37,8 @@ def env_creator(env_config):
         marl_comm_env.comm_env.max_number_ues,
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
+        False,
+        agent_type,
     )
     marl_comm_env.comm_env.set_agent_functions(
         agent.obs_space_format,
@@ -44,7 +46,7 @@ def env_creator(env_config):
         agent.calculate_reward,
     )
 
-    return marl_comm_env
+    return marl_comm_env, agent
 
 
 env_config = {
@@ -63,24 +65,11 @@ env_config = {
 max_number_ues = 25
 max_number_basestations = 1
 num_available_rbs = np.array([135])
-marl_comm_env = env_creator(env_config)
-sb3_agent = IBSchedSB3(
-    marl_comm_env,
-    max_number_ues,
-    max_number_basestations,
-    num_available_rbs,
-    False,
-    agent_type,
-)
-marl_comm_env.comm_env.set_agent_functions(
-    sb3_agent.obs_space_format,
-    sb3_agent.action_format,
-    sb3_agent.calculate_reward,
-)
+marl_comm_env, sb3_agent = env_creator(env_config)
 
 # Training
-number_episodes = 90
-number_epochs = 1
+number_episodes = 40
+number_epochs = 10
 steps_per_episode = 10000
 total_time_steps = number_episodes * steps_per_episode * number_epochs
 
@@ -89,11 +78,15 @@ sb3_agent.train(total_time_steps)
 
 # Testing
 seed = 10
-number_test_episodes = 1
+number_test_episodes = 10
 total_test_steps = number_test_episodes * steps_per_episode
-# marl_comm_env.comm_env.max_number_episodes = 10
 
-obs, _ = marl_comm_env.reset(seed=seed)
+marl_comm_env.comm_env.max_number_episodes = (
+    number_episodes + number_test_episodes
+)
+obs, _ = marl_comm_env.reset(
+    seed=seed, options={"initial_episode": number_episodes}
+)
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
