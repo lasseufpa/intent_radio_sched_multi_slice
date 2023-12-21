@@ -157,7 +157,7 @@ def plot_graph(
                 ylabel = "Reward (inter-slice agent)"
                 break
             case "reward_cumsum":
-                if agent != "sb3_ib_sched":
+                if agent not in ["sb3_ib_sched", "round_robin"]:
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
@@ -510,17 +510,18 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
 scenario_names = ["mult_slice"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
-    "random",
+    # "random",
     "round_robin",
-    "ib_sched",
-    "ib_sched_deepmind",
-    "ib_sched_mask",
-    "ib_sched_mask_deepmind",
+    # "ib_sched",
+    # "ib_sched_old",
+    # "ib_sched_deepmind",
+    # "ib_sched_mask",
+    # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    # "sb3_ib_sched",
+    "sb3_ib_sched",
 ]
-episodes = np.array([0], dtype=int)
+episodes = np.arange(20, 21, dtype=int)
 slices = np.arange(5)
 
 metrics = [

@@ -53,9 +53,10 @@ marl_comm_env.comm_env.set_agent_functions(
 
 # testing
 seed = 10
-number_episodes = 10
-initial_episode = 90
+number_episodes = 1
+initial_episode = 20
 total_test_steps = 10000
+marl_comm_env.comm_env.max_number_episodes = number_episodes + initial_episode
 obs, _ = marl_comm_env.reset(
     seed=seed, options={"initial_episode": initial_episode}
 )
