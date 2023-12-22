@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.ppo.ppo import PPO
 from stable_baselines3.sac.sac import SAC
 
@@ -27,6 +28,27 @@ class IBSchedSB3(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
+        episode_evaluation_freq = 4
+        number_evaluation_episodes = 1
+        checkpoint_episode_freq = 4
+        checkpoint_frequency = (
+            self.env.comm_env.max_number_steps * checkpoint_episode_freq
+        )
+        self.callback_checkpoint = CheckpointCallback(
+            save_freq=checkpoint_frequency,
+            save_path="./agents/models/sb3_ib_sched/",
+            name_prefix="sb3_ib_sched",
+        )
+        self.callback_evaluation = EvalCallback(
+            eval_env=self.env,
+            log_path="./evaluations/sb3_ib_sched",
+            best_model_save_path="./agents/models/best_sb3_ib_sched/",
+            n_eval_episodes=number_evaluation_episodes,
+            eval_freq=self.env.comm_env.max_number_steps
+            * episode_evaluation_freq,
+            verbose=False,
+            warn=False,
+        )
         self.fake_agent = IBSched(
             env,
             max_number_ues,
@@ -36,7 +58,7 @@ class IBSchedSB3(Agent):
         if agent_type == "ppo":
             self.agent = PPO(
                 "MlpPolicy",
-                env,
+                self.env,
                 verbose=0,
                 tensorboard_log="tensorboard-logs/",
                 seed=self.seed,
@@ -44,7 +66,7 @@ class IBSchedSB3(Agent):
         elif agent_type == "sac":
             self.agent = SAC(
                 "MlpPolicy",
-                env,
+                self.env,
                 verbose=0,
                 tensorboard_log="tensorboard-logs/",
                 seed=self.seed,
@@ -56,8 +78,12 @@ class IBSchedSB3(Agent):
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
 
     def train(self, total_timesteps: int) -> None:
-        self.agent.learn(total_timesteps=total_timesteps, progress_bar=True)
-        self.agent.save("./agents/models/final_ssr_protect")
+        self.agent.learn(
+            total_timesteps=total_timesteps,
+            progress_bar=True,
+            callback=[self.callback_checkpoint, self.callback_evaluation],
+        )
+        self.agent.save("./agents/models/final_sb3_ib_sched")
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         obs = self.fake_agent.obs_space_format(obs_space)
