@@ -24,7 +24,7 @@ env_config = {
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
     "number_agents": 6,
-    "training_epochs": 10,
+    "training_epochs": 100,
     "test_episodes": 5,
 }
 
@@ -43,15 +43,33 @@ def env_creator(env_config):
         root_path=env_config["root_path"],
         number_agents=env_config["number_agents"],
     )
+    eval_env = MARLCommEnv(
+        env_config["channel_class"],
+        env_config["traffic_class"],
+        env_config["mobility_class"],
+        env_config["association_class"],
+        env_config["scenario"],
+        env_config["agent"],
+        env_config["seed"],
+        obs_space=env_config["agent_class"].get_obs_space,
+        action_space=env_config["agent_class"].get_action_space,
+        root_path=env_config["root_path"],
+        number_agents=env_config["number_agents"],
+    )
     agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
-        False,
+        eval_env,
         agent_type,
     )
     marl_comm_env.comm_env.set_agent_functions(
+        agent.obs_space_format,
+        agent.action_format,
+        agent.calculate_reward,
+    )
+    eval_env.comm_env.set_agent_functions(
         agent.obs_space_format,
         agent.action_format,
         agent.calculate_reward,

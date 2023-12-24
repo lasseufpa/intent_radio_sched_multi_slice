@@ -19,7 +19,7 @@ class IBSchedSB3(Agent):
         max_number_ues: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
-        debug_violations: bool = False,
+        eval_env: MARLCommEnv,
         agent_type: str = "ppo",
     ) -> None:
         super().__init__(
@@ -28,9 +28,13 @@ class IBSchedSB3(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        episode_evaluation_freq = 4
-        number_evaluation_episodes = 1
+        episode_evaluation_freq = 10
+        number_evaluation_episodes = 5
         checkpoint_episode_freq = 4
+        eval_initial_env_episode = 90
+        eval_maximum_env_episode = (
+            eval_initial_env_episode + number_evaluation_episodes
+        )
         checkpoint_frequency = (
             self.env.comm_env.max_number_steps * checkpoint_episode_freq
         )
@@ -39,8 +43,13 @@ class IBSchedSB3(Agent):
             save_path="./agents/models/sb3_ib_sched/",
             name_prefix="sb3_ib_sched",
         )
+        self.eval_env = eval_env
+        self.eval_env.comm_env.initial_episode_number = (
+            eval_initial_env_episode
+        )
+        self.eval_env.comm_env.max_number_episodes = eval_maximum_env_episode
         self.callback_evaluation = EvalCallback(
-            eval_env=self.env,
+            eval_env=self.eval_env,
             log_path="./evaluations/sb3_ib_sched",
             best_model_save_path="./agents/models/best_sb3_ib_sched/",
             n_eval_episodes=number_evaluation_episodes,
