@@ -25,7 +25,7 @@ env_config = {
     "root_path": str(getcwd()),
     "number_agents": 6,
     "training_epochs": 100,
-    "test_episodes": 5,
+    "test_episodes": 10,
 }
 
 

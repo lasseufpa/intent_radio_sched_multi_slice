@@ -31,7 +31,7 @@ class IBSchedSB3(Agent):
         episode_evaluation_freq = 10
         number_evaluation_episodes = 5
         checkpoint_episode_freq = 4
-        eval_initial_env_episode = 90
+        eval_initial_env_episode = self.env.comm_env.max_number_episodes
         eval_maximum_env_episode = (
             eval_initial_env_episode + number_evaluation_episodes
         )
