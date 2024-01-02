@@ -23,12 +23,17 @@ class IBSched(Agent):
         self,
         env: MARLCommEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         debug_violations: bool = False,
     ) -> None:
         super().__init__(
-            env, max_number_ues, max_number_basestations, num_available_rbs
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
         )
         assert isinstance(
             self.env, MARLCommEnv
@@ -38,6 +43,8 @@ class IBSched(Agent):
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
+        self.var_obs_inter_slice = 6
+        self.var_obs_intra_ue = 2
         self.rbs_per_rbg = 1  # 135/rbs_per_rbg RBGs
         assert isinstance(
             self.env.comm_env.associations, MultSliceAssociation
@@ -231,7 +238,10 @@ class IBSched(Agent):
 
     def calculate_reward(self, obs_space: dict) -> dict:
         return calculate_reward_no_mask(
-            obs_space, self.last_formatted_obs, self.last_unformatted_obs
+            obs_space,
+            self.last_formatted_obs,
+            self.last_unformatted_obs,
+            self.var_obs_inter_slice,
         )
 
     def action_format(
@@ -334,36 +344,44 @@ class IBSched(Agent):
 
         return allocation_rbs
 
-    @staticmethod
-    def get_action_space() -> spaces.Dict:
-        num_agents = 6
+    def get_action_space(self) -> spaces.Dict:
         action_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(5,), dtype=np.float64
+                    low=-1,
+                    high=1,
+                    shape=(self.max_number_slices,),
+                    dtype=np.float64,
                 )
                 if idx == 0
                 else spaces.Discrete(
                     3
                 )  # Three algorithms (RR, PF and Maximum Throughput)
-                for idx in range(num_agents)
+                for idx in range(self.max_number_slices + 1)
             }
         )
 
         return action_space
 
-    @staticmethod
-    def get_obs_space() -> spaces.Dict:
-        num_agents = 6
+    def get_obs_space(self) -> spaces.Dict:
         obs_space = spaces.Dict(
             {
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(30,), dtype=np.float64
+                            low=-2,
+                            high=1,
+                            shape=(
+                                self.max_number_slices
+                                * self.var_obs_inter_slice,
+                            ),
+                            dtype=np.float64,
                         ),
                         "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(5,), dtype=np.int8
+                            0.0,
+                            1.0,
+                            shape=(self.max_number_slices,),
+                            dtype=np.int8,
                         ),
                     }
                 )
@@ -371,14 +389,32 @@ class IBSched(Agent):
                 else spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2, high=1, shape=(11,), dtype=np.float64
+                            low=-2,
+                            high=1,
+                            shape=(
+                                int(
+                                    self.max_number_ues
+                                    / self.max_number_slices
+                                )
+                                * self.var_obs_intra_ue
+                                + 1,
+                            ),
+                            dtype=np.float64,
                         ),
                         "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(5,), dtype=np.int8
+                            0.0,
+                            1.0,
+                            shape=(
+                                int(
+                                    self.max_number_ues
+                                    / self.max_number_slices
+                                ),
+                            ),
+                            dtype=np.int8,
                         ),
                     }
                 )
-                for idx in range(num_agents)
+                for idx in range(self.max_number_slices + 1)
             }
         )
 

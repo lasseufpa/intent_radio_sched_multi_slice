@@ -13,11 +13,16 @@ class MARR(Agent):
         self,
         env: MARLCommEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
     ) -> None:
         super().__init__(
-            env, max_number_ues, max_number_basestations, num_available_rbs
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
         )
         assert isinstance(
             self.env, MARLCommEnv
@@ -25,6 +30,7 @@ class MARR(Agent):
         self.fake_agent = IBSched(
             env,
             max_number_ues,
+            max_number_slices,
             max_number_basestations,
             num_available_rbs,
         )

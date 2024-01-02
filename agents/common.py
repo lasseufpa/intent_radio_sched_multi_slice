@@ -404,9 +404,9 @@ def calculate_reward_no_mask(
     obs_space: dict,
     last_formatted_obs: dict,
     last_unformatted_obs: deque,
+    var_obs_per_slice: int,
 ) -> dict:
     reward = {}
-    var_obs_per_slice = 6
     for player_idx, agent_obs in enumerate(last_formatted_obs.items()):
         if player_idx == 0:
             elements_idx = last_unformatted_obs[0]["basestation_slice_assoc"][
