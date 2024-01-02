@@ -23,7 +23,6 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
-    "number_agents": 6,
     "training_epochs": 100,
     "test_episodes": 10,
 }
@@ -39,7 +38,6 @@ def env_creator(env_config):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     eval_env = MARLCommEnv(
         env_config["channel_class"],
@@ -50,7 +48,6 @@ def env_creator(env_config):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     agent = env_config["agent_class"](
         marl_comm_env,

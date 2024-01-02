@@ -45,7 +45,6 @@ def env_creator(env_config):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     marl_comm_env.comm_env.max_number_episodes = env_config[
         "training_episodes"
@@ -100,7 +99,6 @@ env_config = {
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
     "root_path": str(getcwd()),
-    "number_agents": 6,
     "training_episodes": 90,
     "training_epochs": 2,
     "testing_episodes": 10,

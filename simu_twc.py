@@ -42,7 +42,6 @@ def env_creator(env_config):
         obs_space=env_config["agent_class"].get_obs_space,
         action_space=env_config["agent_class"].get_action_space,
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     agent = env_config["agent_class"](
         marl_comm_env,
@@ -92,7 +91,6 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "sched_twc",
     "root_path": str(getcwd()),
-    "number_agents": 2,
 }
 
 # Training

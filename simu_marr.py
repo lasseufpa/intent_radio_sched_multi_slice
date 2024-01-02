@@ -21,7 +21,6 @@ env_config = {
     "scenario": "mult_slice",
     "agent": "round_robin",
     "root_path": str(getcwd()),
-    "number_agents": 11,
 }
 
 marl_comm_env = MARLCommEnv(
@@ -35,7 +34,6 @@ marl_comm_env = MARLCommEnv(
     obs_space=env_config["agent_class"].get_obs_space,
     action_space=env_config["agent_class"].get_action_space,
     root_path=env_config["root_path"],
-    number_agents=env_config["number_agents"],
 )
 marr_agent = env_config["agent_class"](
     marl_comm_env,
