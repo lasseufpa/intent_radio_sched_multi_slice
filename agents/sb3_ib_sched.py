@@ -64,6 +64,7 @@ class IBSchedSB3(Agent):
             max_number_basestations,
             num_available_rbs,
         )
+        policy_kwargs = dict(net_arch=dict(pi=[64, 64], qf=[64, 64]))
         if agent_type == "ppo":
             self.agent = PPO(
                 "MlpPolicy",
@@ -71,6 +72,7 @@ class IBSchedSB3(Agent):
                 verbose=0,
                 tensorboard_log="tensorboard-logs/",
                 seed=self.seed,
+                policy_kwargs=policy_kwargs,
             )
         elif agent_type == "sac":
             self.agent = SAC(
@@ -79,6 +81,7 @@ class IBSchedSB3(Agent):
                 verbose=0,
                 tensorboard_log="tensorboard-logs/",
                 seed=self.seed,
+                policy_kwargs=policy_kwargs,
             )
         else:
             raise ValueError("Invalid agent type")
