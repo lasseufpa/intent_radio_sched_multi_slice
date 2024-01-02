@@ -2,23 +2,28 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import yaml
 from scipy.io import savemat
 
 from associations.mult_slice import MultSliceAssociation
 from sixg_radio_mgmt import UEs
 from traffics.mult_slice import MultSliceTraffic
 
-max_number_ues = 25  # Total in the system
-max_number_slices = 5
-max_number_basestations = 1
+config_file = "mult_slice_simple"
 seed = 10
-scenario_name = "mult_slice"
+initial_episode = 0
+number_episodes = 300
+
+with open(f"./env_config/{config_file}.yml") as file:
+    data = yaml.safe_load(file)
+
+max_number_ues = data["ues"]["max_number_ues"]  # Total in the system
+max_number_slices = data["slices"]["max_number_slices"]
+max_number_basestations = data["basestations"]["max_number_basestations"]
+scenario_name = data["simulation"]["simu_name"]
 association_file_path = f"associations/data/{scenario_name}/"
 rng = np.random.default_rng(seed) if seed != -1 else np.random.default_rng()
-
-number_steps = 10000
-initial_episode = 0
-final_episode = 300
+number_steps = data["simulation"]["max_number_steps"]
 
 
 def generate_quadriga_files(
@@ -78,7 +83,7 @@ def generate_quadriga_files(
     )
 
 
-for episode in np.arange(initial_episode, final_episode):
+for episode in np.arange(initial_episode, number_episodes):
     ues = UEs(
         max_number_ues,
         np.repeat(100, max_number_ues),
@@ -119,7 +124,7 @@ for episode in np.arange(initial_episode, final_episode):
     ues_per_slice = np.empty((max_number_slices, 0))
     hist_slices_lifetime = np.empty((number_steps, max_number_slices))
     ues_basestation = np.array([])
-    traffic_slice_watch = 3
+    traffic_slice_watch = 0
     traffic_hist = np.array([])
     traffic_type_hist = [("Initial", 0)]
     hist_total_throughput = np.array([])
@@ -172,7 +177,7 @@ for episode in np.arange(initial_episode, final_episode):
             ues_per_slice,
             np.reshape(
                 np.sum(slice_ue_assoc, axis=1),
-                (int(max_number_ues / max_number_slices), 1),
+                (max_number_slices, 1),
             ),
             axis=1,
         )
@@ -259,7 +264,7 @@ for episode in np.arange(initial_episode, final_episode):
 
     # Number of UEs per slice
     plt.figure()
-    for idx in np.arange(3):
+    for idx in np.arange(max_number_slices):
         plt.plot(
             np.arange(ues_per_slice.shape[1]),
             ues_per_slice[idx].T,
@@ -281,7 +286,7 @@ for episode in np.arange(initial_episode, final_episode):
 
     # Slice life-time
     plt.figure()
-    for idx in np.arange(5):
+    for idx in np.arange(max_number_slices):
         plt.plot(
             np.arange(hist_slices_lifetime.shape[0]),
             hist_slices_lifetime[:, idx].T,
