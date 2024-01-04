@@ -16,6 +16,7 @@ class MultSliceAssociation(Association):
         root_path: str = ".",
         generator_mode: bool = False,
         slice_req_changed: bool = True,  # When you change slice_type_model after using gen_assoc_mult_slice.py
+        scenario_name: str = "mult_slice",
     ) -> None:
         super().__init__(
             ues,
@@ -35,7 +36,7 @@ class MultSliceAssociation(Association):
             generator_mode  # False for reading from external files
         )
         self.slice_req_changed = slice_req_changed
-        self.scenario_name = "mult_slice"
+        self.scenario_name = scenario_name
         self.current_episode = -1
         self.slices_to_use = np.array([])
         self.association_file = dict()

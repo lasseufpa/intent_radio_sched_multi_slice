@@ -155,7 +155,7 @@ for agent in agents_name:
             "PPO",
             param_space=algo_config.to_dict(),
             run_config=air.RunConfig(
-                storage_path=read_checkpoint,
+                storage_path=f"{read_checkpoint}/{env_config['scenario']}/",
                 name=env_config["agent"],
                 stop=stop,
                 verbose=2,
@@ -168,7 +168,7 @@ for agent in agents_name:
 
     # Testing
     analysis = tune.ExperimentAnalysis(
-        f"{read_checkpoint}/{env_config['agent']}/"
+        f"{read_checkpoint}/{env_config['scenario']}/{env_config['agent']}/"
     )
     assert analysis.trials is not None, "Analysis trial is None"
     best_checkpoint = analysis.get_best_checkpoint(

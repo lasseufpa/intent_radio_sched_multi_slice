@@ -89,7 +89,8 @@ if training_flag:
     sb3_agent.train(total_time_steps)
 
 sb3_agent.agent.load(
-    "./agents/models/best_sb3_ib_sched/best_model.zip", marl_comm_env
+    f"./agents/models/{env_config['scenario']}/best_sb3_ib_sched/best_model.zip",
+    marl_comm_env,
 )
 
 # Testing

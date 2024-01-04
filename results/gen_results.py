@@ -380,7 +380,13 @@ def calc_slice_average(
 
 def get_intent_drift(data_metrics) -> np.ndarray:
     last_unformatted_obs = deque(maxlen=10)
-    intent_drift = np.zeros((data_metrics["obs"].shape[0], 5, 5, 3))
+    number_slices = data_metrics["slice_ue_assoc"].shape[1]
+    number_ues_slice = int(
+        data_metrics["slice_ue_assoc"].shape[2] / number_slices
+    )
+    intent_drift = np.zeros(
+        (data_metrics["obs"].shape[0], number_slices, number_ues_slice, 3)
+    )
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
         dict_info = {
             "pkt_effective_thr": data_metrics["pkt_effective_thr"][step_idx],
@@ -507,7 +513,7 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
     return distance_slice
 
 
-scenario_names = ["mult_slice"]
+scenario_names = ["mult_slice_simple"]
 # agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
     # "random",
@@ -519,9 +525,9 @@ agent_names = [
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    "sb3_ib_sched",
+    # "sb3_ib_sched",
 ]
-episodes = np.arange(20, 21, dtype=int)
+episodes = np.arange(290, 299, dtype=int)
 slices = np.arange(5)
 
 metrics = [
