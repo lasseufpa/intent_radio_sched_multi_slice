@@ -10,7 +10,6 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/"
 training_flag = True  # False for reading from checkpoint
 agent_type = "sac"  # "ppo" or "sac"
 env_config = {
@@ -20,7 +19,7 @@ env_config = {
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
+    "scenario": "mult_slice_simple",
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
     "training_epochs": 100,
