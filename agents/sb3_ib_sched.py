@@ -17,55 +17,68 @@ class IBSchedSB3(Agent):
         self,
         env: MARLCommEnv,
         max_number_ues: int,
+        max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         eval_env: MARLCommEnv,
         agent_type: str = "ppo",
     ) -> None:
         super().__init__(
-            env, max_number_ues, max_number_basestations, num_available_rbs
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
         )
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        episode_evaluation_freq = 10
-        number_evaluation_episodes = 5
+        self.agent_type = agent_type
+        self.episode_evaluation_freq = 10
+        self.number_evaluation_episodes = 5
         checkpoint_episode_freq = 4
         eval_initial_env_episode = self.env.comm_env.max_number_episodes
         eval_maximum_env_episode = (
-            eval_initial_env_episode + number_evaluation_episodes
+            eval_initial_env_episode + self.number_evaluation_episodes
         )
-        checkpoint_frequency = (
+        self.checkpoint_frequency = (
             self.env.comm_env.max_number_steps * checkpoint_episode_freq
-        )
-        self.callback_checkpoint = CheckpointCallback(
-            save_freq=checkpoint_frequency,
-            save_path="./agents/models/sb3_ib_sched/",
-            name_prefix="sb3_ib_sched",
         )
         self.eval_env = eval_env
         self.eval_env.comm_env.initial_episode_number = (
             eval_initial_env_episode
         )
         self.eval_env.comm_env.max_number_episodes = eval_maximum_env_episode
+        self.fake_agent = IBSched(
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
+        )
+        self.agent = None
+
+    def init_agent(self) -> None:
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
         self.callback_evaluation = EvalCallback(
             eval_env=self.eval_env,
             log_path="./evaluations/sb3_ib_sched",
             best_model_save_path="./agents/models/best_sb3_ib_sched/",
-            n_eval_episodes=number_evaluation_episodes,
+            n_eval_episodes=self.number_evaluation_episodes,
             eval_freq=self.env.comm_env.max_number_steps
-            * episode_evaluation_freq,
+            * self.episode_evaluation_freq,
             verbose=False,
             warn=False,
         )
-        self.fake_agent = IBSched(
-            env,
-            max_number_ues,
-            max_number_basestations,
-            num_available_rbs,
+        self.callback_checkpoint = CheckpointCallback(
+            save_freq=self.checkpoint_frequency,
+            save_path="./agents/models/sb3_ib_sched/",
+            name_prefix="sb3_ib_sched",
         )
         policy_kwargs = dict(net_arch=dict(pi=[64, 64], qf=[64, 64]))
-        if agent_type == "ppo":
+        if self.agent_type == "ppo":
             self.agent = PPO(
                 "MlpPolicy",
                 self.env,
@@ -74,7 +87,7 @@ class IBSchedSB3(Agent):
                 seed=self.seed,
                 policy_kwargs=policy_kwargs,
             )
-        elif agent_type == "sac":
+        elif self.agent_type == "sac":
             self.agent = SAC(
                 "MlpPolicy",
                 self.env,
@@ -87,9 +100,11 @@ class IBSchedSB3(Agent):
             raise ValueError("Invalid agent type")
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
+        assert self.agent is not None, "Agent must be created first"
         return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
 
     def train(self, total_timesteps: int) -> None:
+        assert self.agent is not None, "Agent must be created first"
         self.agent.learn(
             total_timesteps=total_timesteps,
             progress_bar=True,
@@ -115,14 +130,19 @@ class IBSchedSB3(Agent):
 
         return allocation_rbs
 
-    @staticmethod
-    def get_action_space() -> spaces.Box:
-        action_space = spaces.Box(low=-1, high=1, shape=(5,), dtype=np.float64)
+    def get_action_space(self) -> spaces.Box:
+        action_space = spaces.Box(
+            low=-1, high=1, shape=(self.max_number_slices,), dtype=np.float64
+        )
 
         return action_space
 
-    @staticmethod
-    def get_obs_space() -> spaces.Box:
-        obs_space = spaces.Box(low=-2, high=1, shape=(30,), dtype=np.float64)
+    def get_obs_space(self) -> spaces.Box:
+        obs_space = spaces.Box(
+            low=-2,
+            high=1,
+            shape=(self.max_number_slices * 6,),
+            dtype=np.float64,
+        )
 
         return obs_space

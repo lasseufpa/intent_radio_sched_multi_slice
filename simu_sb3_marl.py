@@ -10,7 +10,6 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-read_checkpoint = "./ray_results/"
 training_flag = True  # False for reading from checkpoint
 agent_type = "sac"  # "ppo" or "sac"
 env_config = {
@@ -20,10 +19,9 @@ env_config = {
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
+    "scenario": "mult_slice_simple",
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
-    "number_agents": 6,
     "training_epochs": 100,
     "test_episodes": 10,
 }
@@ -38,10 +36,7 @@ def env_creator(env_config):
         env_config["scenario"],
         env_config["agent"],
         env_config["seed"],
-        obs_space=env_config["agent_class"].get_obs_space,
-        action_space=env_config["agent_class"].get_action_space,
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     eval_env = MARLCommEnv(
         env_config["channel_class"],
@@ -51,29 +46,32 @@ def env_creator(env_config):
         env_config["scenario"],
         env_config["agent"],
         env_config["seed"],
-        obs_space=env_config["agent_class"].get_obs_space,
-        action_space=env_config["agent_class"].get_action_space,
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
+        marl_comm_env.comm_env.max_number_slices,
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
         eval_env,
         agent_type,
     )
-    marl_comm_env.comm_env.set_agent_functions(
+    marl_comm_env.set_agent_functions(
         agent.obs_space_format,
         agent.action_format,
         agent.calculate_reward,
+        agent.get_obs_space(),
+        agent.get_action_space(),
     )
-    eval_env.comm_env.set_agent_functions(
+    eval_env.set_agent_functions(
         agent.obs_space_format,
         agent.action_format,
         agent.calculate_reward,
+        agent.get_obs_space(),
+        agent.get_action_space(),
     )
+    agent.init_agent()
 
     return marl_comm_env, agent
 

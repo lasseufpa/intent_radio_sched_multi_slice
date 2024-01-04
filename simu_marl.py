@@ -44,10 +44,7 @@ def env_creator(env_config):
         env_config["scenario"],
         env_config["agent"],
         env_config["seed"],
-        obs_space=env_config["agent_class"].get_obs_space,
-        action_space=env_config["agent_class"].get_action_space,
         root_path=env_config["root_path"],
-        number_agents=env_config["number_agents"],
     )
     marl_comm_env.comm_env.max_number_episodes = env_config[
         "training_episodes"
@@ -55,13 +52,16 @@ def env_creator(env_config):
     agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
+        marl_comm_env.comm_env.max_number_slices,
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
     )
-    marl_comm_env.comm_env.set_agent_functions(
+    marl_comm_env.set_agent_functions(
         agent.obs_space_format,
         agent.action_format,
         agent.calculate_reward,
+        agent.get_obs_space(),
+        agent.get_action_space(),
     )
 
     return marl_comm_env
@@ -99,7 +99,6 @@ env_config = {
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
     "root_path": str(getcwd()),
-    "number_agents": 6,
     "training_episodes": 90,
     "training_epochs": 2,
     "testing_episodes": 10,
