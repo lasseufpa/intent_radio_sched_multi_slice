@@ -86,6 +86,7 @@ class IBSchedSB3(Agent):
                 tensorboard_log="tensorboard-logs/",
                 seed=self.seed,
                 policy_kwargs=policy_kwargs,
+                gamma=0.5,
             )
         elif self.agent_type == "sac":
             self.agent = SAC(
@@ -95,6 +96,7 @@ class IBSchedSB3(Agent):
                 tensorboard_log="tensorboard-logs/",
                 seed=self.seed,
                 policy_kwargs=policy_kwargs,
+                gamma=0.5,
             )
         else:
             raise ValueError("Invalid agent type")
