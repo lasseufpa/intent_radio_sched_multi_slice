@@ -64,8 +64,8 @@ class IBSchedSB3(Agent):
         ), "Environment must be MARLCommEnv"
         self.callback_evaluation = EvalCallback(
             eval_env=self.eval_env,
-            log_path="./evaluations/sb3_ib_sched",
-            best_model_save_path="./agents/models/best_sb3_ib_sched/",
+            log_path=f"./evaluations/{self.env.comm_env.simu_name}/sb3_ib_sched",
+            best_model_save_path=f"./agents/models/{self.env.comm_env.simu_name}/best_sb3_ib_sched/",
             n_eval_episodes=self.number_evaluation_episodes,
             eval_freq=self.env.comm_env.max_number_steps
             * self.episode_evaluation_freq,
@@ -74,7 +74,7 @@ class IBSchedSB3(Agent):
         )
         self.callback_checkpoint = CheckpointCallback(
             save_freq=self.checkpoint_frequency,
-            save_path="./agents/models/sb3_ib_sched/",
+            save_path=f"./agents/models/{self.env.comm_env.simu_name}/sb3_ib_sched/",
             name_prefix="sb3_ib_sched",
         )
         if self.agent_type == "ppo":
@@ -82,7 +82,7 @@ class IBSchedSB3(Agent):
                 "MlpPolicy",
                 self.env,
                 verbose=0,
-                tensorboard_log="tensorboard-logs/",
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
                 seed=self.seed,
             )
         elif self.agent_type == "sac":
@@ -90,7 +90,7 @@ class IBSchedSB3(Agent):
                 "MlpPolicy",
                 self.env,
                 verbose=0,
-                tensorboard_log="tensorboard-logs/",
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
                 seed=self.seed,
             )
         else:
@@ -107,7 +107,9 @@ class IBSchedSB3(Agent):
             progress_bar=True,
             callback=[self.callback_checkpoint, self.callback_evaluation],
         )
-        self.agent.save("./agents/models/final_sb3_ib_sched")
+        self.agent.save(
+            "./agents/models/{self.env.comm_env.simu_name}/final_sb3_ib_sched"
+        )
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         obs = self.fake_agent.obs_space_format(obs_space)
