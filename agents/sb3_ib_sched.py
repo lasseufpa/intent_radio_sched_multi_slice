@@ -102,13 +102,16 @@ class IBSchedSB3(Agent):
 
     def train(self, total_timesteps: int) -> None:
         assert self.agent is not None, "Agent must be created first"
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
         self.agent.learn(
             total_timesteps=total_timesteps,
             progress_bar=True,
             callback=[self.callback_checkpoint, self.callback_evaluation],
         )
         self.agent.save(
-            "./agents/models/{self.env.comm_env.simu_name}/final_sb3_ib_sched"
+            f"./agents/models/{self.env.comm_env.simu_name}/final_sb3_ib_sched"
         )
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
