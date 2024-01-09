@@ -74,10 +74,10 @@ def env_creator(env_config):
     )
     agent.init_agent()
 
-    return eval_env, agent
+    return marl_comm_env, eval_env, agent
 
 
-marl_comm_env, sb3_agent = env_creator(env_config)
+marl_comm_env, eval_env, sb3_agent = env_creator(env_config)
 
 # Training
 number_episodes = marl_comm_env.comm_env.max_number_episodes
@@ -91,7 +91,7 @@ if training_flag:
 
 sb3_agent.agent.load(
     f"./agents/models/{env_config['scenario']}/best_sb3_ib_sched/best_model.zip",
-    marl_comm_env,
+    eval_env,
 )
 
 # Testing
@@ -100,9 +100,9 @@ total_test_steps = env_config["test_episodes"] * steps_per_episode
 # marl_comm_env.comm_env.max_number_episodes = (
 #     number_episodes + env_config["test_episodes"]
 # )
-obs, _ = marl_comm_env.reset(seed=env_config["seed"])
+obs, _ = eval_env.reset(seed=env_config["seed"])
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)
-    obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
+    obs, reward, terminated, truncated, info = eval_env.step(action)  # type: ignore
     if terminated:
-        obs, _ = marl_comm_env.reset(seed=env_config["seed"])
+        obs, _ = eval_env.reset(seed=env_config["seed"])
