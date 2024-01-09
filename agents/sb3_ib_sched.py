@@ -35,9 +35,9 @@ class IBSchedSB3(Agent):
         ), "Environment must be MARLCommEnv"
         self.agent_type = agent_type
         self.episode_evaluation_freq = 10
-        self.number_evaluation_episodes = 5
-        checkpoint_episode_freq = 4
-        eval_initial_env_episode = self.env.comm_env.max_number_episodes
+        self.number_evaluation_episodes = 10
+        checkpoint_episode_freq = 10
+        eval_initial_env_episode = 0  # self.env.comm_env.max_number_episodes
         eval_maximum_env_episode = (
             eval_initial_env_episode + self.number_evaluation_episodes
         )

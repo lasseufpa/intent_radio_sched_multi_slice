@@ -43,11 +43,12 @@ def env_creator(env_config):
         env_config["traffic_class"],
         env_config["mobility_class"],
         env_config["association_class"],
-        env_config["scenario"],
+        f"{env_config['scenario']}_test",
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
     )
+    assert isinstance(eval_env.comm_env.channel, QuadrigaChannel)
     agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
@@ -73,7 +74,7 @@ def env_creator(env_config):
     )
     agent.init_agent()
 
-    return marl_comm_env, agent
+    return eval_env, agent
 
 
 marl_comm_env, sb3_agent = env_creator(env_config)
@@ -96,12 +97,10 @@ sb3_agent.agent.load(
 # Testing
 total_test_steps = env_config["test_episodes"] * steps_per_episode
 
-marl_comm_env.comm_env.max_number_episodes = (
-    number_episodes + env_config["test_episodes"]
-)
-obs, _ = marl_comm_env.reset(
-    seed=env_config["seed"], options={"initial_episode": number_episodes}
-)
+# marl_comm_env.comm_env.max_number_episodes = (
+#     number_episodes + env_config["test_episodes"]
+# )
+obs, _ = marl_comm_env.reset(seed=env_config["seed"])
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
