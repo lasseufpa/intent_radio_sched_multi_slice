@@ -18,7 +18,7 @@ env_config = {
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
+    "scenario": "mult_slice_simple",
     "agent": "round_robin",
     "root_path": str(getcwd()),
 }
@@ -52,8 +52,8 @@ marl_comm_env.set_agent_functions(
 
 # testing
 seed = 10
-number_episodes = 1
-initial_episode = 20
+number_episodes = 2
+initial_episode = 5
 total_test_steps = 10000
 marl_comm_env.comm_env.max_number_episodes = number_episodes + initial_episode
 obs, _ = marl_comm_env.reset(

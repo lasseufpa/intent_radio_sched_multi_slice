@@ -91,6 +91,7 @@ def plot_graph(
         "reward": data["reward"],
         "slice_req": data["slice_req"],
         "obs": data["obs"],
+        "agent_action": data["agent_action"],
     }
     for slice in slices:
         match metric:
@@ -237,9 +238,9 @@ def plot_graph(
                 ylabel = "# Violations"
                 break
             case "violations":
-                violations, _ = calc_slice_violations(data_metrics)
+                violations, _, _ = calc_slice_violations(data_metrics)
                 plt.plot(violations, label=f"{agent}, total")
-                violations, _ = calc_slice_violations(
+                violations, _, _ = calc_slice_violations(
                     data_metrics, priority=True
                 )
                 plt.plot(
@@ -252,12 +253,12 @@ def plot_graph(
                 ylabel = "# Violations"
                 break
             case "violations_cumsum":
-                violations, _ = calc_slice_violations(data_metrics)
+                violations, _, _ = calc_slice_violations(data_metrics)
                 plt.plot(
                     np.cumsum(violations),
                     label=f"{agent}, total",
                 )
-                violations, _ = calc_slice_violations(
+                violations, _, _ = calc_slice_violations(
                     data_metrics, priority=True
                 )
                 plt.plot(
@@ -270,7 +271,7 @@ def plot_graph(
                 ylabel = "Cumulative # violations"
                 break
             case "violations_per_slice_type":
-                _, violations_per_slice_type = calc_slice_violations(
+                _, violations_per_slice_type, _ = calc_slice_violations(
                     data_metrics
                 )
                 slice_violations = list(violations_per_slice_type.values())
@@ -284,6 +285,18 @@ def plot_graph(
                 plt.xticks(rotation=65)
                 ylabel = "# violations"
                 break
+            case "intent_slice_metric":
+                _, _, intent_slice_metric = calc_slice_violations(data_metrics)
+                metrics = {"throughput": 0, "reliability": 1, "latency": 2}
+                for metric in metrics.keys():
+                    plt.scatter(
+                        np.arange(intent_slice_metric.shape[0]),
+                        intent_slice_metric[:, slice, metrics[metric]],
+                        label=f"{agent}, slice {slice}, {metric}",
+                    )
+                xlabel = "Step (n)"
+                ylabel = "Intent-drift metric"
+                break
             case "sched_decision":
                 slice_rbs = np.sum(
                     np.sum(
@@ -293,10 +306,26 @@ def plot_graph(
                     * data_metrics["slice_ue_assoc"][:, slice, :],
                     axis=1,
                 )
-                plt.plot(slice_rbs, label=f"{agent}, slice {slice}")
-                plt.xlim([0, 500])
+                plt.scatter(
+                    np.arange(slice_rbs.shape[0]),
+                    slice_rbs,
+                    label=f"{agent}, slice {slice}",
+                )
                 xlabel = "Step (n)"
                 ylabel = "# allocated RBs"
+            case "agent_action":
+                actions = (
+                    data_metrics["agent_action"]["agent_0"][:, slice]
+                    if agent not in ["sb3_ib_sched"]
+                    else data_metrics["agent_action"][:, slice]
+                )
+                plt.scatter(
+                    np.arange(actions.shape[0]),
+                    actions,
+                    label=f"{agent}, slice {slice}",
+                )
+                xlabel = "Step (n)"
+                ylabel = "action factor"
             case _:
                 raise Exception("Metric not found")
 
@@ -409,10 +438,18 @@ def get_intent_drift(data_metrics) -> np.ndarray:
 
 def calc_slice_violations(
     data_metrics, priority=False
-) -> Tuple[np.ndarray, dict]:
+) -> Tuple[np.ndarray, dict, np.ndarray]:
     intent_drift = get_intent_drift(data_metrics)
     violations = np.zeros(data_metrics["obs"].shape[0])
     violations_per_slice_type = {}
+    number_intent_metrics = 3
+    intent_slice_metric = -2 * np.ones(
+        (
+            data_metrics["obs"].shape[0],
+            data_metrics["slice_ue_assoc"][0].shape[0],
+            number_intent_metrics,
+        )
+    )
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
         for slice_idx in range(
             0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
@@ -443,6 +480,7 @@ def calc_slice_violations(
                 slice_ues,
                 data_metrics["slice_req"][step_idx],
             )
+            intent_slice_metric[step_idx, slice_idx, :] = intent_drift_slice
             intent_drift_slice[intent_drift_slice == -2] = 1
             intent_drift_slice = np.min(intent_drift_slice)
             slice_violation = int(
@@ -458,7 +496,7 @@ def calc_slice_violations(
                     violations_per_slice_type[slice_name] += 1
                 else:
                     violations_per_slice_type[slice_name] = 1
-    return violations, violations_per_slice_type
+    return violations, violations_per_slice_type, intent_slice_metric
 
 
 def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
@@ -525,10 +563,10 @@ agent_names = [
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    # "sb3_ib_sched",
+    "sb3_ib_sched",
 ]
-episodes = np.arange(290, 299, dtype=int)
-slices = np.arange(5)
+episodes = np.arange(5, 7, dtype=int)
+slices = np.arange(2)
 
 metrics = [
     #     "pkt_incoming",
@@ -550,7 +588,9 @@ metrics = [
 
 # One graph per agent
 metrics = [
-    # "sched_decision",
+    # "agent_action",
+    "sched_decision",
+    "intent_slice_metric",
     # "basestation_slice_assoc",
     # "reward",
     # "total_network_throughput",
@@ -560,6 +600,18 @@ metrics = [
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
 
+agent_names = [
+    # "random",
+    "round_robin",
+    # "ib_sched",
+    # "ib_sched_old",
+    # "ib_sched_deepmind",
+    # "ib_sched_mask",
+    # "ib_sched_mask_deepmind",
+    # "ib_sched_lstm",
+    # "sched_twc",
+    "sb3_ib_sched",
+]
 # One graph for all agents
 metrics = [
     # "reward",
@@ -570,5 +622,6 @@ metrics = [
     # "basestation_slice_assoc",
     # "distance_fulfill",
     "distance_fulfill_cumsum",
+    # "intent_slice_metric",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)

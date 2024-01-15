@@ -19,10 +19,10 @@ env_config = {
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
+    "scenario": "mult_slice_simple",
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
-    "training_epochs": 100,
+    "training_epochs": 10,
     "test_episodes": 10,
 }
 
