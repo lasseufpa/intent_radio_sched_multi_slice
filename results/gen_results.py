@@ -287,11 +287,17 @@ def plot_graph(
                 break
             case "intent_slice_metric":
                 _, _, intent_slice_metric = calc_slice_violations(data_metrics)
-                metrics = {"throughput": 0, "reliability": 1, "latency": 2}
-                for metric in metrics.keys():
+                metrics_slice = {
+                    "throughput": 0,
+                    "reliability": 1,
+                    "latency": 2,
+                }
+                for metric_slice in metrics_slice.keys():
                     plt.scatter(
                         np.arange(intent_slice_metric.shape[0]),
-                        intent_slice_metric[:, slice, metrics[metric]],
+                        intent_slice_metric[
+                            :, slice, metrics_slice[metric_slice]
+                        ],
                         label=f"{agent}, slice {slice}, {metric}",
                     )
                 xlabel = "Step (n)"
@@ -326,6 +332,57 @@ def plot_graph(
                 )
                 xlabel = "Step (n)"
                 ylabel = "action factor"
+            case "observation_intent" | "observation_priority" | "observation_slice_traffic" | "observation_spectral_eff":
+                number_slices = data_metrics["slice_ue_assoc"].shape[1]
+                metrics_per_slice = int(
+                    data_metrics["obs"].shape[1] / number_slices
+                )
+                slice_obs = data_metrics["obs"][
+                    :,
+                    metrics_per_slice
+                    * slice : metrics_per_slice
+                    * (slice + 1),
+                ]
+                metrics_slice = {
+                    "throughput": 0,
+                    "reliability": 1,
+                    "latency": 2,
+                    "slice_priority": 3,
+                    "norm_total_slice_traffic": 4,
+                    "norm_spectral_eff": 5,
+                }
+                if metric == "observation_intent":
+                    for metric_slice in list(metrics_slice.keys())[0:3]:
+                        plt.scatter(
+                            np.arange(slice_obs.shape[0]),
+                            slice_obs[:, metrics_slice[metric_slice]],
+                            label=f"{agent}, slice {slice}, {metric_slice}",
+                        )
+                    ylabel = "Intent-drift value"
+                elif metric == "observation_priority":
+                    plt.scatter(
+                        np.arange(slice_obs.shape[0]),
+                        slice_obs[:, metrics_slice["slice_priority"]],
+                        label=f"{agent}, slice {slice}",
+                    )
+                    ylabel = "Priority"
+                elif metric == "observation_slice_traffic":
+                    plt.scatter(
+                        np.arange(slice_obs.shape[0]),
+                        slice_obs[
+                            :, metrics_slice["norm_total_slice_traffic"]
+                        ],
+                        label=f"{agent}, slice {slice}",
+                    )
+                    ylabel = "Normalized total traffic"
+                elif metric == "observation_spectral_eff":
+                    plt.scatter(
+                        np.arange(slice_obs.shape[0]),
+                        slice_obs[:, metrics_slice["norm_spectral_eff"]],
+                        label=f"{agent}, slice {slice}",
+                    )
+                    ylabel = "Spectral efficiency (bit/step/Hz)"
+                xlabel = "Step (n)"
             case _:
                 raise Exception("Metric not found")
 
@@ -589,8 +646,12 @@ metrics = [
 # One graph per agent
 metrics = [
     # "agent_action",
-    "sched_decision",
-    "intent_slice_metric",
+    # "sched_decision",
+    # "intent_slice_metric",
+    "observation_intent",
+    "observation_slice_traffic",
+    "observation_priority",
+    "observation_spectral_eff",
     # "basestation_slice_assoc",
     # "reward",
     # "total_network_throughput",
@@ -615,13 +676,13 @@ agent_names = [
 # One graph for all agents
 metrics = [
     # "reward",
-    "reward_cumsum",
+    # "reward_cumsum",
     # "violations",
-    "violations_cumsum",
+    # "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
     # "distance_fulfill",
-    "distance_fulfill_cumsum",
+    # "distance_fulfill_cumsum",
     # "intent_slice_metric",
 ]
-gen_results(scenario_names, agent_names, episodes, metrics, slices)
+# gen_results(scenario_names, agent_names, episodes, metrics, slices)

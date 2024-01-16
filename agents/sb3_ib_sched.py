@@ -132,19 +132,12 @@ class IBSchedSB3(Agent):
 
         return allocation_rbs
 
-    def get_action_space(self) -> spaces.Box:
-        action_space = spaces.Box(
-            low=-1, high=1, shape=(self.max_number_slices,), dtype=np.float64
-        )
+    def get_action_space(self) -> spaces.Space:
+        action_space = self.fake_agent.get_action_space()
 
-        return action_space
+        return action_space["player_0"]
 
-    def get_obs_space(self) -> spaces.Box:
-        obs_space = spaces.Box(
-            low=-2,
-            high=1,
-            shape=(self.max_number_slices * 6,),
-            dtype=np.float64,
-        )
+    def get_obs_space(self) -> spaces.Space:
+        obs_space = self.fake_agent.get_obs_space()["player_0"]["observations"]  # type: ignore
 
         return obs_space
