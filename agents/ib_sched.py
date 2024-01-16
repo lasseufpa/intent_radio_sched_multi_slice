@@ -43,7 +43,7 @@ class IBSched(Agent):
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
-        self.var_obs_inter_slice = 6
+        self.var_obs_inter_slice = 12
         self.var_obs_intra_ue = 2
         self.rbs_per_rbg = 9  # 135/rbs_per_rbg RBGs
         assert isinstance(
@@ -145,12 +145,6 @@ class IBSched(Agent):
                 (0, self.max_number_ues_slice - slice_ues.shape[0]),
                 "constant",
             )
-            max_spectral_eff = np.max(spectral_eff)
-            spectral_eff = (
-                spectral_eff / max_spectral_eff
-                if max_spectral_eff != 0
-                else spectral_eff
-            )
             buffer_occ = np.pad(
                 self.last_unformatted_obs[0]["buffer_occupancies"][slice_ues],
                 (0, self.max_number_ues_slice - slice_ues.shape[0]),
@@ -173,6 +167,38 @@ class IBSched(Agent):
                 if slice_ues.shape[0] != 0
                 else 0
             )
+            active_metrics = np.logical_not(
+                np.isclose(intent_drift_slice, -2)
+            ).astype(int)
+            intent_drift_slice[np.isclose(intent_drift_slice, -2)] = 0
+            slice_buffer_occ = (
+                np.mean(
+                    self.last_unformatted_obs[0]["buffer_occupancies"][
+                        slice_ues
+                    ]
+                )
+                if slice_ues.shape[0] > 0
+                else 0
+            )
+            slice_buffer_latency = (
+                np.mean(
+                    self.last_unformatted_obs[0]["buffer_latencies"][slice_ues]
+                )
+                if slice_ues.shape[0] > 0
+                else 0
+            )
+            spectral_eff_slice = (
+                np.mean(
+                    np.mean(
+                        self.last_unformatted_obs[0]["spectral_efficiencies"][
+                            0, slice_ues, :
+                        ],
+                        axis=1,
+                    )
+                )
+                if slice_ues.shape[0] > 0
+                else 0
+            )
 
             # Inter-slice scheduling
             formatted_obs_space["player_0"]["observations"] = (
@@ -180,23 +206,13 @@ class IBSched(Agent):
                     (
                         formatted_obs_space["player_0"]["observations"],
                         intent_drift_slice,
+                        active_metrics,
                         np.array([slice_priority]),
-                        np.array(
-                            [
-                                slice_traffic_req
-                                * slice_ues.shape[0]
-                                / self.max_throughput_slice
-                            ]
-                        ),
-                        np.array(
-                            [
-                                np.mean(
-                                    spectral_eff[0 : slice_ues.shape[0]]
-                                    * max_spectral_eff
-                                )
-                                / 20
-                            ]
-                        ),
+                        np.array([slice_traffic_req]),
+                        np.array([slice_ues.shape[0]]),
+                        np.array([spectral_eff_slice]),
+                        np.array([slice_buffer_occ]),
+                        np.array([slice_buffer_latency]),
                     )
                 )
                 if self.last_unformatted_obs[0]["basestation_slice_assoc"][
@@ -369,8 +385,8 @@ class IBSched(Agent):
                 f"player_{idx}": spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2,
-                            high=1,
+                            low=0,
+                            high=np.inf,
                             shape=(
                                 self.max_number_slices
                                 * self.var_obs_inter_slice,
