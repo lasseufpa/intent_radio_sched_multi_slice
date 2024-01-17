@@ -235,7 +235,7 @@ def plot_graph(
                     linestyle="--",
                 )
                 xlabel = "Step (n)"
-                ylabel = "# Violations"
+                ylabel = "Distance to fulfill"
                 break
             case "violations":
                 violations, _, _ = calc_slice_violations(data_metrics)
