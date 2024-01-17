@@ -88,9 +88,8 @@ total_time_steps = (
 if training_flag:
     sb3_agent.train(total_time_steps)
 
-sb3_agent.agent.load(
-    f"./agents/models/{env_config['scenario']}/best_sb3_ib_sched/best_model.zip",
-    marl_comm_env,
+sb3_agent.load(
+    f"./agents/models/{env_config['scenario']}/best_sb3_ib_sched/best_model.zip"
 )
 
 # Testing

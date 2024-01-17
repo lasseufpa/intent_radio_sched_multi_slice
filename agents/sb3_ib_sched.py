@@ -119,6 +119,13 @@ class IBSchedSB3(Agent):
             f"./agents/models/{self.env.comm_env.simu_name}/final_sb3_ib_sched"
         )
 
+    def load(self, path: str) -> None:
+        assert self.agent is not None, "Agent must be created first"
+        if self.agent_type == "ppo":
+            self.agent = PPO.load(path, self.env)
+        elif self.agent_type == "sac":
+            self.agent = SAC.load(path, self.env)
+
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         obs = self.fake_agent.obs_space_format(obs_space)
 
