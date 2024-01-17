@@ -143,7 +143,7 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Number of UEs"
             case "reward":
-                if agent != "sb3_ib_sched":
+                if agent not in ["sb3_ib_sched", "round_robin"]:
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
@@ -609,7 +609,6 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
 
 
 scenario_names = ["mult_slice_simple"]
-# agent_names = ["ib_sched", "round_robin", "random", "ib_sched_no_mask", "ib_sched_intra_nn"]
 agent_names = [
     # "random",
     "round_robin",
@@ -622,26 +621,8 @@ agent_names = [
     # "sched_twc",
     "sb3_ib_sched",
 ]
-episodes = np.arange(5, 7, dtype=int)
+episodes = np.arange(290, 300, dtype=int)
 slices = np.arange(2)
-
-metrics = [
-    #     "pkt_incoming",
-    #     "pkt_effective_thr",
-    #     "pkt_throughputs",
-    #     "dropped_pkts",
-    #     "buffer_occupancies",
-    #     "buffer_latencies",
-    #     "basestation_ue_assoc",
-    #     "basestation_slice_assoc",
-    #     "slice_ue_assoc",
-    #     "reward",
-    #     "reward_cumsum",
-    # "total_network_throughput",
-    # "total_network_requested_throughput",
-    #     "spectral_efficiencies",
-    #     "sched_decision",
-]
 
 # One graph per agent
 metrics = [
@@ -660,29 +641,16 @@ metrics = [
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
-
-agent_names = [
-    # "random",
-    "round_robin",
-    # "ib_sched",
-    # "ib_sched_old",
-    # "ib_sched_deepmind",
-    # "ib_sched_mask",
-    # "ib_sched_mask_deepmind",
-    # "ib_sched_lstm",
-    # "sched_twc",
-    "sb3_ib_sched",
-]
 # One graph for all agents
 metrics = [
     # "reward",
-    # "reward_cumsum",
+    "reward_cumsum",
     # "violations",
-    # "violations_cumsum",
+    "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
     # "distance_fulfill",
-    # "distance_fulfill_cumsum",
+    "distance_fulfill_cumsum",
     # "intent_slice_metric",
 ]
-# gen_results(scenario_names, agent_names, episodes, metrics, slices)
+gen_results(scenario_names, agent_names, episodes, metrics, slices)

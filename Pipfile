@@ -29,6 +29,7 @@ h5py = "*"
 iteround = "*"
 tomli = "*"
 rich = "*"
+optuna = "*"
 
 [dev-packages]
 torch-tb-profiler = "*"

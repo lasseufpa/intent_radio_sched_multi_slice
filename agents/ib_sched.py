@@ -201,27 +201,17 @@ class IBSched(Agent):
             )
 
             # Inter-slice scheduling
-            formatted_obs_space["player_0"]["observations"] = (
-                np.concatenate(
-                    (
-                        formatted_obs_space["player_0"]["observations"],
-                        intent_drift_slice,
-                        active_metrics,
-                        np.array([slice_priority]),
-                        np.array([slice_traffic_req]),
-                        np.array([slice_ues.shape[0]]),
-                        np.array([spectral_eff_slice]),
-                        np.array([slice_buffer_occ]),
-                        np.array([slice_buffer_latency]),
-                    )
-                )
-                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                    0, agent_idx - 1
-                ]
-                == 1
-                else np.append(
+            formatted_obs_space["player_0"]["observations"] = np.concatenate(
+                (
                     formatted_obs_space["player_0"]["observations"],
-                    np.concatenate((intent_drift_slice, np.array([0, 0, 0]))),
+                    intent_drift_slice,
+                    active_metrics,
+                    np.array([slice_priority]),
+                    np.array([slice_traffic_req]),
+                    np.array([slice_ues.shape[0]]),
+                    np.array([spectral_eff_slice]),
+                    np.array([slice_buffer_occ]),
+                    np.array([slice_buffer_latency]),
                 )
             )
 
