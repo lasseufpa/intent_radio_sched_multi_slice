@@ -409,7 +409,7 @@ def calculate_reward_no_mask(
     reward = {}
     for player_idx, agent_obs in enumerate(last_formatted_obs.items()):
         if player_idx == 0:
-            if False:
+            if True:
                 elements_idx = last_unformatted_obs[0][
                     "basestation_slice_assoc"
                 ][0, :].nonzero()[0]
