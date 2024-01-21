@@ -27,10 +27,27 @@ debug_mode = (
 )
 agents_name = [
     "ib_sched",
-    "ib_sched_mask",
-    "ib_sched_deepmind",
-    "ib_sched_mask_deepmind",
+    # "ib_sched_mask",
+    # "ib_sched_deepmind",
+    # "ib_sched_mask_deepmind",
 ]
+env_config = {
+    "seed": 10,
+    "agent_class": IBSched,
+    "channel_class": QuadrigaChannel,
+    "traffic_class": MultSliceTraffic,
+    "mobility_class": SimpleMobility,
+    "association_class": MultSliceAssociation,
+    "scenario": "mult_slice",
+    "root_path": str(getcwd()),
+    "training_episodes": 290,
+    "training_epochs": 10,
+    "testing_episodes": 10,
+    "evaluation_interval": 25,  # based on number of training iterations (batch size)
+    "evaluation_duration": 5,  # Unit defined by evaluation_duration_unit
+    "evaluation_duration_unit": "episodes",
+    "evaluation_initial_episode": 290,
+}
 
 ray.init(local_mode=debug_mode)
 
@@ -45,10 +62,13 @@ def env_creator(env_config):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
+        initial_episode_number=env_config["initial_episode_number"]
+        if "initial_episode_number" in env_config.keys()
+        else 0,
+        max_episode_number=env_config["max_episode_number"]
+        if "max_episode_number" in env_config.keys()
+        else None,
     )
-    marl_comm_env.comm_env.max_number_episodes = env_config[
-        "training_episodes"
-    ]
     agent = env_config["agent_class"](
         marl_comm_env,
         marl_comm_env.comm_env.max_number_ues,
@@ -90,20 +110,6 @@ def policy_mapping_fn(agent_id, episode=None, worker=None, **kwargs):
     return "inter_slice_sched" if agent_idx == 0 else "intra_slice_sched"
 
 
-env_config = {
-    "seed": 10,
-    "agent_class": IBSched,
-    "channel_class": QuadrigaChannel,
-    "traffic_class": MultSliceTraffic,
-    "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
-    "root_path": str(getcwd()),
-    "training_episodes": 90,
-    "training_epochs": 2,
-    "testing_episodes": 10,
-}
-
 for agent in agents_name:
     env_config["agent"] = agent
     using_mask = "mask" in agent
@@ -142,10 +148,31 @@ for agent in agents_name:
                 num_gpus_per_learner_worker=1,
             )
             .training(
-                _enable_learner_api=False,
                 vf_clip_param=np.inf,  # type: ignore
+            )
+            .experimental(
+                _enable_new_api_stack=False
             )  # TODO Remove after migrating from ModelV2 to RL Module
-            .rl_module(_enable_rl_module_api=False)
+            .evaluation(
+                evaluation_interval=env_config["evaluation_interval"],
+                evaluation_duration=env_config["evaluation_duration"],
+                evaluation_duration_unit=env_config[
+                    "evaluation_duration_unit"
+                ],
+                evaluation_config={
+                    "explore": False,
+                    "env_config": dict(
+                        env_config,
+                        initial_episode_number=env_config[
+                            "evaluation_initial_episode"
+                        ],
+                        max_episode_number=env_config[
+                            "evaluation_initial_episode"
+                        ]
+                        + env_config["evaluation_duration"],
+                    ),
+                },
+            )
         )
         stop = {
             "episodes_total": env_config["training_episodes"]
