@@ -26,7 +26,6 @@ class IBSched(Agent):
         max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
-        debug_violations: bool = False,
     ) -> None:
         super().__init__(
             env,
@@ -49,25 +48,6 @@ class IBSched(Agent):
         assert isinstance(
             self.env.comm_env.associations, MultSliceAssociation
         ), "Associations must be MultSliceAssociation"
-        self.max_throughput_slice = np.max(
-            [
-                slice_type["ues"]["traffic"]
-                * slice_type["ues"]["max_number_ues"]
-                for slice_type in self.env.comm_env.associations.slice_type_model.values()
-            ]
-        )
-        self.debug_violations = debug_violations
-        if self.debug_violations:
-            self.number_metrics = 3
-            self.violations = np.zeros(
-                (
-                    self.env.comm_env.max_number_steps,
-                    self.env.comm_env.max_number_slices,
-                    self.max_number_ues_slice,
-                    self.number_metrics,
-                ),
-                dtype=float,
-            )
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")
@@ -82,29 +62,6 @@ class IBSched(Agent):
             self.max_number_ues_slice,
             self.intent_overfulfillment_rate,
         )
-        if self.debug_violations:
-            self.violations[
-                self.env.comm_env.step_number - 1,
-                :,
-                :,
-                :,
-            ] = intent_drift
-            if (
-                self.env.comm_env.step_number
-                == self.env.comm_env.max_number_steps
-            ):
-                np.savez_compressed(
-                    "violations_ep_0.npz", violations=self.violations
-                )
-                self.violations = np.zeros(
-                    (
-                        self.env.comm_env.max_number_steps,
-                        self.env.comm_env.max_number_slices,
-                        self.max_number_ues_slice,
-                        self.number_metrics,
-                    ),
-                    dtype=float,
-                )
         formatted_obs_space = {}
 
         # Inter-slice observation
@@ -224,13 +181,8 @@ class IBSched(Agent):
                 formatted_obs_space[f"player_{agent_idx}"] = {
                     "observations": np.concatenate(
                         (
-                            np.array(
-                                [
-                                    slice_traffic_req
-                                    * slice_ues.shape[0]
-                                    / self.max_throughput_slice
-                                ]
-                            ),
+                            np.array([slice_traffic_req]),
+                            np.array([slice_ues.shape[0]]),
                             buffer_occ,
                             spectral_eff,
                         )
@@ -395,15 +347,15 @@ class IBSched(Agent):
                 else spaces.Dict(
                     {
                         "observations": spaces.Box(
-                            low=-2,
-                            high=1,
+                            low=0,
+                            high=np.inf,
                             shape=(
                                 int(
                                     self.max_number_ues
                                     / self.max_number_slices
                                 )
                                 * self.var_obs_intra_ue
-                                + 1,
+                                + 2,
                             ),
                             dtype=np.float64,
                         ),
