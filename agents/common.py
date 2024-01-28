@@ -427,22 +427,27 @@ def calculate_reward_no_mask(
                 metrics = metrics[np.logical_not(np.isclose(metrics, -2))]
                 metrics = np.min(metrics) if metrics.shape[0] > 0 else 1
                 active_observations[element_idx] = metrics
-            if np.isclose(np.sum(active_observations < 0), 0):
-                reward[agent_obs[0]] = 0  # np.mean(active_observations)
-            elif not np.isclose(
-                np.sum((slice_priorities * active_observations) < 0), 0
-            ):
-                negative_obs_idx = (
-                    active_observations * slice_priorities < 0
-                ).nonzero()[0]
-                reward[agent_obs[0]] = (
-                    np.mean(active_observations[negative_obs_idx]) - 1
-                )
-            else:
-                negative_obs_idx = (active_observations < 0).nonzero()[0]
-                reward[agent_obs[0]] = np.mean(
-                    active_observations[negative_obs_idx]
-                )
+            reward[agent_obs[0]] = (
+                np.mean(active_observations)
+                if active_observations.shape[0] > 0
+                else 1
+            )
+            # if np.isclose(np.sum(active_observations < 0), 0):
+            #     reward[agent_obs[0]] = 0  # np.mean(active_observations)
+            # elif not np.isclose(
+            #     np.sum((slice_priorities * active_observations) < 0), 0
+            # ):
+            #     negative_obs_idx = (
+            #         active_observations * slice_priorities < 0
+            #     ).nonzero()[0]
+            #     reward[agent_obs[0]] = (
+            #         np.mean(active_observations[negative_obs_idx]) - 1
+            #     )
+            # else:
+            #     negative_obs_idx = (active_observations < 0).nonzero()[0]
+            #     reward[agent_obs[0]] = np.mean(
+            #         active_observations[negative_obs_idx]
+            #     )
         else:
             reward[agent_obs[0]] = 0
             elements_idx = last_unformatted_obs[0]["slice_ue_assoc"][
