@@ -233,6 +233,14 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Throughput (Mbps)"
                 break
+            case "total_network_eff_throughput":
+                total_throughput = calc_total_throughput(
+                    data_metrics, "pkt_effective_thr", slices
+                )
+                plt.plot(total_throughput, label=f"{agent}")
+                xlabel = "Step (n)"
+                ylabel = "Throughput (Mbps)"
+                break
             case "total_network_requested_throughput":
                 total_req_throughput = calc_total_throughput(
                     data_metrics, "pkt_incoming", slices
@@ -796,10 +804,11 @@ metrics = [
     # "observation_spectral_eff",
     # "basestation_slice_assoc",
     # "reward",
-    # "total_network_throughput",
-    # "total_network_requested_throughput",
+    "total_network_throughput",
+    "total_network_eff_throughput",
+    "total_network_requested_throughput",
     # "violations_per_slice_type",
-    "violations_per_slice_type_metric",
+    # "violations_per_slice_type_metric",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
