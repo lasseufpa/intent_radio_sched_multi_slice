@@ -249,22 +249,77 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Throughput (Mbps)"
                 break
-            case "spectral_efficiencies":
+            case "ues_spectral_efficiencies":
+                avg_spec_eff = np.mean(
+                    np.squeeze(data_metrics["spectral_efficiencies"]), axis=2
+                )
+                min_spec_eff = np.min(
+                    np.squeeze(data_metrics["spectral_efficiencies"]), axis=2
+                )
+                max_spec_eff = np.max(
+                    np.squeeze(data_metrics["spectral_efficiencies"]), axis=2
+                )
+
+                for ue_idx in np.arange(avg_spec_eff.shape[1]):
+                    plt.plot(avg_spec_eff[:, ue_idx], label=f"UE {ue_idx}")
+                    plt.fill_between(
+                        np.arange(avg_spec_eff.shape[0]),
+                        min_spec_eff[:, ue_idx],
+                        max_spec_eff[:, ue_idx],
+                        alpha=0.3,
+                    )
+                break
+            case "throughput_per_rb":
                 if slice not in []:
                     slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
                     num = (
                         np.sum(
-                            np.mean(np.squeeze(data_metrics[metric]), axis=2)
+                            np.mean(
+                                np.squeeze(
+                                    data_metrics["spectral_efficiencies"]
+                                ),
+                                axis=2,
+                            )
+                            * slice_ues,
+                            axis=1,
+                        )
+                        * 100  # 100e6/1e6 (MHz/Mb)
+                    )
+                    num_min = (
+                        np.sum(
+                            np.min(
+                                np.squeeze(
+                                    data_metrics["spectral_efficiencies"]
+                                ),
+                                axis=2,
+                            )
                             * slice_ues,
                             axis=1,
                         )
                         * 100
                     )
+                    num_max = (
+                        np.sum(
+                            np.max(
+                                np.squeeze(
+                                    data_metrics["spectral_efficiencies"]
+                                ),
+                                axis=2,
+                            )
+                            * slice_ues,
+                            axis=1,
+                        )
+                        * 100
+                    )
+
                     den = (
                         np.sum(slice_ues, axis=1)
                         * data_metrics["spectral_efficiencies"].shape[3]
                     )
+
                     spectral_eff = np.zeros_like(num)
+                    spectral_eff_min = np.zeros_like(num)
+                    spectral_eff_max = np.zeros_like(num)
                     spectral_eff = np.divide(
                         num,
                         den,
@@ -273,7 +328,29 @@ def plot_graph(
                         ),
                         out=spectral_eff,
                     )
+                    spectral_eff_min = np.divide(
+                        num_min,
+                        den,
+                        where=np.logical_not(
+                            np.isclose(den, np.zeros_like(den))
+                        ),
+                        out=spectral_eff_min,
+                    )
+                    spectral_eff_max = np.divide(
+                        num_max,
+                        den,
+                        where=np.logical_not(
+                            np.isclose(den, np.zeros_like(den))
+                        ),
+                        out=spectral_eff_max,
+                    )
                     plt.plot(spectral_eff, label=f"{agent}, slice {slice}")
+                    plt.fill_between(
+                        np.arange(spectral_eff.shape[0]),
+                        spectral_eff_min,
+                        spectral_eff_max,
+                        alpha=0.3,
+                    )
                     xlabel = "Step (n)"
                     ylabel = "Thoughput capacity per RB (Mbps)"
             case "distance_fulfill":
@@ -804,11 +881,13 @@ metrics = [
     # "observation_spectral_eff",
     # "basestation_slice_assoc",
     # "reward",
-    "total_network_throughput",
-    "total_network_eff_throughput",
-    "total_network_requested_throughput",
+    # "total_network_throughput",
+    # "total_network_eff_throughput",
+    # "total_network_requested_throughput",
     # "violations_per_slice_type",
     # "violations_per_slice_type_metric",
+    # "throughput_per_rb",
+    "ues_spectral_efficiencies",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
