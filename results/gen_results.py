@@ -28,6 +28,7 @@ def gen_results(
     metrics: list,
     slices: np.ndarray,
 ):
+    global_dict = {}
     xlabel = ylabel = ""
     for scenario in scenario_names:
         for episode in episodes:
@@ -36,7 +37,13 @@ def gen_results(
                 plt.figure(figsize=(w, h))
                 for agent in agent_names:
                     (xlabel, ylabel) = plot_graph(
-                        metric, slices, agent, scenario, episode
+                        metric,
+                        slices,
+                        agent,
+                        scenario,
+                        episode,
+                        agent_names,
+                        global_dict,
                     )
                 plt.grid()
                 plt.xlabel(xlabel, fontsize=14)
@@ -69,6 +76,8 @@ def plot_graph(
     agent: str,
     scenario: str,
     episode: int,
+    agents: list[str] = [],
+    global_dict: dict = {},
 ) -> Tuple[str, str]:
     xlabel = ylabel = ""
     data = np.load(
@@ -157,6 +166,47 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Reward (inter-slice agent)"
                 break
+            case "reward_comparison":
+                if len(agents) > 2:
+                    raise Exception(
+                        "Reward comparison support only two agents"
+                    )
+                xlabel = "Step (n)"
+                ylabel = "Reward (inter-slice agent) (Abs. Difference)"
+                if agent == agents[0]:
+                    global_dict["agent_1_reward"] = (
+                        [
+                            data_metrics["reward"][idx]["player_0"]
+                            for idx in range(data_metrics["reward"].shape[0])
+                        ]
+                        if agent not in ["sb3_ib_sched", "round_robin"]
+                        else [
+                            data_metrics["reward"][idx]
+                            for idx in range(data_metrics["reward"].shape[0])
+                        ]
+                    )
+                elif agent == agents[1]:
+                    global_dict["agent_2_reward"] = (
+                        [
+                            data_metrics["reward"][idx]["player_0"]
+                            for idx in range(data_metrics["reward"].shape[0])
+                        ]
+                        if agent not in ["sb3_ib_sched", "round_robin"]
+                        else [
+                            data_metrics["reward"][idx]
+                            for idx in range(data_metrics["reward"].shape[0])
+                        ]
+                    )
+                    plt.plot(
+                        np.abs(
+                            np.subtract(
+                                global_dict["agent_1_reward"],
+                                global_dict["agent_2_reward"],
+                            )
+                        ),
+                        label=f"abs({agents[0]} - {agents[1]})",
+                    )
+                    break
             case "reward_cumsum":
                 if agent not in ["sb3_ib_sched", "round_robin"]:
                     reward = [
@@ -238,9 +288,9 @@ def plot_graph(
                 ylabel = "Distance to fulfill"
                 break
             case "violations":
-                violations, _, _ = calc_slice_violations(data_metrics)
+                violations, _, _, _ = calc_slice_violations(data_metrics)
                 plt.plot(violations, label=f"{agent}, total")
-                violations, _, _ = calc_slice_violations(
+                violations, _, _, _ = calc_slice_violations(
                     data_metrics, priority=True
                 )
                 plt.plot(
@@ -253,12 +303,12 @@ def plot_graph(
                 ylabel = "# Violations"
                 break
             case "violations_cumsum":
-                violations, _, _ = calc_slice_violations(data_metrics)
+                violations, _, _, _ = calc_slice_violations(data_metrics)
                 plt.plot(
                     np.cumsum(violations),
                     label=f"{agent}, total",
                 )
-                violations, _, _ = calc_slice_violations(
+                violations, _, _, _ = calc_slice_violations(
                     data_metrics, priority=True
                 )
                 plt.plot(
@@ -271,12 +321,11 @@ def plot_graph(
                 ylabel = "Cumulative # violations"
                 break
             case "violations_per_slice_type":
-                _, violations_per_slice_type, _ = calc_slice_violations(
+                _, violations_per_slice_type, _, _ = calc_slice_violations(
                     data_metrics
                 )
                 slice_violations = list(violations_per_slice_type.values())
                 slice_names = list(violations_per_slice_type.keys())
-
                 plt.bar(
                     np.arange(len(violations_per_slice_type.keys())),
                     slice_violations,
@@ -285,8 +334,50 @@ def plot_graph(
                 plt.xticks(rotation=65)
                 ylabel = "# violations"
                 break
+
+            case "violations_per_slice_type_metric":
+                (
+                    _,
+                    _,
+                    _,
+                    violations_slice_metric,
+                ) = calc_slice_violations(data_metrics, slice_per_metric=True)
+                metric_idxs = {
+                    "throughput": 0,
+                    "reliability": 1,
+                    "latency": 2,
+                }
+                for metric_idx in metric_idxs.keys():
+                    metric_slice_values = np.zeros(
+                        len(violations_slice_metric)
+                    )
+                    for idx, slice_name in enumerate(
+                        violations_slice_metric.keys()
+                    ):
+                        if metric_idx in violations_slice_metric[slice_name]:
+                            metric_slice_values[idx] = violations_slice_metric[
+                                slice_name
+                            ][metric_idx]
+
+                    plt.bar(
+                        np.arange(
+                            metric_idxs[metric_idx],
+                            metric_slice_values.shape[0] * len(metric_idxs),
+                            len(metric_idxs),
+                        ),
+                        metric_slice_values,
+                        tick_label=list(violations_slice_metric.keys())
+                        if metric_idx == "reliability"
+                        else None,
+                        label=metric_idx,
+                    )
+                    plt.xticks(rotation=90)
+                    ylabel = "# violations"
+                break
             case "intent_slice_metric":
-                _, _, intent_slice_metric = calc_slice_violations(data_metrics)
+                _, _, intent_slice_metric, _ = calc_slice_violations(
+                    data_metrics
+                )
                 metrics_slice = {
                     "throughput": 0,
                     "reliability": 1,
@@ -319,6 +410,39 @@ def plot_graph(
                 )
                 xlabel = "Step (n)"
                 ylabel = "# allocated RBs"
+            case "sched_decision_comparison":
+                if len(agents) > 2:
+                    raise Exception(
+                        "Sched decision comparison support only two agents"
+                    )
+                if agent == agents[0]:
+                    global_dict["agent_1_slice_rbs"] = np.sum(
+                        np.sum(
+                            data_metrics["sched_decision"][:, 0, :, :],
+                            axis=2,
+                        )
+                        * data_metrics["slice_ue_assoc"][:, slice, :],
+                        axis=1,
+                    )
+                elif agent == agents[1]:
+                    global_dict["agent_2_slice_rbs"] = np.sum(
+                        np.sum(
+                            data_metrics["sched_decision"][:, 0, :, :],
+                            axis=2,
+                        )
+                        * data_metrics["slice_ue_assoc"][:, slice, :],
+                        axis=1,
+                    )
+                    plt.scatter(
+                        np.arange(global_dict["agent_2_slice_rbs"].shape[0]),
+                        np.abs(
+                            global_dict["agent_1_slice_rbs"]
+                            - global_dict["agent_2_slice_rbs"]
+                        ),
+                        label=f"abs({agents[0]} - {agents[1]}), slice {slice}",
+                    )
+                xlabel = "Step (n)"
+                ylabel = "# allocated RBs (Abs. Difference)"
             case "agent_action":
                 actions = (
                     data_metrics["agent_action"]["agent_0"][:, slice]
@@ -351,6 +475,7 @@ def plot_graph(
                     "norm_total_slice_traffic": 4,
                     "norm_spectral_eff": 5,
                 }
+                raise Exception("Needs to update metrics slice")  # TODO
                 if metric == "observation_intent":
                     for metric_slice in list(metrics_slice.keys())[0:3]:
                         plt.scatter(
@@ -494,12 +619,17 @@ def get_intent_drift(data_metrics) -> np.ndarray:
 
 
 def calc_slice_violations(
-    data_metrics, priority=False
-) -> Tuple[np.ndarray, dict, np.ndarray]:
+    data_metrics, priority=False, slice_per_metric=False
+) -> Tuple[np.ndarray, dict, np.ndarray, dict]:
     intent_drift = get_intent_drift(data_metrics)
     violations = np.zeros(data_metrics["obs"].shape[0])
     violations_per_slice_type = {}
     number_intent_metrics = 3
+    metric_idxs = {
+        "throughput": 0,
+        "reliability": 1,
+        "latency": 2,
+    }
     intent_slice_metric = -2 * np.ones(
         (
             data_metrics["obs"].shape[0],
@@ -507,6 +637,7 @@ def calc_slice_violations(
             number_intent_metrics,
         )
     )
+    violations_slice_metric = {}
     for step_idx in np.arange(data_metrics["obs"].shape[0]):
         for slice_idx in range(
             0, data_metrics["slice_ue_assoc"][step_idx].shape[0]
@@ -539,6 +670,31 @@ def calc_slice_violations(
             )
             intent_slice_metric[step_idx, slice_idx, :] = intent_drift_slice
             intent_drift_slice[intent_drift_slice == -2] = 1
+
+            if slice_per_metric and np.sum(
+                intent_drift_slice < 0
+            ):  # Accounts slice violation per metric
+                for metric_idx in metric_idxs.keys():
+                    slice_name = data_metrics["slice_req"][step_idx][
+                        f"slice_{slice_idx}"
+                    ]["name"]
+                    if intent_drift_slice[metric_idxs[metric_idx]] < 0:
+                        if slice_name in violations_slice_metric.keys():
+                            if (
+                                metric_idx
+                                in violations_slice_metric[slice_name].keys()
+                            ):
+                                violations_slice_metric[slice_name][
+                                    metric_idx
+                                ] += 1
+                            else:
+                                violations_slice_metric[slice_name][
+                                    metric_idx
+                                ] = 1
+                        else:
+                            violations_slice_metric[slice_name] = {}
+                            violations_slice_metric[slice_name][metric_idx] = 1
+
             intent_drift_slice = np.min(intent_drift_slice)
             slice_violation = int(
                 intent_drift_slice < 0
@@ -553,7 +709,12 @@ def calc_slice_violations(
                     violations_per_slice_type[slice_name] += 1
                 else:
                     violations_per_slice_type[slice_name] = 1
-    return violations, violations_per_slice_type, intent_slice_metric
+    return (
+        violations,
+        violations_per_slice_type,
+        intent_slice_metric,
+        violations_slice_metric,
+    )
 
 
 def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
@@ -608,7 +769,7 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
     return distance_slice
 
 
-scenario_names = ["mult_slice_simple"]
+scenario_names = ["mult_slice"]
 agent_names = [
     # "random",
     "round_robin",
@@ -621,36 +782,39 @@ agent_names = [
     # "sched_twc",
     "sb3_ib_sched",
 ]
-episodes = np.arange(290, 300, dtype=int)
-slices = np.arange(2)
+episodes = np.arange(290, 294, dtype=int)
+slices = np.arange(5)
 
 # One graph per agent
 metrics = [
     # "agent_action",
     # "sched_decision",
     # "intent_slice_metric",
-    "observation_intent",
-    "observation_slice_traffic",
-    "observation_priority",
-    "observation_spectral_eff",
+    # "observation_intent",
+    # "observation_slice_traffic",
+    # "observation_priority",
+    # "observation_spectral_eff",
     # "basestation_slice_assoc",
     # "reward",
     # "total_network_throughput",
     # "total_network_requested_throughput",
     # "violations_per_slice_type",
+    "violations_per_slice_type_metric",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
 # One graph for all agents
 metrics = [
     # "reward",
-    "reward_cumsum",
+    # "reward_comparison",
+    # "reward_cumsum",
     # "violations",
-    "violations_cumsum",
+    # "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
     # "distance_fulfill",
-    "distance_fulfill_cumsum",
+    # "distance_fulfill_cumsum",
     # "intent_slice_metric",
+    # "sched_decision_comparison",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
