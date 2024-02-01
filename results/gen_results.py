@@ -353,6 +353,129 @@ def plot_graph(
                     )
                     xlabel = "Step (n)"
                     ylabel = "Thoughput capacity per RB (Mbps)"
+            case "rbs_needed_slice" | "rbs_needed_total":
+                slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
+                den = np.sum(slice_ues, axis=1)
+                avg_num = np.sum(
+                    np.mean(
+                        np.squeeze(data_metrics["spectral_efficiencies"]),
+                        axis=2,
+                    )
+                    * slice_ues,
+                    axis=1,
+                )
+                min_num = np.sum(
+                    np.min(
+                        np.squeeze(data_metrics["spectral_efficiencies"]),
+                        axis=2,
+                    )
+                    * slice_ues,
+                    axis=1,
+                )
+                max_num = np.sum(
+                    np.max(
+                        np.squeeze(data_metrics["spectral_efficiencies"]),
+                        axis=2,
+                    )
+                    * slice_ues,
+                    axis=1,
+                )
+                avg_spectral_eff = np.zeros_like(avg_num)
+                min_spectral_eff = np.zeros_like(avg_num)
+                max_spectral_eff = np.zeros_like(avg_num)
+                avg_spectral_eff = np.divide(
+                    avg_num,
+                    den,
+                    where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+                    out=avg_spectral_eff,
+                )
+                min_spectral_eff = np.divide(
+                    min_num,
+                    den,
+                    where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+                    out=min_spectral_eff,
+                )
+                max_spectral_eff = np.divide(
+                    max_num,
+                    den,
+                    where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+                    out=max_spectral_eff,
+                )
+                requested_thr = np.array(
+                    [
+                        data_metrics["slice_req"][step][f"slice_{slice}"][
+                            "ues"
+                        ]["traffic"]
+                        if "ues"
+                        in data_metrics["slice_req"][step][f"slice_{slice}"]
+                        else 0
+                        for step in np.arange(
+                            data_metrics["slice_req"].shape[0]
+                        )
+                    ]
+                )
+                avg_needed_rbs = np.zeros(requested_thr.shape[0])
+                min_needed_rbs = np.zeros(requested_thr.shape[0])
+                max_needed_rbs = np.zeros(requested_thr.shape[0])
+                avg_needed_rbs = np.divide(
+                    requested_thr * np.sum(slice_ues, axis=1),
+                    ((100 / 135) * avg_spectral_eff),
+                    where=avg_spectral_eff > 0,
+                    out=avg_needed_rbs,
+                )
+                min_needed_rbs = np.divide(
+                    requested_thr * np.sum(slice_ues, axis=1),
+                    ((100 / 135) * max_spectral_eff),
+                    where=max_spectral_eff > 0,
+                    out=min_needed_rbs,
+                )
+                max_needed_rbs = np.divide(
+                    requested_thr * np.sum(slice_ues, axis=1),
+                    ((100 / 135) * min_spectral_eff),
+                    where=min_spectral_eff > 0,
+                    out=max_needed_rbs,
+                )
+                max_needed_rbs[max_needed_rbs > 135] = 135
+                if slice == 0:
+                    global_dict["avg_needed_rbs"] = avg_needed_rbs
+                    global_dict["min_needed_rbs"] = min_needed_rbs
+                    global_dict["max_needed_rbs"] = max_needed_rbs
+                else:
+                    global_dict["avg_needed_rbs"] = (
+                        global_dict["avg_needed_rbs"] + avg_needed_rbs
+                    )
+                    global_dict["min_needed_rbs"] = (
+                        global_dict["min_needed_rbs"] + min_needed_rbs
+                    )
+                    global_dict["max_needed_rbs"] = (
+                        global_dict["max_needed_rbs"] + max_needed_rbs
+                    )
+                if metric == "rbs_needed_slice":
+                    plt.plot(avg_needed_rbs, label=f"{agent}, slice {slice}")
+                    plt.fill_between(
+                        np.arange(avg_needed_rbs.shape[0]),
+                        min_needed_rbs,
+                        max_needed_rbs,
+                        alpha=0.3,
+                    )
+                elif metric == "rbs_needed_total" and slice == slices[-1]:
+                    plt.plot(
+                        global_dict["avg_needed_rbs"],
+                        label=f"avg total",
+                        linestyle="--",
+                    )
+                    plt.plot(
+                        global_dict["min_needed_rbs"],
+                        linestyle="--",
+                        label="min total",
+                    )
+                    plt.plot(
+                        global_dict["max_needed_rbs"],
+                        linestyle="--",
+                        label="max total",
+                    )
+                xlabel = "Step (n)"
+                ylabel = "Thoughput capacity per RB (Mbps)"
             case "distance_fulfill":
                 distance = calc_intent_distance(data_metrics)
                 plt.plot(distance, label=f"{agent}, total")
@@ -887,7 +1010,9 @@ metrics = [
     # "violations_per_slice_type",
     # "violations_per_slice_type_metric",
     # "throughput_per_rb",
-    "ues_spectral_efficiencies",
+    # "ues_spectral_efficiencies",
+    "rbs_needed_slice",
+    "rbs_needed_total",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
