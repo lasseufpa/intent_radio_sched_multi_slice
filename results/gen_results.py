@@ -475,7 +475,7 @@ def plot_graph(
                         label="max total",
                     )
                 xlabel = "Step (n)"
-                ylabel = "Thoughput capacity per RB (Mbps)"
+                ylabel = "# RBs"
             case "distance_fulfill":
                 distance = calc_intent_distance(data_metrics)
                 plt.plot(distance, label=f"{agent}, total")

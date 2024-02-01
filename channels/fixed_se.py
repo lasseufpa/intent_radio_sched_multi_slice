@@ -5,7 +5,7 @@ import numpy as np
 from sixg_radio_mgmt import Channel
 
 
-class SimpleChannel(Channel):
+class FixedSE(Channel):
     def __init__(
         self,
         max_number_ues: int,
@@ -13,6 +13,7 @@ class SimpleChannel(Channel):
         num_available_rbs: np.ndarray,
         rng: np.random.Generator = np.random.default_rng(),
         root_path: str = "",
+        scenario_name: str = "",
     ) -> None:
         super().__init__(
             max_number_ues,
@@ -20,7 +21,9 @@ class SimpleChannel(Channel):
             num_available_rbs,
             rng,
             root_path,
+            scenario_name,
         )
+        self.fixed_se = 2.0
 
     def step(
         self,
@@ -30,7 +33,8 @@ class SimpleChannel(Channel):
         sched_decision: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         spectral_efficiencies = [
-            np.ones((self.max_number_ues, self.num_available_rbs[i]))
+            self.fixed_se
+            * np.ones((self.max_number_ues, self.num_available_rbs[i]))
             for i in np.arange(self.max_number_basestations)
         ]
 

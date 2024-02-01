@@ -7,6 +7,7 @@ from tqdm import tqdm
 from agents.marr import MARR
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
+from channels.fixed_se import FixedSE
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
@@ -14,11 +15,11 @@ from traffics.mult_slice import MultSliceTraffic
 env_config = {
     "seed": 10,
     "agent_class": MARR,
-    "channel_class": QuadrigaChannel,
+    "channel_class": FixedSE,  # QuadrigaChannel, TODO
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
-    "scenario": "mult_slice_simple",
+    "scenario": "mult_slice",
     "agent": "round_robin",
     "root_path": str(getcwd()),
 }
@@ -52,8 +53,8 @@ marl_comm_env.set_agent_functions(
 
 # testing
 seed = 10
-number_episodes = 2
-initial_episode = 5
+number_episodes = 10
+initial_episode = 290
 total_test_steps = 10000
 marl_comm_env.comm_env.max_number_episodes = number_episodes + initial_episode
 obs, _ = marl_comm_env.reset(
