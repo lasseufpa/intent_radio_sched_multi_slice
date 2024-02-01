@@ -6,6 +6,7 @@ from tqdm import tqdm
 from agents.sb3_ib_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
 from channels.quadriga import QuadrigaChannel
+from channels.fixed_se import FixedSE
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
@@ -15,7 +16,7 @@ agent_type = "sac"  # "ppo" or "sac"
 env_config = {
     "seed": 10,
     "agent_class": IBSchedSB3,
-    "channel_class": QuadrigaChannel,
+    "channel_class": FixedSE,  # QuadrigaChannel, TODO
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
