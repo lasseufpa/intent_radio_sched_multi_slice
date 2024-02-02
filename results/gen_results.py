@@ -53,15 +53,19 @@ def gen_results(
                     fontsize=12, bbox_to_anchor=(1.04, 1), loc="upper left"
                 )
                 os.makedirs(
-                    f"./results/{scenario}/ep_{episode}"
-                    if len(agent_names) > 1
-                    else f"./results/{scenario}/ep_{episode}/{agent_names[0]}/",
+                    (
+                        f"./results/{scenario}/ep_{episode}"
+                        if len(agent_names) > 1
+                        else f"./results/{scenario}/ep_{episode}/{agent_names[0]}/"
+                    ),
                     exist_ok=True,
                 )
                 plt.savefig(
-                    f"./results/{scenario}/ep_{episode}/{metric}.pdf"
-                    if len(agent_names) > 1
-                    else f"./results/{scenario}/ep_{episode}/{agent_names[0]}/{metric}.pdf",
+                    (
+                        f"./results/{scenario}/ep_{episode}/{metric}.pdf"
+                        if len(agent_names) > 1
+                        else f"./results/{scenario}/ep_{episode}/{agent_names[0]}/{metric}.pdf"
+                    ),
                     bbox_inches="tight",
                     pad_inches=0,
                     format="pdf",
@@ -116,7 +120,7 @@ def plot_graph(
                 plt.plot(slice_throughput, label=f"{agent}, slice {slice}")
                 xlabel = "Step (n)"
                 ylabel = "Throughput (Mbps)"
-            case ("buffer_latencies" | "buffer_occupancies"):
+            case "buffer_latencies" | "buffer_occupancies":
                 avg_spectral_efficiency = calc_slice_average(
                     data_metrics, metric, slice
                 )
@@ -130,7 +134,7 @@ def plot_graph(
                         ylabel = "Average buffer latency (ms)"
                     case "buffer_occupancies":
                         ylabel = "Buffer occupancy rate"
-            case ("basestation_ue_assoc" | "basestation_slice_assoc"):
+            case "basestation_ue_assoc" | "basestation_slice_assoc":
                 number_elements = np.sum(
                     np.sum(data_metrics[metric], axis=2), axis=1
                 )
@@ -403,12 +407,16 @@ def plot_graph(
                 )
                 requested_thr = np.array(
                     [
-                        data_metrics["slice_req"][step][f"slice_{slice}"][
-                            "ues"
-                        ]["traffic"]
-                        if "ues"
-                        in data_metrics["slice_req"][step][f"slice_{slice}"]
-                        else 0
+                        (
+                            data_metrics["slice_req"][step][f"slice_{slice}"][
+                                "ues"
+                            ]["traffic"]
+                            if "ues"
+                            in data_metrics["slice_req"][step][
+                                f"slice_{slice}"
+                            ]
+                            else 0
+                        )
                         for step in np.arange(
                             data_metrics["slice_req"].shape[0]
                         )
@@ -574,9 +582,11 @@ def plot_graph(
                             len(metric_idxs),
                         ),
                         metric_slice_values,
-                        tick_label=list(violations_slice_metric.keys())
-                        if metric_idx == "reliability"
-                        else None,
+                        tick_label=(
+                            list(violations_slice_metric.keys())
+                            if metric_idx == "reliability"
+                            else None
+                        ),
                         label=metric_idx,
                     )
                     plt.xticks(rotation=90)
@@ -664,7 +674,14 @@ def plot_graph(
                 )
                 xlabel = "Step (n)"
                 ylabel = "action factor"
-            case "observation_intent" | "observation_priority" | "observation_slice_traffic" | "observation_spectral_eff":
+            case (
+                "observation_intent"
+                | "observation_priority"
+                | "observation_slice_traffic"
+                | "observation_spectral_eff"
+                | "observation_buffer_occ"
+                | "observation_buffer_lat"
+            ):
                 number_slices = data_metrics["slice_ue_assoc"].shape[1]
                 metrics_per_slice = int(
                     data_metrics["obs"].shape[1] / number_slices
@@ -679,11 +696,16 @@ def plot_graph(
                     "throughput": 0,
                     "reliability": 1,
                     "latency": 2,
-                    "slice_priority": 3,
-                    "norm_total_slice_traffic": 4,
-                    "norm_spectral_eff": 5,
+                    "active_throughput": 3,
+                    "active_reliability": 4,
+                    "active_latency": 5,
+                    "slice_priority": 6,
+                    "total_slice_traffic": 7,
+                    "slice_ues": 8,
+                    "spectral_eff": 9,
+                    "slice_buffer_occ": 10,
+                    "slice_buffer_lat": 11,
                 }
-                raise Exception("Needs to update metrics slice")  # TODO
                 if metric == "observation_intent":
                     for metric_slice in list(metrics_slice.keys())[0:3]:
                         plt.scatter(
@@ -702,19 +724,31 @@ def plot_graph(
                 elif metric == "observation_slice_traffic":
                     plt.scatter(
                         np.arange(slice_obs.shape[0]),
-                        slice_obs[
-                            :, metrics_slice["norm_total_slice_traffic"]
-                        ],
+                        slice_obs[:, metrics_slice["total_slice_traffic"]],
                         label=f"{agent}, slice {slice}",
                     )
-                    ylabel = "Normalized total traffic"
+                    ylabel = "Total traffic"
                 elif metric == "observation_spectral_eff":
                     plt.scatter(
                         np.arange(slice_obs.shape[0]),
-                        slice_obs[:, metrics_slice["norm_spectral_eff"]],
+                        slice_obs[:, metrics_slice["spectral_eff"]],
                         label=f"{agent}, slice {slice}",
                     )
                     ylabel = "Spectral efficiency (bit/step/Hz)"
+                elif metric == "observation_buffer_occ":
+                    plt.scatter(
+                        np.arange(slice_obs.shape[0]),
+                        slice_obs[:, metrics_slice["slice_buffer_occ"]],
+                        label=f"{agent}, slice {slice}",
+                    )
+                    ylabel = "Buffer occupancy"
+                elif metric == "observation_buffer_lat":
+                    plt.scatter(
+                        np.arange(slice_obs.shape[0]),
+                        slice_obs[:, metrics_slice["slice_buffer_lat"]],
+                        label=f"{agent}, slice {slice}",
+                    )
+                    ylabel = "Buffer latency"
                 xlabel = "Step (n)"
             case _:
                 raise Exception("Metric not found")
@@ -990,20 +1024,22 @@ agent_names = [
     # "sched_twc",
     "sb3_ib_sched",
 ]
-episodes = np.arange(290, 294, dtype=int)
+episodes = np.arange(200, 201, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
 metrics = [
     # "agent_action",
-    # "sched_decision",
+    "sched_decision",
     # "intent_slice_metric",
-    # "observation_intent",
-    # "observation_slice_traffic",
-    # "observation_priority",
-    # "observation_spectral_eff",
+    "observation_intent",
+    "observation_slice_traffic",
+    "observation_priority",
+    "observation_spectral_eff",
+    "observation_buffer_occ",
+    "observation_buffer_lat",
     # "basestation_slice_assoc",
-    # "reward",
+    "reward",
     # "total_network_throughput",
     # "total_network_eff_throughput",
     # "total_network_requested_throughput",
@@ -1013,20 +1049,21 @@ metrics = [
     # "ues_spectral_efficiencies",
     "rbs_needed_slice",
     "rbs_needed_total",
+    "reward_cumsum",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
 # One graph for all agents
 metrics = [
-    # "reward",
-    # "reward_comparison",
-    # "reward_cumsum",
+    "reward",
+    "reward_comparison",
+    "reward_cumsum",
     # "violations",
-    # "violations_cumsum",
+    "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
     # "distance_fulfill",
-    # "distance_fulfill_cumsum",
+    "distance_fulfill_cumsum",
     # "intent_slice_metric",
     # "sched_decision_comparison",
 ]
