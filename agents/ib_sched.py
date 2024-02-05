@@ -164,9 +164,10 @@ class IBSched(Agent):
                     intent_drift_slice,
                     # active_metrics,
                     # np.array([slice_priority]),
-                    np.array([slice_traffic_req * slice_ues.shape[0]]),
+                    np.array([slice_traffic_req * slice_ues.shape[0] / 125.0]),
                     # np.array([slice_ues.shape[0]]),
-                    np.array([spectral_eff_slice]),
+                    np.array([spectral_eff_slice])
+                    / 20.0,  # TODO Implement a more appropriate normalization
                     # np.array([slice_buffer_occ]),
                     # np.array([slice_buffer_latency]),
                 )
