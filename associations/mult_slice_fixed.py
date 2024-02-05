@@ -26,11 +26,11 @@ class MultSliceAssociationFixed(Association):
             rng,
             root_path,
         )
+        self.scenario_name = scenario_name
         self.min_number_slices = 2
-        self.generator_mode = (
-            True  # Only for compatibility with gen_assoc_mult_slice.py
-        )
+        self.generator_mode = generator_mode
         self.max_number_slices = 5
+        self.current_episode = -1
         self.slices_to_use = np.array([])
         self.slice_types = [
             "control_case_2",
@@ -344,6 +344,7 @@ class MultSliceAssociationFixed(Association):
                 },
             },
         }
+        self.associations = np.array([])
 
     def step(
         self,
@@ -354,64 +355,86 @@ class MultSliceAssociationFixed(Association):
         step_number: int,
         episode_number: int,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-        if step_number == 0:
-            number_slices = self.rng.integers(
-                low=self.min_number_slices,
-                high=self.max_number_slices,
-                endpoint=True,
-            )
-            self.slices_to_use = self.rng.choice(
-                np.arange(self.max_number_slices), number_slices, replace=False
-            )
-            basestation_slice_assoc[0, self.slices_to_use] = 1
-            slice_req = {
-                f"slice_{id}": {} for id in np.arange(self.max_number_slices)
-            }
-            slice_req = self.slice_generator(slice_req, self.slices_to_use)
-            ues_per_slices = np.array(
-                [
-                    self.rng.integers(
-                        slice_req[f"slice_{slice_idx}"]["ues"][
-                            "min_number_ues"
-                        ],
-                        slice_req[f"slice_{slice_idx}"]["ues"][
-                            "max_number_ues"
-                        ],
-                        1,
-                        endpoint=True,
-                    )
-                    for slice_idx in self.slices_to_use
-                ]
-            ).flatten()
-            active_ues = np.array(
-                self.rng.choice(
-                    (basestation_ue_assoc[0] == 0).nonzero()[0],
-                    int(np.sum(ues_per_slices)),
+        if self.generator_mode:
+            if step_number == 0:
+                number_slices = self.rng.integers(
+                    low=self.min_number_slices,
+                    high=self.max_number_slices,
+                    endpoint=True,
+                )
+                self.slices_to_use = self.rng.choice(
+                    np.arange(self.max_number_slices),
+                    number_slices,
                     replace=False,
                 )
+                basestation_slice_assoc[0, self.slices_to_use] = 1
+                slice_req = {
+                    f"slice_{id}": {}
+                    for id in np.arange(self.max_number_slices)
+                }
+                slice_req = self.slice_generator(slice_req, self.slices_to_use)
+                ues_per_slices = np.array(
+                    [
+                        self.rng.integers(
+                            slice_req[f"slice_{slice_idx}"]["ues"][
+                                "min_number_ues"
+                            ],
+                            slice_req[f"slice_{slice_idx}"]["ues"][
+                                "max_number_ues"
+                            ],
+                            1,
+                            endpoint=True,
+                        )
+                        for slice_idx in self.slices_to_use
+                    ]
+                ).flatten()
+                active_ues = np.array(
+                    self.rng.choice(
+                        (basestation_ue_assoc[0] == 0).nonzero()[0],
+                        int(np.sum(ues_per_slices)),
+                        replace=False,
+                    )
+                )
+                used_ues = 0
+                used_slices = 0
+                for idx in self.slices_to_use:
+                    if basestation_slice_assoc[0, idx] == 1:
+                        slice_ue_assoc[
+                            idx,
+                            active_ues[
+                                used_ues : used_ues
+                                + ues_per_slices[used_slices]
+                            ],
+                        ] = 1
+                        used_ues += ues_per_slices[used_slices]
+                        used_slices += 1
+                basestation_ue_assoc = np.array(
+                    [np.sum(slice_ue_assoc, axis=0)]
+                )
+
+                self.update_ues(slice_ue_assoc, self.slices_to_use, slice_req)
+
+            return (
+                basestation_ue_assoc,
+                basestation_slice_assoc,
+                slice_ue_assoc,
+                slice_req,
             )
-            used_ues = 0
-            used_slices = 0
-            for idx in self.slices_to_use:
-                if basestation_slice_assoc[0, idx] == 1:
-                    slice_ue_assoc[
-                        idx,
-                        active_ues[
-                            used_ues : used_ues + ues_per_slices[used_slices]
-                        ],
-                    ] = 1
-                    used_ues += ues_per_slices[used_slices]
-                    used_slices += 1
-            basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
+        else:
+            if episode_number != self.current_episode:
+                self.load_episode_data(episode_number)  # Update variables
+                self.update_ues(
+                    self.hist_slice_ue_assoc[step_number],
+                    self.hist_slices_to_use[step_number],
+                    self.hist_slice_req[step_number],
+                )
 
-            self.update_ues(slice_ue_assoc, self.slices_to_use, slice_req)
-
-        return (
-            basestation_ue_assoc,
-            basestation_slice_assoc,
-            slice_ue_assoc,
-            slice_req,
-        )
+            return (
+                self.hist_basestation_ue_assoc[step_number],
+                self.hist_basestation_slice_assoc[step_number],
+                self.hist_slice_ue_assoc[step_number],
+                self.hist_slice_req[step_number],
+            )
 
     def slice_generator(
         self, slice_req: dict, slices_to_use: np.ndarray
@@ -448,3 +471,23 @@ class MultSliceAssociationFixed(Association):
                 slice_info("buffer_size", len(slice_ues), slice_req),
                 slice_info("message_size", len(slice_ues), slice_req),
             )
+
+    def load_episode_data(self, episode_number: int):
+        self.association_file = np.load(
+            f"{self.root_path}/associations/data/{self.scenario_name}/ep_{episode_number}.npz",
+            allow_pickle=True,
+            mmap_mode=None,
+        )
+        self.hist_slice_ue_assoc = self.association_file["hist_slice_ue_assoc"]
+        self.hist_slices_to_use = self.association_file["hist_slices_to_use"]
+        self.hist_slice_req = self.association_file["hist_slice_req"]
+        self.hist_basestation_slice_assoc = self.association_file[
+            "hist_basestation_slice_assoc"
+        ]
+        self.hist_basestation_ue_assoc = self.association_file[
+            "hist_basestation_ue_assoc"
+        ]
+        self.hist_slices_lifetime = self.association_file[
+            "hist_slices_lifetime"
+        ]
+        self.current_episode = episode_number
