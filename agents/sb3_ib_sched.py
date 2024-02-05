@@ -109,6 +109,7 @@ class IBSchedSB3(Agent):
             total_timesteps=total_timesteps,
             progress_bar=True,
             callback=[self.callback_checkpoint, self.callback_evaluation],
+            log_interval=1,  # Number of episodes
         )
         self.agent.save(
             f"./agents/models/{self.env.comm_env.simu_name}/final_sb3_ib_sched"

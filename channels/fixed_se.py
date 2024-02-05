@@ -23,7 +23,7 @@ class FixedSE(Channel):
             root_path,
             scenario_name,
         )
-        self.fixed_se = 2.0
+        self.fixed_se = 5.0
 
     def step(
         self,

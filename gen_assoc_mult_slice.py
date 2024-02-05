@@ -6,13 +6,16 @@ import yaml
 from scipy.io import savemat
 
 from associations.mult_slice import MultSliceAssociation
+from associations.mult_slice_fixed import MultSliceAssociationFixed
 from sixg_radio_mgmt import UEs
 from traffics.mult_slice import MultSliceTraffic
 
-config_file = "mult_slice_simple"
+config_file = "mult_slice_fixed"
 seed = 10
 initial_episode = 0
-number_episodes = 300
+number_episodes = 500
+generate_quadriga = True
+class_association = MultSliceAssociationFixed
 
 with open(f"./env_config/{config_file}.yml") as file:
     data = yaml.safe_load(file)
@@ -90,7 +93,7 @@ for episode in np.arange(initial_episode, number_episodes):
         np.repeat(1024, max_number_ues),
         np.repeat(100, max_number_ues),
     )
-    mult_slice_assoc = MultSliceAssociation(
+    mult_slice_assoc = class_association(
         ues,
         max_number_ues,
         max_number_basestations,
@@ -232,14 +235,15 @@ for episode in np.arange(initial_episode, number_episodes):
     )
 
     # Generate files for QuaDRiGa
-    generate_quadriga_files(
-        episode,
-        number_steps,
-        max_number_ues,
-        max_number_slices,
-        hist_slice_ue_assoc,
-        hist_slice_req,
-    )
+    if generate_quadriga:
+        generate_quadriga_files(
+            episode,
+            number_steps,
+            max_number_ues,
+            max_number_slices,
+            hist_slice_ue_assoc,
+            hist_slice_req,
+        )
 
     # Create result folder for episode
     resuts_common_path = f"results/{scenario_name}/ep_{episode}/associations/"
