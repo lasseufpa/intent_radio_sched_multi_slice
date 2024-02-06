@@ -1011,7 +1011,7 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
     return distance_slice
 
 
-scenario_names = ["mult_slice"]
+scenario_names = ["mult_slice_fixed"]
 agent_names = [
     # "random",
     "round_robin",
@@ -1024,7 +1024,7 @@ agent_names = [
     # "sched_twc",
     "sb3_ib_sched",
 ]
-episodes = np.arange(200, 201, dtype=int)
+episodes = np.arange(490, 495, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
@@ -1032,14 +1032,14 @@ metrics = [
     # "agent_action",
     "sched_decision",
     # "intent_slice_metric",
-    "observation_intent",
-    "observation_slice_traffic",
-    "observation_priority",
-    "observation_spectral_eff",
-    "observation_buffer_occ",
-    "observation_buffer_lat",
+    # "observation_intent",
+    # "observation_slice_traffic",
+    # "observation_priority",
+    # "observation_spectral_eff",
+    # "observation_buffer_occ",
+    # "observation_buffer_lat",
     # "basestation_slice_assoc",
-    "reward",
+    # "reward",
     # "total_network_throughput",
     # "total_network_eff_throughput",
     # "total_network_requested_throughput",
@@ -1049,7 +1049,7 @@ metrics = [
     # "ues_spectral_efficiencies",
     "rbs_needed_slice",
     "rbs_needed_total",
-    "reward_cumsum",
+    # "reward_cumsum",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)

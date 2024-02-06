@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 from agents.marr import MARR
 from associations.mult_slice import MultSliceAssociation
+from associations.mult_slice_fixed import MultSliceAssociationFixed
 from channels.quadriga import QuadrigaChannel
 from channels.fixed_se import FixedSE
 from mobilities.simple import SimpleMobility
@@ -18,8 +19,8 @@ env_config = {
     "channel_class": FixedSE,  # QuadrigaChannel, TODO
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
+    "association_class": MultSliceAssociationFixed,  # MultSliceAssociation, TODO
+    "scenario": "mult_slice_fixed",
     "agent": "round_robin",
     "root_path": str(getcwd()),
 }
@@ -54,8 +55,8 @@ marl_comm_env.set_agent_functions(
 # testing
 seed = 10
 number_episodes = 10
-initial_episode = 290
-total_test_steps = 10000
+initial_episode = 490
+total_test_steps = 1000
 marl_comm_env.comm_env.max_number_episodes = number_episodes + initial_episode
 obs, _ = marl_comm_env.reset(
     seed=seed, options={"initial_episode": initial_episode}
