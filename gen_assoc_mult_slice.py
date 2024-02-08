@@ -13,7 +13,7 @@ from traffics.mult_slice import MultSliceTraffic
 config_file = "mult_slice_fixed"
 seed = 10
 initial_episode = 0
-number_episodes = 500
+number_episodes = 1000
 generate_quadriga = True
 class_association = MultSliceAssociationFixed
 
@@ -36,6 +36,7 @@ def generate_quadriga_files(
     max_number_slices,
     hist_slice_ue_assoc,
     hist_slice_req,
+    basestation_ue_assoc,
 ):
     print("Generating Quadriga files (UEs velocities)\n\n")
     ues_velocities_per_step = np.zeros((number_steps, max_number_ues))
@@ -82,6 +83,7 @@ def generate_quadriga_files(
         {
             "ues_velocities": ues_velocities,
             "speed_change_steps": speed_change_steps,
+            "basestation_ue_assoc": basestation_ue_assoc,
         },
     )
 
@@ -243,6 +245,7 @@ for episode in np.arange(initial_episode, number_episodes):
             max_number_slices,
             hist_slice_ue_assoc,
             hist_slice_req,
+            hist_basestation_ue_assoc[0, :, :],
         )
 
     # Create result folder for episode
