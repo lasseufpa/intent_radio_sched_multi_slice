@@ -17,10 +17,10 @@ agent_type = "sac"  # "ppo" or "sac"
 env_config = {
     "seed": 10,
     "agent_class": IBSchedSB3,
-    "channel_class": FixedSE,  # QuadrigaChannel, TODO
+    "channel_class": QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociationFixed,  # MultSliceAssociation, TODO
+    "association_class": MultSliceAssociationFixed,
     "scenario": "mult_slice_fixed",
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
