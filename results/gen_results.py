@@ -1011,6 +1011,88 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
     return distance_slice
 
 
+def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
+    xlabel = "Episode number"
+    x_values = np.arange(episodes[0], episodes[-1] + 1, dtype=int)
+    y_values = np.array([])
+    for episode in episodes:
+        data = np.load(
+            f"hist/{scenario}/{agent}/ep_{episode}.npz",
+            allow_pickle=True,
+        )
+        data_metrics = {
+            "pkt_incoming": data["pkt_incoming"],
+            "pkt_throughputs": data["pkt_throughputs"],
+            "pkt_effective_thr": data["pkt_effective_thr"],
+            "buffer_occupancies": data["buffer_occupancies"],
+            "buffer_latencies": data["buffer_latencies"],
+            "dropped_pkts": data["dropped_pkts"],
+            "mobility": data["mobility"],
+            "spectral_efficiencies": data["spectral_efficiencies"],
+            "basestation_ue_assoc": data["basestation_ue_assoc"],
+            "basestation_slice_assoc": data["basestation_slice_assoc"],
+            "slice_ue_assoc": data["slice_ue_assoc"],
+            "sched_decision": data["sched_decision"],
+            "reward": data["reward"],
+            "slice_req": data["slice_req"],
+            "obs": data["obs"],
+            "agent_action": data["agent_action"],
+        }
+
+        match metric:
+            case "reward_per_episode":
+                reward = data_metrics["reward"]
+                y_values = np.append(y_values, np.sum(reward))
+                ylabel = "Reward (inter-slice agent)"
+
+    match metric:
+        case "reward_per_episode":
+            plt.scatter(x_values, y_values, label=f"{agent}")
+            ylabel = "Reward (inter-slice agent)"
+
+    return (xlabel, ylabel)
+
+
+def gen_results_total(
+    scenario_names: list[str],
+    agent_names: list[str],
+    episodes: np.ndarray,
+    metrics: list,
+    slices: np.ndarray,
+):
+    global_dict = {}
+    xlabel = ylabel = ""
+    agent_results = {
+        agent: {"x_values": np.array([]), "y_values": np.array([])}
+        for agent in agent_names
+    }
+    for scenario in scenario_names:
+        for metric in metrics:
+            w, h = matfig.figaspect(0.6)
+            plt.figure(figsize=(w, h))
+            for agent in agent_names:
+                xlabel, ylabel = plot_total_episodes(
+                    metric, scenario, agent, episodes
+                )
+            plt.grid()
+            plt.xlabel(xlabel, fontsize=14)
+            plt.ylabel(ylabel, fontsize=14)
+            plt.xticks(fontsize=12)
+            plt.legend(fontsize=12, bbox_to_anchor=(1.04, 1), loc="upper left")
+            os.makedirs(
+                f"./results/{scenario}/",
+                exist_ok=True,
+            )
+            plt.savefig(
+                f"./results/{scenario}/{metric}.pdf",
+                bbox_inches="tight",
+                pad_inches=0,
+                format="pdf",
+                dpi=1000,
+            )
+            plt.close()
+
+
 scenario_names = ["mult_slice_fixed"]
 agent_names = [
     # "random",
@@ -1024,13 +1106,13 @@ agent_names = [
     # "sched_twc",
     "sb3_ib_sched",
 ]
-episodes = np.arange(490, 495, dtype=int)
+episodes = np.arange(900, 1000, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
 metrics = [
     # "agent_action",
-    "sched_decision",
+    # "sched_decision",
     # "intent_slice_metric",
     # "observation_intent",
     # "observation_slice_traffic",
@@ -1047,24 +1129,30 @@ metrics = [
     # "violations_per_slice_type_metric",
     # "throughput_per_rb",
     # "ues_spectral_efficiencies",
-    "rbs_needed_slice",
-    "rbs_needed_total",
+    # "rbs_needed_slice",
+    # "rbs_needed_total",
     # "reward_cumsum",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
 # One graph for all agents
 metrics = [
-    "reward",
-    "reward_comparison",
-    "reward_cumsum",
+    # "reward",
+    # "reward_comparison",
+    # "reward_cumsum",
     # "violations",
-    "violations_cumsum",
+    # "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
     # "distance_fulfill",
-    "distance_fulfill_cumsum",
+    # "distance_fulfill_cumsum",
     # "intent_slice_metric",
     # "sched_decision_comparison",
 ]
 gen_results(scenario_names, agent_names, episodes, metrics, slices)
+
+# One graph for all agents considering all episodes (one graph for all episodes)
+metrics = [
+    "reward_per_episode",
+]
+gen_results_total(scenario_names, agent_names, episodes, metrics, slices)
