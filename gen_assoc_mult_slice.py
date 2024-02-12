@@ -317,8 +317,8 @@ for episode in np.arange(initial_episode, number_episodes):
     # Number of slices
     plt.figure()
     plt.plot(
-        np.arange(hist_slices_lifetime.shape[0]),
-        np.sum(hist_slices_lifetime > 0, axis=1),
+        np.arange(hist_basestation_slice_assoc.shape[0]),
+        np.sum(np.squeeze(hist_basestation_slice_assoc), axis=1),
     )
     plt.title("Slices in the system")
     plt.grid()
