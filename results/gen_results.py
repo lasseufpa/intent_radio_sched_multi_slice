@@ -1113,8 +1113,6 @@ agent_names = [
     # "ib_sched_lstm",
     # "sched_twc",
     # "sb3_ib_sched",
-    "sb3_ib_sched_eval_1",
-    "sb3_ib_sched_eval_2",
 ]
 episodes = np.arange(0, 10, dtype=int)
 slices = np.arange(5)
