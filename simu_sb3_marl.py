@@ -8,6 +8,7 @@ from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_fixed import MultSliceAssociationFixed
 from channels.quadriga import QuadrigaChannel
 from channels.fixed_se import FixedSE
+from channels.mimic_quadriga import MimicQuadriga
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
@@ -17,7 +18,7 @@ agent_type = "sac"  # "ppo" or "sac"
 env_config = {
     "seed": 10,
     "agent_class": IBSchedSB3,
-    "channel_class": QuadrigaChannel,
+    "channel_class": MimicQuadriga,  # QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociationFixed,
@@ -107,4 +108,4 @@ for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
     if terminated:
-        obs, _ = marl_comm_env.reset(seed=env_config["seed"])
+        obs, _ = marl_comm_env.reset()

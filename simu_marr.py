@@ -9,6 +9,7 @@ from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_fixed import MultSliceAssociationFixed
 from channels.quadriga import QuadrigaChannel
 from channels.fixed_se import FixedSE
+from channels.mimic_quadriga import MimicQuadriga
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
@@ -16,10 +17,10 @@ from traffics.mult_slice import MultSliceTraffic
 env_config = {
     "seed": 10,
     "agent_class": MARR,
-    "channel_class": FixedSE,  # QuadrigaChannel, TODO
+    "channel_class": MimicQuadriga,  # TODO
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociationFixed,  # MultSliceAssociation, TODO
+    "association_class": MultSliceAssociationFixed,
     "scenario": "mult_slice_fixed",
     "agent": "round_robin",
     "root_path": str(getcwd()),
@@ -68,4 +69,4 @@ for step in tqdm(
     obs, reward, terminated, truncated, info = marl_comm_env.step(action)
     assert isinstance(terminated, dict), "Terminated is not a dict"
     if terminated["__all__"]:
-        obs, _ = marl_comm_env.reset(seed=seed)
+        obs, _ = marl_comm_env.reset()
