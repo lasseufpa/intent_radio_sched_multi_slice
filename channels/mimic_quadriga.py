@@ -23,7 +23,6 @@ class MimicQuadriga(Channel):
             root_path,
             scenario_name,
         )
-        self.rng = np.random.default_rng()
         self.current_episode_number = -1
         self.ues_mean_se = np.array([])
         self.default_std = 1.5

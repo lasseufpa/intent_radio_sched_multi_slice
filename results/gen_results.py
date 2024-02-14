@@ -202,13 +202,11 @@ def plot_graph(
                         ]
                     )
                     plt.plot(
-                        np.abs(
-                            np.subtract(
-                                global_dict["agent_1_reward"],
-                                global_dict["agent_2_reward"],
-                            )
+                        np.subtract(
+                            global_dict["agent_1_reward"],
+                            global_dict["agent_2_reward"],
                         ),
-                        label=f"abs({agents[0]} - {agents[1]})",
+                        label=f"{agents[0]} - {agents[1]}",
                     )
                     break
             case "reward_cumsum":
@@ -257,10 +255,7 @@ def plot_graph(
                 avg_spec_eff = np.mean(
                     np.squeeze(data_metrics["spectral_efficiencies"]), axis=2
                 )
-                min_spec_eff = np.min(
-                    np.squeeze(data_metrics["spectral_efficiencies"]), axis=2
-                )
-                max_spec_eff = np.max(
+                std_spec_eff = np.std(
                     np.squeeze(data_metrics["spectral_efficiencies"]), axis=2
                 )
 
@@ -268,8 +263,8 @@ def plot_graph(
                     plt.plot(avg_spec_eff[:, ue_idx], label=f"UE {ue_idx}")
                     plt.fill_between(
                         np.arange(avg_spec_eff.shape[0]),
-                        min_spec_eff[:, ue_idx],
-                        max_spec_eff[:, ue_idx],
+                        avg_spec_eff[:, ue_idx] - std_spec_eff[:, ue_idx],
+                        avg_spec_eff[:, ue_idx] - std_spec_eff[:, ue_idx],
                         alpha=0.3,
                     )
                 break
@@ -368,18 +363,28 @@ def plot_graph(
                     * slice_ues,
                     axis=1,
                 )
+                std_spec_eff = np.std(
+                    np.squeeze(data_metrics["spectral_efficiencies"]),
+                    axis=2,
+                )
                 min_num = np.sum(
-                    np.min(
-                        np.squeeze(data_metrics["spectral_efficiencies"]),
-                        axis=2,
+                    (
+                        np.mean(
+                            np.squeeze(data_metrics["spectral_efficiencies"]),
+                            axis=2,
+                        )
+                        - std_spec_eff
                     )
                     * slice_ues,
                     axis=1,
                 )
                 max_num = np.sum(
-                    np.max(
-                        np.squeeze(data_metrics["spectral_efficiencies"]),
-                        axis=2,
+                    (
+                        np.mean(
+                            np.squeeze(data_metrics["spectral_efficiencies"]),
+                            axis=2,
+                        )
+                        + std_spec_eff
                     )
                     * slice_ues,
                     axis=1,
@@ -1040,12 +1045,15 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
         }
 
         match metric:
-            case "reward_per_episode":
+            case "reward_per_episode" | "reward_per_episode_cumsum":
                 reward = data_metrics["reward"]
                 y_values = np.append(y_values, np.sum(reward))
                 ylabel = "Reward (inter-slice agent)"
 
     match metric:
+        case "reward_per_episode_cumsum":
+            plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
+            ylabel = "Reward (inter-slice agent)"
         case "reward_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "Reward (inter-slice agent)"
@@ -1096,7 +1104,7 @@ def gen_results_total(
 scenario_names = ["mult_slice_fixed"]
 agent_names = [
     # "random",
-    "round_robin",
+    # "round_robin",
     # "ib_sched",
     # "ib_sched_old",
     # "ib_sched_deepmind",
@@ -1104,9 +1112,11 @@ agent_names = [
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    "sb3_ib_sched",
+    # "sb3_ib_sched",
+    "sb3_ib_sched_eval_1",
+    "sb3_ib_sched_eval_2",
 ]
-episodes = np.arange(900, 1000, dtype=int)
+episodes = np.arange(0, 10, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
@@ -1124,11 +1134,11 @@ metrics = [
     # "reward",
     # "total_network_throughput",
     # "total_network_eff_throughput",
-    # "total_network_requested_throughput",
+    "total_network_requested_throughput",
     # "violations_per_slice_type",
     # "violations_per_slice_type_metric",
     # "throughput_per_rb",
-    # "ues_spectral_efficiencies",
+    "ues_spectral_efficiencies",
     # "rbs_needed_slice",
     # "rbs_needed_total",
     # "reward_cumsum",
@@ -1149,10 +1159,11 @@ metrics = [
     # "intent_slice_metric",
     # "sched_decision_comparison",
 ]
-gen_results(scenario_names, agent_names, episodes, metrics, slices)
+# gen_results(scenario_names, agent_names, episodes, metrics, slices)
 
 # One graph for all agents considering all episodes (one graph for all episodes)
 metrics = [
-    "reward_per_episode",
+    # "reward_per_episode_cumsum",
+    # "reward_per_episode",
 ]
 gen_results_total(scenario_names, agent_names, episodes, metrics, slices)

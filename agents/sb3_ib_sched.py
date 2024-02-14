@@ -4,7 +4,8 @@ from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CheckpointCallback
+from agents.sb3_callbacks import CustomEvalCallback as EvalCallback
 from stable_baselines3.ppo.ppo import PPO
 from stable_baselines3.sac.sac import SAC
 
@@ -22,6 +23,7 @@ class IBSchedSB3(Agent):
         num_available_rbs: np.ndarray,
         eval_env: MARLCommEnv,
         agent_type: str = "ppo",
+        seed: int = np.random.randint(1000),
     ) -> None:
         super().__init__(
             env,
@@ -29,14 +31,15 @@ class IBSchedSB3(Agent):
             max_number_slices,
             max_number_basestations,
             num_available_rbs,
+            seed=seed,
         )
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         self.agent_type = agent_type
-        self.episode_evaluation_freq = 20
+        self.episode_evaluation_freq = 10
         self.number_evaluation_episodes = 10
-        checkpoint_episode_freq = 20
+        checkpoint_episode_freq = 10
         eval_initial_env_episode = self.env.comm_env.max_number_episodes
         eval_maximum_env_episode = (
             eval_initial_env_episode + self.number_evaluation_episodes
@@ -71,6 +74,7 @@ class IBSchedSB3(Agent):
             * self.episode_evaluation_freq,
             verbose=False,
             warn=False,
+            seed=self.seed,
         )
         self.callback_checkpoint = CheckpointCallback(
             save_freq=self.checkpoint_frequency,

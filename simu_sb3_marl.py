@@ -59,6 +59,7 @@ def env_creator(env_config):
         marl_comm_env.comm_env.num_available_rbs,
         eval_env,
         agent_type,
+        seed=env_config["seed"],
     )
     marl_comm_env.set_agent_functions(
         agent.obs_space_format,
