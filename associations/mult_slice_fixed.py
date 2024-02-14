@@ -27,7 +27,7 @@ class MultSliceAssociationFixed(Association):
             root_path,
         )
         self.scenario_name = scenario_name
-        self.min_number_slices = 2
+        self.min_number_slices = 3
         self.generator_mode = generator_mode
         self.max_number_slices = 5
         self.current_episode = -1
@@ -77,7 +77,7 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 2,  # Mbps
+                    "traffic": 5,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -88,7 +88,7 @@ class MultSliceAssociationFixed(Association):
                 "parameters": {
                     "par1": {
                         "name": "throughput",
-                        "value": 5,
+                        "value": 10,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -98,7 +98,7 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,
                     "mobility": 72,  # Km/h
-                    "traffic": 5,  # Mbps
+                    "traffic": 10,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -121,7 +121,7 @@ class MultSliceAssociationFixed(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 16,
+                        "value": 30,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -131,9 +131,9 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 2000 * 8,
                     "mobility": 0,  # Km/h
-                    "traffic": 16,  # Mbps
-                    "min_number_ues": 2,
-                    "max_number_ues": 4,
+                    "traffic": 30,  # Mbps
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
                 },
             },
             "robotic_diagnosis": {
@@ -154,7 +154,7 @@ class MultSliceAssociationFixed(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 16,
+                        "value": 30,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -164,8 +164,8 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
-                    "traffic": 16,  # Mbps,
-                    "min_number_ues": 2,
+                    "traffic": 30,  # Mbps,
+                    "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
             },
@@ -187,7 +187,7 @@ class MultSliceAssociationFixed(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 1,
+                        "value": 10,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -197,7 +197,7 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 200,  # ms
                     "message_size": 1000 * 8,
                     "mobility": 200,  # Km/h
-                    "traffic": 1,  # Mbps
+                    "traffic": 10,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -225,8 +225,8 @@ class MultSliceAssociationFixed(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                     "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
                 },
             },
             "uav_control_non_vlos": {
@@ -247,7 +247,7 @@ class MultSliceAssociationFixed(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 4,
+                        "value": 20,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -257,7 +257,7 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 300,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
-                    "traffic": 4,  # Mbps
+                    "traffic": 20,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -291,8 +291,8 @@ class MultSliceAssociationFixed(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
                     "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
                 },
             },
             "cloud_gaming": {
@@ -307,7 +307,7 @@ class MultSliceAssociationFixed(Association):
                     },
                     "par2": {
                         "name": "throughput",
-                        "value": 25,
+                        "value": 50,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -317,8 +317,8 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 160,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 25,  # Mbps
-                    "min_number_ues": 1,
+                    "traffic": 50,  # Mbps
+                    "min_number_ues": 2,
                     "max_number_ues": 5,
                 },
             },
@@ -328,7 +328,7 @@ class MultSliceAssociationFixed(Association):
                 "parameters": {
                     "par1": {
                         "name": "throughput",
-                        "value": 15,
+                        "value": 30,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -338,7 +338,7 @@ class MultSliceAssociationFixed(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 15,  # Mbps
+                    "traffic": 30,  # Mbps
                     "min_number_ues": 2,
                     "max_number_ues": 5,
                 },
@@ -440,7 +440,7 @@ class MultSliceAssociationFixed(Association):
         self, slice_req: dict, slices_to_use: np.ndarray
     ) -> dict:
         slices_to_create = self.rng.choice(
-            len(self.slice_types), len(slices_to_use)
+            len(self.slice_types), len(slices_to_use), replace=False
         )
 
         for idx, slice in enumerate(slices_to_create):
