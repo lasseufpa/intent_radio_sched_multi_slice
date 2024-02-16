@@ -30,6 +30,7 @@ class MultSliceAssociationFixed(Association):
         self.min_number_slices = 3
         self.generator_mode = generator_mode
         self.max_number_slices = 5
+        self.channels_per_association = 10
         self.current_episode = -1
         self.slices_to_use = np.array([])
         self.slice_types = [
@@ -421,8 +422,9 @@ class MultSliceAssociationFixed(Association):
                 slice_req,
             )
         else:
-            if episode_number != self.current_episode:
-                self.load_episode_data(episode_number)  # Update variables
+            episode_to_use = episode_number // self.channels_per_association
+            if episode_to_use != self.current_episode:
+                self.load_episode_data(episode_to_use)  # Update variables
                 self.update_ues(
                     self.hist_slice_ue_assoc[step_number],
                     self.hist_slices_to_use[step_number],

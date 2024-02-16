@@ -474,7 +474,7 @@ def plot_graph(
                 elif metric == "rbs_needed_total" and slice == slices[-1]:
                     plt.plot(
                         global_dict["avg_needed_rbs"],
-                        label=f"avg total",
+                        label="avg total",
                         linestyle="--",
                     )
                     plt.plot(
@@ -1018,6 +1018,7 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
 
 def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
     xlabel = "Episode number"
+    ylabel = ""
     x_values = np.arange(episodes[0], episodes[-1] + 1, dtype=int)
     y_values = np.array([])
     for episode in episodes:
@@ -1055,7 +1056,7 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
     match metric:
         case "reward_per_episode_cumsum":
             plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
-            ylabel = "Reward (inter-slice agent)"
+            ylabel = "Cumulative reward (inter-slice agent)"
         case "reward_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "Reward (inter-slice agent)"
@@ -1076,12 +1077,7 @@ def gen_results_total(
     metrics: list,
     slices: np.ndarray,
 ):
-    global_dict = {}
     xlabel = ylabel = ""
-    agent_results = {
-        agent: {"x_values": np.array([]), "y_values": np.array([])}
-        for agent in agent_names
-    }
     for scenario in scenario_names:
         for metric in metrics:
             w, h = matfig.figaspect(0.6)
@@ -1122,7 +1118,7 @@ agent_names = [
     # "sched_twc",
     "sb3_ib_sched",
 ]
-episodes = np.arange(100, 110, dtype=int)
+episodes = np.arange(80, 100, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
@@ -1136,7 +1132,8 @@ metrics = [
     # "observation_spectral_eff",
     # "observation_buffer_occ",
     # "observation_buffer_lat",
-    # "basestation_slice_assoc",
+    "basestation_slice_assoc",
+    "basestation_ue_assoc",
     "reward",
     # "total_network_throughput",
     # "total_network_eff_throughput",
