@@ -16,6 +16,7 @@ from traffics.mult_slice import MultSliceTraffic
 
 env_config = {
     "seed": 10,
+    "seed_test": 15,
     "agent_class": MARR,
     "channel_class": MimicQuadriga,  # TODO
     "traffic_class": MultSliceTraffic,
@@ -54,13 +55,12 @@ marl_comm_env.set_agent_functions(
 
 
 # testing
-seed = 10
 number_episodes = 100
 initial_episode = 900
 total_test_steps = 1000
 marl_comm_env.comm_env.max_number_episodes = number_episodes + initial_episode
 obs, _ = marl_comm_env.reset(
-    seed=seed, options={"initial_episode": initial_episode}
+    seed=env_config["seed_test"], options={"initial_episode": initial_episode}
 )
 for step in tqdm(
     np.arange(total_test_steps * number_episodes), desc="Testing..."

@@ -17,6 +17,7 @@ training_flag = True  # False for reading from checkpoint
 agent_type = "sac"  # "ppo" or "sac"
 env_config = {
     "seed": 10,
+    "seed_test": 15,
     "agent_class": IBSchedSB3,
     "channel_class": MimicQuadriga,  # QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
@@ -103,7 +104,7 @@ marl_comm_env.comm_env.max_number_episodes = (
     number_episodes + env_config["test_episodes"]
 )
 obs, _ = marl_comm_env.reset(
-    seed=env_config["seed"], options={"initial_episode": number_episodes}
+    seed=env_config["seed_test"], options={"initial_episode": number_episodes}
 )
 for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
     action = sb3_agent.step(obs)
