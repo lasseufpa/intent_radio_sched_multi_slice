@@ -7,9 +7,9 @@ from tqdm import tqdm
 from agents.marr import MARR
 from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_fixed import MultSliceAssociationFixed
-from channels.quadriga import QuadrigaChannel
 from channels.fixed_se import FixedSE
 from channels.mimic_quadriga import MimicQuadriga
+from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic

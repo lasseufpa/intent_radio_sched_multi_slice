@@ -5,11 +5,11 @@ from typing import Optional, Union
 import numpy as np
 from gymnasium import spaces
 from stable_baselines3.common.callbacks import CheckpointCallback
-from agents.sb3_callbacks import CustomEvalCallback as EvalCallback
 from stable_baselines3.ppo.ppo import PPO
 from stable_baselines3.sac.sac import SAC
 
 from agents.ib_sched import IBSched
+from agents.sb3_callbacks import CustomEvalCallback as EvalCallback
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 

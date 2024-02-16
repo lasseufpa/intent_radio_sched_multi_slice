@@ -6,9 +6,9 @@ from tqdm import tqdm
 from agents.sb3_ib_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_fixed import MultSliceAssociationFixed
-from channels.quadriga import QuadrigaChannel
 from channels.fixed_se import FixedSE
 from channels.mimic_quadriga import MimicQuadriga
+from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
@@ -27,7 +27,7 @@ env_config = {
     "agent": "sb3_ib_sched",
     "root_path": str(getcwd()),
     "training_epochs": 10,
-    "test_episodes": 100,
+    "test_episodes": 1000,
 }
 
 
