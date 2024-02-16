@@ -1048,7 +1048,9 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
             case "reward_per_episode" | "reward_per_episode_cumsum":
                 reward = data_metrics["reward"]
                 y_values = np.append(y_values, np.sum(reward))
-                ylabel = "Reward (inter-slice agent)"
+            case "violations_per_episode" | "violations_per_episode_cumsum":
+                violations, _, _, _ = calc_slice_violations(data_metrics)
+                y_values = np.append(y_values, np.sum(violations))
 
     match metric:
         case "reward_per_episode_cumsum":
@@ -1057,6 +1059,12 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
         case "reward_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "Reward (inter-slice agent)"
+        case "violations_per_episode_cumsum":
+            plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
+            ylabel = "Cumulative # Violations"
+        case "violations_per_episode":
+            plt.scatter(x_values, y_values, label=f"{agent}")
+            ylabel = "# Violations"
 
     return (xlabel, ylabel)
 
@@ -1104,7 +1112,7 @@ def gen_results_total(
 scenario_names = ["mult_slice_fixed"]
 agent_names = [
     # "random",
-    # "round_robin",
+    "round_robin",
     # "ib_sched",
     # "ib_sched_old",
     # "ib_sched_deepmind",
@@ -1112,15 +1120,15 @@ agent_names = [
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    # "sb3_ib_sched",
+    "sb3_ib_sched",
 ]
-episodes = np.arange(0, 10, dtype=int)
+episodes = np.arange(100, 110, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
 metrics = [
     # "agent_action",
-    # "sched_decision",
+    "sched_decision",
     # "intent_slice_metric",
     # "observation_intent",
     # "observation_slice_traffic",
@@ -1129,7 +1137,7 @@ metrics = [
     # "observation_buffer_occ",
     # "observation_buffer_lat",
     # "basestation_slice_assoc",
-    # "reward",
+    "reward",
     # "total_network_throughput",
     # "total_network_eff_throughput",
     "total_network_requested_throughput",
@@ -1137,31 +1145,34 @@ metrics = [
     # "violations_per_slice_type_metric",
     # "throughput_per_rb",
     "ues_spectral_efficiencies",
-    # "rbs_needed_slice",
-    # "rbs_needed_total",
+    "rbs_needed_slice",
+    "rbs_needed_total",
     # "reward_cumsum",
 ]
 for agent in agent_names:
     gen_results(scenario_names, [agent], episodes, metrics, slices)
+
 # One graph for all agents
 metrics = [
     # "reward",
     # "reward_comparison",
-    # "reward_cumsum",
+    "reward_cumsum",
     # "violations",
-    # "violations_cumsum",
+    "violations_cumsum",
     # "sched_decision",
     # "basestation_slice_assoc",
     # "distance_fulfill",
-    # "distance_fulfill_cumsum",
+    "distance_fulfill_cumsum",
     # "intent_slice_metric",
     # "sched_decision_comparison",
 ]
-# gen_results(scenario_names, agent_names, episodes, metrics, slices)
+gen_results(scenario_names, agent_names, episodes, metrics, slices)
 
 # One graph for all agents considering all episodes (one graph for all episodes)
 metrics = [
-    # "reward_per_episode_cumsum",
-    # "reward_per_episode",
+    "reward_per_episode_cumsum",
+    "reward_per_episode",
+    "violations_per_episode",
+    "violations_per_episode_cumsum",
 ]
 gen_results_total(scenario_names, agent_names, episodes, metrics, slices)
