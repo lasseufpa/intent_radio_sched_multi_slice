@@ -197,7 +197,7 @@ class MultSliceAssociationFixed(Association):
                     "buffer_size": 1024 * 10,  # pkts
                     "buffer_latency": 200,  # ms
                     "message_size": 1000 * 8,
-                    "mobility": 200,  # Km/h
+                    "mobility": 0,  # Km/h
                     "traffic": 10,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
