@@ -42,7 +42,7 @@ class IBSched(Agent):
         self.last_unformatted_obs = deque(maxlen=max_obs_memory)
         self.last_formatted_obs = {}
         self.intent_overfulfillment_rate = 0.2
-        self.var_obs_inter_slice = 5
+        self.var_obs_inter_slice = 10
         self.var_obs_intra_ue = 2
         self.rbs_per_rbg = 9  # 135/rbs_per_rbg RBGs
 
@@ -124,7 +124,7 @@ class IBSched(Agent):
             active_metrics = np.logical_not(
                 np.isclose(intent_drift_slice, -2)
             ).astype(int)
-            # intent_drift_slice[np.isclose(intent_drift_slice, -2)] = 0
+            intent_drift_slice[np.isclose(intent_drift_slice, -2)] = 0
             slice_buffer_occ = (
                 np.mean(
                     self.last_unformatted_obs[0]["buffer_occupancies"][
@@ -159,12 +159,12 @@ class IBSched(Agent):
                 (
                     formatted_obs_space["player_0"]["observations"],
                     intent_drift_slice,
-                    # active_metrics,
-                    # np.array([slice_priority]),
-                    np.array([slice_traffic_req * slice_ues.shape[0] / 400.0]),
-                    # np.array([slice_ues.shape[0]]),
+                    active_metrics,
+                    np.array([slice_priority]),
+                    np.array([slice_traffic_req]) / 120.0,
+                    np.array([slice_ues.shape[0]]) / 5.0,
                     np.array([spectral_eff_slice])
-                    / 40.0,  # TODO Implement a more appropriate normalization
+                    / 40.0,  # TODO needs a proper normalization
                     # np.array([slice_buffer_occ]),
                     # np.array([slice_buffer_latency]),
                 )
