@@ -96,6 +96,7 @@ class IBSchedSB3(Agent):
                 verbose=0,
                 tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
                 seed=self.seed,
+                policy_kwargs=dict(net_arch=[2048, 2048]),
             )
         else:
             raise ValueError("Invalid agent type")
