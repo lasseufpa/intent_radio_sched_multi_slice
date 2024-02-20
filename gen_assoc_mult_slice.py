@@ -16,6 +16,7 @@ initial_episode = 0
 number_episodes = 1000
 generate_quadriga = True
 class_association = MultSliceAssociationFixed
+generate_plots = False
 
 with open(f"./env_config/{config_file}.yml") as file:
     data = yaml.safe_load(file)
@@ -248,123 +249,127 @@ for episode in np.arange(initial_episode, number_episodes):
             hist_basestation_ue_assoc[0, :, :],
         )
 
-    # Create result folder for episode
-    resuts_common_path = f"results/{scenario_name}/ep_{episode}/associations/"
-    if not os.path.exists(resuts_common_path):
-        os.makedirs(resuts_common_path)
-
-    # Total number of UEs in the system
-    plt.figure()
-    plt.plot(np.arange(len(ues_basestation)), ues_basestation)
-    plt.title("UEs connected to the base station")
-    plt.ylabel("Number of UEs")
-    plt.xlabel("Simulation step (n)")
-    plt.grid()
-    plt.savefig(
-        f"{resuts_common_path}ues_per_basestation.pdf",
-        bbox_inches="tight",
-        pad_inches=0,
-        format="pdf",
-        dpi=1000,
-    )
-    plt.close()
-
-    # Number of UEs per slice
-    plt.figure()
-    for idx in np.arange(max_number_slices):
-        plt.plot(
-            np.arange(ues_per_slice.shape[1]),
-            ues_per_slice[idx].T,
-            label=f"Slice {idx+1}",
+    if generate_plots:
+        # Create result folder for episode
+        resuts_common_path = (
+            f"results/{scenario_name}/ep_{episode}/associations/"
         )
-    plt.title("Number of UEs per slice")
-    plt.ylabel("Number of UEs")
-    plt.xlabel("Simulation step (n)")
-    plt.grid()
-    plt.legend()
-    plt.savefig(
-        f"{resuts_common_path}ues_per_slice.pdf",
-        bbox_inches="tight",
-        pad_inches=0,
-        format="pdf",
-        dpi=1000,
-    )
-    plt.close()
+        if not os.path.exists(resuts_common_path):
+            os.makedirs(resuts_common_path)
 
-    # Slice life-time
-    plt.figure()
-    for idx in np.arange(max_number_slices):
-        plt.plot(
-            np.arange(hist_slices_lifetime.shape[0]),
-            hist_slices_lifetime[:, idx].T,
-            label=f"Slice {idx+1}",
+        # Total number of UEs in the system
+        plt.figure()
+        plt.plot(np.arange(len(ues_basestation)), ues_basestation)
+        plt.title("UEs connected to the base station")
+        plt.ylabel("Number of UEs")
+        plt.xlabel("Simulation step (n)")
+        plt.grid()
+        plt.savefig(
+            f"{resuts_common_path}ues_per_basestation.pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
         )
-    plt.title("Slice lifetime (remaining steps)")
-    plt.grid()
-    plt.legend()
-    plt.ylabel("Remaining steps")
-    plt.xlabel("Simulation step (n)")
-    plt.grid()
-    plt.savefig(
-        f"{resuts_common_path}slices_lifetime.pdf",
-        bbox_inches="tight",
-        pad_inches=0,
-        format="pdf",
-        dpi=1000,
-    )
-    plt.close()
+        plt.close()
 
-    # Number of slices
-    plt.figure()
-    plt.plot(
-        np.arange(hist_basestation_slice_assoc.shape[0]),
-        np.sum(np.squeeze(hist_basestation_slice_assoc), axis=1),
-    )
-    plt.title("Slices in the system")
-    plt.grid()
-    plt.ylabel("Number of slices")
-    plt.xlabel("Simulation step (n)")
-    plt.grid()
-    plt.savefig(
-        f"{resuts_common_path}number_slices_per_step.pdf",
-        bbox_inches="tight",
-        pad_inches=0,
-        format="pdf",
-        dpi=1000,
-    )
-    plt.close()
+        # Number of UEs per slice
+        plt.figure()
+        for idx in np.arange(max_number_slices):
+            plt.plot(
+                np.arange(ues_per_slice.shape[1]),
+                ues_per_slice[idx].T,
+                label=f"Slice {idx+1}",
+            )
+        plt.title("Number of UEs per slice")
+        plt.ylabel("Number of UEs")
+        plt.xlabel("Simulation step (n)")
+        plt.grid()
+        plt.legend()
+        plt.savefig(
+            f"{resuts_common_path}ues_per_slice.pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
 
-    # Slice traffic for specific slice defined by variable traffic_slice_watch
-    plt.figure()
-    plt.plot(np.arange(traffic_hist.shape[0]), traffic_hist / 1e6)
-    plt.title(f"Slice {traffic_slice_watch} traffic")
-    plt.grid()
-    plt.ylabel("Throughput (Mbps)")
-    plt.xlabel("Simulation step (n)")
-    plt.grid()
-    plt.savefig(
-        f"{resuts_common_path}test_slice_traffic.pdf",
-        bbox_inches="tight",
-        pad_inches=0,
-        format="pdf",
-        dpi=1000,
-    )
-    plt.close()
+        # Slice life-time
+        plt.figure()
+        for idx in np.arange(max_number_slices):
+            plt.plot(
+                np.arange(hist_slices_lifetime.shape[0]),
+                hist_slices_lifetime[:, idx].T,
+                label=f"Slice {idx+1}",
+            )
+        plt.title("Slice lifetime (remaining steps)")
+        plt.grid()
+        plt.legend()
+        plt.ylabel("Remaining steps")
+        plt.xlabel("Simulation step (n)")
+        plt.grid()
+        plt.savefig(
+            f"{resuts_common_path}slices_lifetime.pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
 
-    # Slice traffic for specific slice defined by variable traffic_slice_watch
-    plt.figure()
-    plt.plot(
-        np.arange(hist_total_throughput.shape[0]), hist_total_throughput / 1e6
-    )
-    plt.grid()
-    plt.ylabel("Throughput (Mbps)")
-    plt.xlabel("Simulation step (n)")
-    plt.grid()
-    plt.savefig(
-        f"{resuts_common_path}total_req_throughput.pdf",
-        bbox_inches="tight",
-        pad_inches=0,
-        format="pdf",
-        dpi=1000,
-    )
-    plt.close()
+        # Number of slices
+        plt.figure()
+        plt.plot(
+            np.arange(hist_basestation_slice_assoc.shape[0]),
+            np.sum(np.squeeze(hist_basestation_slice_assoc), axis=1),
+        )
+        plt.title("Slices in the system")
+        plt.grid()
+        plt.ylabel("Number of slices")
+        plt.xlabel("Simulation step (n)")
+        plt.grid()
+        plt.savefig(
+            f"{resuts_common_path}number_slices_per_step.pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
+
+        # Slice traffic for specific slice defined by variable traffic_slice_watch
+        plt.figure()
+        plt.plot(np.arange(traffic_hist.shape[0]), traffic_hist / 1e6)
+        plt.title(f"Slice {traffic_slice_watch} traffic")
+        plt.grid()
+        plt.ylabel("Throughput (Mbps)")
+        plt.xlabel("Simulation step (n)")
+        plt.grid()
+        plt.savefig(
+            f"{resuts_common_path}test_slice_traffic.pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
+
+        # Slice traffic for specific slice defined by variable traffic_slice_watch
+        plt.figure()
+        plt.plot(
+            np.arange(hist_total_throughput.shape[0]),
+            hist_total_throughput / 1e6,
+        )
+        plt.grid()
+        plt.ylabel("Throughput (Mbps)")
+        plt.xlabel("Simulation step (n)")
+        plt.grid()
+        plt.savefig(
+            f"{resuts_common_path}total_req_throughput.pdf",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
