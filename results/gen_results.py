@@ -210,7 +210,12 @@ def plot_graph(
                     )
                     break
             case "reward_cumsum":
-                if agent not in ["sb3_ib_sched", "round_robin"]:
+                if agent not in [
+                    "sb3_ib_sched",
+                    "round_robin",
+                    "finetune_sb3_ib_sched",
+                    "base_sb3_ib_sched",
+                ]:
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
@@ -1116,9 +1121,10 @@ agent_names = [
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    "sb3_ib_sched",
+    "base_sb3_ib_sched",
+    "finetune_sb3_ib_sched",
 ]
-episodes = np.arange(80, 100, dtype=int)
+episodes = np.arange(1080, 1100, dtype=int)
 slices = np.arange(5)
 
 # One graph per agent
@@ -1146,8 +1152,8 @@ metrics = [
     "rbs_needed_total",
     # "reward_cumsum",
 ]
-for agent in agent_names:
-    gen_results(scenario_names, [agent], episodes, metrics, slices)
+# for agent in agent_names:
+#     gen_results(scenario_names, [agent], episodes, metrics, slices)
 
 # One graph for all agents
 metrics = [
@@ -1163,7 +1169,7 @@ metrics = [
     # "intent_slice_metric",
     # "sched_decision_comparison",
 ]
-gen_results(scenario_names, agent_names, episodes, metrics, slices)
+# gen_results(scenario_names, agent_names, episodes, metrics, slices)
 
 # One graph for all agents considering all episodes (one graph for all episodes)
 metrics = [

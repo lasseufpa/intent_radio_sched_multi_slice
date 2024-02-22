@@ -1,5 +1,4 @@
 from collections import deque
-from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
@@ -21,9 +20,10 @@ class IBSchedSB3(Agent):
         max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
-        eval_env: MARLCommEnv,
+        eval_env: Optional[MARLCommEnv] = None,
         agent_type: str = "ppo",
         seed: int = np.random.randint(1000),
+        agent_name: str = "sb3_ib_sched",
     ) -> None:
         super().__init__(
             env,
@@ -36,6 +36,7 @@ class IBSchedSB3(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
+        self.agent_name = agent_name
         self.agent_type = agent_type
         self.episode_evaluation_freq = 10
         self.number_evaluation_episodes = 10
@@ -48,10 +49,13 @@ class IBSchedSB3(Agent):
             self.env.comm_env.max_number_steps * checkpoint_episode_freq
         )
         self.eval_env = eval_env
-        self.eval_env.comm_env.initial_episode_number = (
-            eval_initial_env_episode
-        )
-        self.eval_env.comm_env.max_number_episodes = eval_maximum_env_episode
+        if self.eval_env is not None:
+            self.eval_env.comm_env.initial_episode_number = (
+                eval_initial_env_episode
+            )
+            self.eval_env.comm_env.max_number_episodes = (
+                eval_maximum_env_episode
+            )
         self.fake_agent = IBSched(
             env,
             max_number_ues,
@@ -65,21 +69,24 @@ class IBSchedSB3(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        self.callback_evaluation = EvalCallback(
-            eval_env=self.eval_env,
-            log_path=f"./evaluations/{self.env.comm_env.simu_name}/sb3_ib_sched",
-            best_model_save_path=f"./agents/models/{self.env.comm_env.simu_name}/best_sb3_ib_sched/",
-            n_eval_episodes=self.number_evaluation_episodes,
-            eval_freq=self.env.comm_env.max_number_steps
-            * self.episode_evaluation_freq,
-            verbose=False,
-            warn=False,
-            seed=self.seed,
-        )
+        if self.eval_env is not None:
+            self.callback_evaluation = EvalCallback(
+                eval_env=self.eval_env,
+                log_path=f"./evaluations/{self.env.comm_env.simu_name}/{self.agent_name}",
+                best_model_save_path=f"./agents/models/{self.env.comm_env.simu_name}/best_{self.agent_name}/",
+                n_eval_episodes=self.number_evaluation_episodes,
+                eval_freq=self.env.comm_env.max_number_steps
+                * self.episode_evaluation_freq,
+                verbose=False,
+                warn=False,
+                seed=self.seed,
+            )
+        else:
+            self.callback_evaluation = None
         self.callback_checkpoint = CheckpointCallback(
             save_freq=self.checkpoint_frequency,
-            save_path=f"./agents/models/{self.env.comm_env.simu_name}/sb3_ib_sched/",
-            name_prefix="sb3_ib_sched",
+            save_path=f"./agents/models/{self.env.comm_env.simu_name}/{self.agent_name}/",
+            name_prefix=self.agent_name,
         )
         if self.agent_type == "ppo":
             self.agent = PPO(
@@ -96,7 +103,7 @@ class IBSchedSB3(Agent):
                 verbose=0,
                 tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
                 seed=self.seed,
-                policy_kwargs=dict(net_arch=[2048, 2048]),
+                # policy_kwargs=dict(net_arch=[2048, 2048]),
             )
         else:
             raise ValueError("Invalid agent type")
@@ -110,14 +117,19 @@ class IBSchedSB3(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
+        callbacks = [
+            self.callback_checkpoint,
+            self.callback_evaluation,
+        ]
+        callbacks = [cb for cb in callbacks if cb is not None]
         self.agent.learn(
             total_timesteps=total_timesteps,
             progress_bar=True,
-            callback=[self.callback_checkpoint, self.callback_evaluation],
+            callback=callbacks,
             log_interval=1,  # Number of episodes
         )
         self.agent.save(
-            f"./agents/models/{self.env.comm_env.simu_name}/final_sb3_ib_sched"
+            f"./agents/models/{self.env.comm_env.simu_name}/final_{self.agent_name}"
         )
 
     def load(self, path: str) -> None:

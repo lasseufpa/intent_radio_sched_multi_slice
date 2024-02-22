@@ -30,7 +30,7 @@ class MultSliceAssociationFixed(Association):
         self.min_number_slices = 3
         self.generator_mode = generator_mode
         self.max_number_slices = 5
-        self.channels_per_association = 10
+        self.channels_per_association = 100
         self.current_episode = -1
         self.slices_to_use = np.array([])
         self.slice_types = [
