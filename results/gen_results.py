@@ -1110,6 +1110,57 @@ def gen_results_total(
             plt.close()
 
 
+def fair_comparison_check(
+    agent_names: list[str], episodes: np.ndarray, scenarios: list[str]
+):
+    # Check if agents are compared in episodes with the same characteristics
+    # (e.g., same number of UEs, same traffic, same number of slices etc.).
+    base_agent = agent_names[0]
+    for scenario in scenarios:
+        for agent in agent_names[1:]:
+            for episode in episodes:
+                data = np.load(
+                    f"hist/{scenario}/{agent}/ep_{episode}.npz",
+                    allow_pickle=True,
+                )
+                data_metrics = {
+                    "pkt_incoming": data["pkt_incoming"],
+                    "mobility": data["mobility"],
+                    "spectral_efficiencies": data["spectral_efficiencies"],
+                    "basestation_ue_assoc": data["basestation_ue_assoc"],
+                    "basestation_slice_assoc": data["basestation_slice_assoc"],
+                    "slice_ue_assoc": data["slice_ue_assoc"],
+                    "slice_req": data["slice_req"],
+                }
+                data_base = np.load(
+                    f"hist/{scenario}/{base_agent}/ep_{episode}.npz",
+                    allow_pickle=True,
+                )
+                data_metrics_base = {
+                    "pkt_incoming": data_base["pkt_incoming"],
+                    "mobility": data_base["mobility"],
+                    "spectral_efficiencies": data_base[
+                        "spectral_efficiencies"
+                    ],
+                    "basestation_ue_assoc": data_base["basestation_ue_assoc"],
+                    "basestation_slice_assoc": data_base[
+                        "basestation_slice_assoc"
+                    ],
+                    "slice_ue_assoc": data_base["slice_ue_assoc"],
+                    "slice_req": data_base["slice_req"],
+                }
+
+                for metric in data_metrics.keys():
+                    if not np.array_equal(
+                        data_metrics[metric], data_metrics_base[metric]
+                    ):
+                        raise Exception(
+                            f"Scenario {scenario}: Agents {base_agent} and {agent} are not compared in the same episode {episode} characteristics due to {metric} differences"
+                        )
+
+    return True
+
+
 scenario_names = ["mult_slice_fixed"]
 agent_names = [
     # "random",
@@ -1123,9 +1174,14 @@ agent_names = [
     # "sched_twc",
     "base_sb3_ib_sched",
     "finetune_sb3_ib_sched",
+    "scratch_sb3_ib_sched",
 ]
 episodes = np.arange(1080, 1100, dtype=int)
 slices = np.arange(5)
+
+# Check if agents are compared in episodes with the same characteristics
+if fair_comparison_check(agent_names, episodes, scenario_names):
+    print("Agents are compared in episodes with the same characteristics")
 
 # One graph per agent
 metrics = [
