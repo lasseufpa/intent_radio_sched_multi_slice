@@ -26,10 +26,10 @@ env_config = {
     "scenario": "mult_slice_fixed",
     "agent": "finetune_sb3_ib_sched",
     "root_path": str(getcwd()),
-    "training_epochs": 1,
+    "training_epochs": 2,
     "initial_training_episode": 1000,
-    "max_training_episodes": 80,
-    "test_episodes": 20,
+    "max_training_episodes": 0,
+    "test_episodes": 1000,
 }
 
 

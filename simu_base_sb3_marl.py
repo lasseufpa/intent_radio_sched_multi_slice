@@ -29,8 +29,8 @@ env_config = {
     "root_path": str(getcwd()),
     "training_epochs": 1,
     "max_training_episodes": 1000,
-    "test_episodes": 20,
-    "initial_testing_episode": 1080,
+    "test_episodes": 1000,
+    "initial_testing_episode": 1000,
 }
 
 

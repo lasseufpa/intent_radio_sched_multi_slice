@@ -13,7 +13,7 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-training_flag = True  # False for reading from checkpoint
+training_flag = False  # False for reading from checkpoint
 agent_type = "sac"  # "ppo" or "sac"
 env_config = {
     "seed": 10,
@@ -28,8 +28,8 @@ env_config = {
     "root_path": str(getcwd()),
     "training_epochs": 20,
     "initial_training_episode": 1000,
-    "max_training_episodes": 80,
-    "test_episodes": 20,
+    "max_training_episodes": 0,
+    "test_episodes": 1000,
     "enable_evaluation": True,
 }
 
