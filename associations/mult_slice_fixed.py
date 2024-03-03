@@ -422,7 +422,7 @@ class MultSliceAssociationFixed(Association):
                 slice_req,
             )
         else:
-            episode_to_use = episode_number // self.channels_per_association
+            episode_to_use = episode_number % self.channels_per_association
             if episode_to_use != self.current_episode:
                 self.load_episode_data(episode_to_use)  # Update variables
                 self.update_ues(

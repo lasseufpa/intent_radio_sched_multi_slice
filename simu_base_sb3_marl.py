@@ -15,7 +15,7 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 agent_type = "sac"  # "ppo" or "sac"
-training_flag = False
+training_flag = True
 env_config = {
     "seed": 10,
     "seed_test": 15,
@@ -28,7 +28,7 @@ env_config = {
     "agent": "base_sb3_ib_sched",
     "root_path": str(getcwd()),
     "training_epochs": 1,
-    "max_training_episodes": 1000,
+    "max_training_episodes": 10 * 100,
     "test_episodes": 1000,
     "initial_testing_episode": 1000,
 }
@@ -85,7 +85,7 @@ if training_flag:
 
 # Testing
 sb3_agent.load(
-    f"./agents/models/{env_config['scenario']}/final_base_sb3_ib_sched.zip"
+    f"./agents/models/{env_config['scenario']}/final_{env_config['agent']}.zip"
 )
 total_test_steps = env_config["test_episodes"] * steps_per_episode
 
