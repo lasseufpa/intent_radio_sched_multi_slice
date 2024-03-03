@@ -28,9 +28,10 @@ env_config = {
     "agent": "base_sb3_ib_sched",
     "root_path": str(getcwd()),
     "training_epochs": 1,
-    "max_training_episodes": 10 * 100,
+    "max_training_episodes": 100
+    * 100,  # 100 association episodes * 100 channel episodes
     "test_episodes": 1000,
-    "initial_testing_episode": 1000,
+    "initial_testing_episode": 100 * 100,
 }
 
 
