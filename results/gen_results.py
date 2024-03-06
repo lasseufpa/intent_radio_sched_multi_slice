@@ -1052,7 +1052,14 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
 
         match metric:
             case "reward_per_episode" | "reward_per_episode_cumsum":
-                reward = data_metrics["reward"]
+                reward = (
+                    [
+                        data_metrics["reward"][idx]["player_0"]
+                        for idx in range(data_metrics["reward"].shape[0])
+                    ]
+                    if "ib_sched" in agent
+                    else data_metrics["reward"]
+                )
                 y_values = np.append(y_values, np.sum(reward))
             case "violations_per_episode" | "violations_per_episode_cumsum":
                 violations, _, _, _ = calc_slice_violations(data_metrics)
@@ -1161,22 +1168,23 @@ def fair_comparison_check(
     return True
 
 
-scenario_names = ["mult_slice_fixed"]
+scenario_names = ["mult_slice_seq"]
 agent_names = [
     # "random",
     "round_robin",
-    # "ib_sched",
+    "ib_sched",
     # "ib_sched_old",
     # "ib_sched_deepmind",
     # "ib_sched_mask",
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    "base_sb3_ib_sched",
-    "finetune_sb3_ib_sched",
-    "scratch_sb3_ib_sched",
+    # "base_sb3_ib_sched",
+    # "finetune_sb3_ib_sched",
+    # "scratch_sb3_ib_sched",
+    # "base_shuffle_sb3_ib_sched",
 ]
-episodes = np.arange(1080, 1100, dtype=int)
+episodes = np.arange(70, 100, dtype=int)
 slices = np.arange(5)
 
 # Check if agents are compared in episodes with the same characteristics

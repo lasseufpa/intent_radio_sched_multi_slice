@@ -5,7 +5,6 @@ from tqdm import tqdm
 
 from agents.sb3_ib_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
-from associations.mult_slice_fixed import MultSliceAssociationFixed
 from channels.fixed_se import FixedSE
 from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannel
@@ -22,8 +21,8 @@ env_config = {
     "channel_class": MimicQuadriga,  # QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociationFixed,
-    "scenario": "mult_slice_fixed",
+    "association_class": MultSliceAssociation,
+    "scenario": "mult_slice",
     "agent": "scratch_sb3_ib_sched",
     "root_path": str(getcwd()),
     "training_epochs": 20,

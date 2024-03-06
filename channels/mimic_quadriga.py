@@ -47,8 +47,12 @@ class MimicQuadriga(Channel):
             ]
         )
         for ue_idx, ue_mean in enumerate(self.ues_mean_se):
-            spectral_efficiencies[0, ue_idx, :] = self.rng.normal(
-                ue_mean, self.default_std, size=(self.num_available_rbs[0],)
+            spectral_efficiencies[0, ue_idx, :] = np.abs(
+                self.rng.normal(
+                    ue_mean,
+                    self.default_std,
+                    size=(self.num_available_rbs[0],),
+                )
             )
 
         return spectral_efficiencies

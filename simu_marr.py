@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from agents.marr import MARR
 from associations.mult_slice import MultSliceAssociation
-from associations.mult_slice_fixed import MultSliceAssociationFixed
+from associations.mult_slice_seq import MultSliceAssociationSeq
 from channels.fixed_se import FixedSE
 from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannel
@@ -21,8 +21,8 @@ env_config = {
     "channel_class": MimicQuadriga,  # TODO
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociationFixed,
-    "scenario": "mult_slice_fixed",
+    "association_class": MultSliceAssociationSeq,  # TODO MultSliceAssociation,
+    "scenario": "mult_slice_seq",
     "agent": "round_robin",
     "root_path": str(getcwd()),
 }
@@ -55,8 +55,8 @@ marl_comm_env.set_agent_functions(
 
 
 # testing
-number_episodes = 1000
-initial_episode = 1000
+number_episodes = 30
+initial_episode = 70
 total_test_steps = 1000
 marl_comm_env.comm_env.max_number_episodes = number_episodes + initial_episode
 obs, _ = marl_comm_env.reset(

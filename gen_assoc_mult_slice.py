@@ -6,16 +6,15 @@ import yaml
 from scipy.io import savemat
 
 from associations.mult_slice import MultSliceAssociation
-from associations.mult_slice_fixed import MultSliceAssociationFixed
 from sixg_radio_mgmt import UEs
 from traffics.mult_slice import MultSliceTraffic
 
-config_file = "mult_slice_fixed"
+config_file = "mult_slice"
 seed = 10
 initial_episode = 0
 number_episodes = 200
 generate_quadriga = True
-class_association = MultSliceAssociationFixed
+class_association = MultSliceAssociation
 generate_plots = False
 
 with open(f"./env_config/{config_file}.yml") as file:

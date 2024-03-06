@@ -26,26 +26,13 @@ class MultSliceAssociation(Association):
             rng,
             root_path,
         )
-        self.max_steps = 2000
-        self.min_steps = 500
-        self.update_steps = 500
-        self.min_number_ues_slice = 2
-        self.max_number_ues_slice = int(max_number_ues / max_number_slices)
-        self.slices_lifetime = np.zeros(self.max_number_slices)
-        self.generator_mode = (
-            generator_mode  # False for reading from external files
-        )
-        self.slice_req_changed = slice_req_changed
         self.scenario_name = scenario_name
+        self.min_number_slices = 3
+        self.generator_mode = generator_mode
+        self.max_number_slices = 5
+        self.channels_per_association = 100
         self.current_episode = -1
         self.slices_to_use = np.array([])
-        self.association_file = dict()
-        self.hist_slice_ue_assoc = np.array([])
-        self.hist_slices_to_use = np.array([])
-        self.hist_slice_req = np.array([])
-        self.hist_basestation_slice_assoc = np.array([])
-        self.hist_basestation_ue_assoc = np.array([])
-        self.hist_slices_lifetime = np.array([])
         self.slice_types = [
             "control_case_2",
             "monitoring_case_1",
@@ -66,6 +53,7 @@ class MultSliceAssociation(Association):
             "one_of": np.isin,
             "smaller": np.less,
         }
+        self.slices_lifetime = np.zeros(self.max_number_slices, dtype=int)
 
         self.slice_type_model = {
             "control_case_2": {
@@ -90,7 +78,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 2,  # Mbps
+                    "traffic": 5,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -101,7 +89,7 @@ class MultSliceAssociation(Association):
                 "parameters": {
                     "par1": {
                         "name": "throughput",
-                        "value": 5,
+                        "value": 10,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -111,7 +99,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 1 * 1024 * 8,
                     "mobility": 72,  # Km/h
-                    "traffic": 5,  # Mbps
+                    "traffic": 10,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -134,7 +122,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 16,
+                        "value": 30,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -144,9 +132,9 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 2000 * 8,
                     "mobility": 0,  # Km/h
-                    "traffic": 16,  # Mbps
-                    "min_number_ues": 2,
-                    "max_number_ues": 4,
+                    "traffic": 30,  # Mbps
+                    "min_number_ues": 4,
+                    "max_number_ues": 5,
                 },
             },
             "robotic_diagnosis": {
@@ -167,7 +155,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 16,
+                        "value": 30,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -177,8 +165,8 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
-                    "traffic": 16,  # Mbps,
-                    "min_number_ues": 2,
+                    "traffic": 30,  # Mbps,
+                    "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
             },
@@ -200,7 +188,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 1,
+                        "value": 10,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -210,7 +198,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 200,  # ms
                     "message_size": 1000 * 8,
                     "mobility": 0,  # Km/h
-                    "traffic": 1,  # Mbps
+                    "traffic": 10,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -238,8 +226,8 @@ class MultSliceAssociation(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
                     "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
                 },
             },
             "uav_control_non_vlos": {
@@ -260,7 +248,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 4,
+                        "value": 20,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -270,7 +258,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 300,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 30,  # Km/h
-                    "traffic": 4,  # Mbps
+                    "traffic": 20,  # Mbps
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
@@ -304,8 +292,8 @@ class MultSliceAssociation(Association):
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
                     "traffic": 100,  # Mbps
-                    "min_number_ues": 1,
-                    "max_number_ues": 1,
+                    "min_number_ues": 2,
+                    "max_number_ues": 4,
                 },
             },
             "cloud_gaming": {
@@ -320,7 +308,7 @@ class MultSliceAssociation(Association):
                     },
                     "par2": {
                         "name": "throughput",
-                        "value": 25,
+                        "value": 50,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -330,8 +318,8 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 160,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 25,  # Mbps
-                    "min_number_ues": 1,
+                    "traffic": 50,  # Mbps
+                    "min_number_ues": 2,
                     "max_number_ues": 5,
                 },
             },
@@ -341,7 +329,7 @@ class MultSliceAssociation(Association):
                 "parameters": {
                     "par1": {
                         "name": "throughput",
-                        "value": 15,
+                        "value": 30,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
@@ -351,12 +339,13 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 100,  # ms
                     "message_size": 8192 * 8,  # bits
                     "mobility": 0,  # Km/h
-                    "traffic": 15,  # Mbps
+                    "traffic": 30,  # Mbps
                     "min_number_ues": 2,
                     "max_number_ues": 5,
                 },
             },
         }
+        self.associations = np.array([])
 
     def step(
         self,
@@ -368,63 +357,79 @@ class MultSliceAssociation(Association):
         episode_number: int,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
         if self.generator_mode:
-            if slice_req == {}:
+            if step_number == 0:
+                number_slices = self.rng.integers(
+                    low=self.min_number_slices,
+                    high=self.max_number_slices,
+                    endpoint=True,
+                )
+                self.slices_to_use = self.rng.choice(
+                    np.arange(self.max_number_slices),
+                    number_slices,
+                    replace=False,
+                )
+                basestation_slice_assoc[0, self.slices_to_use] = 1
                 slice_req = {
                     f"slice_{id}": {}
                     for id in np.arange(self.max_number_slices)
                 }
+                slice_req = self.slice_generator(slice_req, self.slices_to_use)
+                ues_per_slices = np.array(
+                    [
+                        self.rng.integers(
+                            slice_req[f"slice_{slice_idx}"]["ues"][
+                                "min_number_ues"
+                            ],
+                            slice_req[f"slice_{slice_idx}"]["ues"][
+                                "max_number_ues"
+                            ],
+                            1,
+                            endpoint=True,
+                        )
+                        for slice_idx in self.slices_to_use
+                    ]
+                ).flatten()
+                active_ues = np.array(
+                    self.rng.choice(
+                        (basestation_ue_assoc[0] == 0).nonzero()[0],
+                        int(np.sum(ues_per_slices)),
+                        replace=False,
+                    )
+                )
+                used_ues = 0
+                used_slices = 0
+                for idx in self.slices_to_use:
+                    if basestation_slice_assoc[0, idx] == 1:
+                        slice_ue_assoc[
+                            idx,
+                            active_ues[
+                                used_ues : used_ues
+                                + ues_per_slices[used_slices]
+                            ],
+                        ] = 1
+                        used_ues += ues_per_slices[used_slices]
+                        used_slices += 1
+                basestation_ue_assoc = np.array(
+                    [np.sum(slice_ue_assoc, axis=0)]
+                )
 
-            (
-                basestation_ue_assoc,
-                basestation_slice_assoc,
-                slice_ue_assoc,
-                slice_req,
-            ) = self.remove_finished_slices(
+                self.update_ues(slice_ue_assoc, self.slices_to_use, slice_req)
+
+            return (
                 basestation_ue_assoc,
                 basestation_slice_assoc,
                 slice_ue_assoc,
                 slice_req,
             )
-
-            self.slices_lifetime[(self.slices_lifetime != 0).nonzero()[0]] -= 1
-
-            if (step_number % self.update_steps == 0) and (
-                np.sum(basestation_slice_assoc) < 10
-            ):
-                return self.associations(
-                    basestation_ue_assoc,
-                    basestation_slice_assoc,
-                    slice_ue_assoc,
-                    slice_req,
-                )
-            else:
-                return (
-                    basestation_ue_assoc,
-                    basestation_slice_assoc,
-                    slice_ue_assoc,
-                    slice_req,
-                )
         else:
-            if episode_number != self.current_episode:
-                self.load_episode_data(episode_number)  # Update variables
-            if self.slice_req_changed:
-                tmp_slice_req = {}
-                for slice_key in self.hist_slice_req[step_number].keys():
-                    if self.hist_slice_req[step_number][slice_key] != {}:
-                        tmp_slice_req[slice_key] = self.slice_type_model[
-                            self.hist_slice_req[step_number][slice_key]["name"]
-                        ]
-                    else:
-                        tmp_slice_req[slice_key] = {}
-                self.hist_slice_req[step_number] = tmp_slice_req
-            if step_number % self.update_steps == 0:
+            episode_to_use = episode_number % self.channels_per_association
+            if episode_to_use != self.current_episode:
+                self.load_episode_data(episode_to_use)  # Update variables
                 self.update_ues(
                     self.hist_slice_ue_assoc[step_number],
                     self.hist_slices_to_use[step_number],
                     self.hist_slice_req[step_number],
                 )
-
-            self.slices_lifetime = self.hist_slices_lifetime[step_number]
 
             return (
                 self.hist_basestation_ue_assoc[step_number],
@@ -433,103 +438,11 @@ class MultSliceAssociation(Association):
                 self.hist_slice_req[step_number],
             )
 
-    def remove_finished_slices(
-        self,
-        basestation_ue_assoc: np.ndarray,
-        basestation_slice_assoc: np.ndarray,
-        slice_ue_assoc: np.ndarray,
-        slice_req: dict,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-        slices_to_deactivate = (self.slices_lifetime == 1).nonzero()[0]
-
-        if len(slices_to_deactivate) > 0:
-            basestation_slice_assoc[0, slices_to_deactivate] = 0
-            slice_ue_assoc[slices_to_deactivate, :] = 0
-            basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
-            for slice in slices_to_deactivate:
-                slice_req[f"slice_{slice}"] = {}
-
-        return (
-            basestation_ue_assoc,
-            basestation_slice_assoc,
-            slice_ue_assoc,
-            slice_req,
-        )
-
-    def associations(
-        self,
-        basestation_ue_assoc: np.ndarray,
-        basestation_slice_assoc: np.ndarray,
-        slice_ue_assoc: np.ndarray,
-        slice_req: dict,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
-        slices_available = (self.slices_lifetime == 0).nonzero()[0]
-        initial_slices = self.rng.integers(
-            0,
-            int(self.max_number_slices - np.sum(basestation_slice_assoc[0])),
-            endpoint=True,
-        )
-        self.slices_to_use = np.array([])
-        if initial_slices > 0:
-            self.slices_to_use = self.rng.choice(
-                slices_available, initial_slices, replace=False
-            )
-            slice_req = self.slice_generator(slice_req, self.slices_to_use)
-            self.slices_lifetime[self.slices_to_use] = self.rng.integers(
-                self.min_steps, self.max_steps, initial_slices, endpoint=True
-            )
-            ues_per_slices = np.array(
-                [
-                    self.rng.integers(
-                        slice_req[f"slice_{slice_idx}"]["ues"][
-                            "min_number_ues"
-                        ],
-                        slice_req[f"slice_{slice_idx}"]["ues"][
-                            "max_number_ues"
-                        ],
-                        1,
-                        endpoint=True,
-                    )
-                    for slice_idx in self.slices_to_use
-                ]
-            ).flatten()
-
-            basestation_slice_assoc[0, self.slices_lifetime != 0] = 1
-            active_ues = np.array(
-                self.rng.choice(
-                    (basestation_ue_assoc[0] == 0).nonzero()[0],
-                    int(np.sum(ues_per_slices)),
-                    replace=False,
-                )
-            )
-            used_ues = 0
-            used_slices = 0
-            for idx in self.slices_to_use:
-                if basestation_slice_assoc[0, idx] == 1:
-                    slice_ue_assoc[
-                        idx,
-                        active_ues[
-                            used_ues : used_ues + ues_per_slices[used_slices]
-                        ],
-                    ] = 1
-                    used_ues += ues_per_slices[used_slices]
-                    used_slices += 1
-            basestation_ue_assoc = np.array([np.sum(slice_ue_assoc, axis=0)])
-
-            self.update_ues(slice_ue_assoc, self.slices_to_use, slice_req)
-
-        return (
-            basestation_ue_assoc,
-            basestation_slice_assoc,
-            slice_ue_assoc,
-            slice_req,
-        )
-
     def slice_generator(
         self, slice_req: dict, slices_to_use: np.ndarray
     ) -> dict:
         slices_to_create = self.rng.choice(
-            len(self.slice_types), len(slices_to_use)
+            len(self.slice_types), len(slices_to_use), replace=False
         )
 
         for idx, slice in enumerate(slices_to_create):
