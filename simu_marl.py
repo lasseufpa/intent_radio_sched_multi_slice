@@ -15,6 +15,8 @@ from agents.action_mask_model import TorchActionMaskModel
 from agents.ib_sched import IBSched
 from agents.masked_action_distribution import TorchDiagGaussian
 from associations.mult_slice import MultSliceAssociation
+from associations.mult_slice_seq import MultSliceAssociationSeq
+from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannel
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
@@ -33,20 +35,22 @@ agents_name = [
 ]
 env_config = {
     "seed": 10,
+    "seed_test": 15,
     "agent_class": IBSched,
-    "channel_class": QuadrigaChannel,
+    "channel_class": MimicQuadriga,  # QuadrigaChannel,
     "traffic_class": MultSliceTraffic,
     "mobility_class": SimpleMobility,
-    "association_class": MultSliceAssociation,
-    "scenario": "mult_slice",
+    "association_class": MultSliceAssociationSeq,  # TODO MultSliceAssociation,
+    "scenario": "mult_slice_seq",
     "root_path": str(getcwd()),
-    "training_episodes": 290,
+    "training_episodes": 70,  # TODO 100 * 100,
     "training_epochs": 10,
-    "testing_episodes": 10,
-    "evaluation_interval": 25,  # based on number of training iterations (batch size)
-    "evaluation_duration": 5,  # Unit defined by evaluation_duration_unit
+    "testing_episodes": 30,  # TODO 1000,
+    "evaluation_interval": 10000000,  # TODO large value to avoid evaluation  # based on number of training iterations (batch size)
+    "evaluation_duration": 1,  # Unit defined by evaluation_duration_unit
     "evaluation_duration_unit": "episodes",
-    "evaluation_initial_episode": 290,
+    "evaluation_initial_episode": 100 * 100,
+    "max_episode_number": 70,
 }
 
 ray.init(local_mode=debug_mode)
@@ -62,12 +66,16 @@ def env_creator(env_config):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
-        initial_episode_number=env_config["initial_episode_number"]
-        if "initial_episode_number" in env_config.keys()
-        else 0,
-        max_episode_number=env_config["max_episode_number"]
-        if "max_episode_number" in env_config.keys()
-        else None,
+        initial_episode_number=(
+            env_config["initial_episode_number"]
+            if "initial_episode_number" in env_config.keys()
+            else 0
+        ),
+        max_episode_number=(
+            env_config["max_episode_number"]
+            if "max_episode_number" in env_config.keys()
+            else None
+        ),
     )
     agent = env_config["agent_class"](
         marl_comm_env,
@@ -127,9 +135,9 @@ for agent in agents_name:
             )
             .multi_agent(
                 policies={
-                    "inter_slice_sched": action_mask_policy()
-                    if using_mask
-                    else PolicySpec(),
+                    "inter_slice_sched": (
+                        action_mask_policy() if using_mask else PolicySpec()
+                    ),
                     "intra_slice_sched": PolicySpec(),
                 },
                 policy_mapping_fn=policy_mapping_fn,
@@ -172,6 +180,7 @@ for agent in agents_name:
                         + env_config["evaluation_duration"],
                     ),
                 },
+                always_attach_evaluation_results=True,
             )
         )
         stop = {
@@ -202,15 +211,16 @@ for agent in agents_name:
         analysis.trials[0], "episode_reward_mean", "max"
     )
     assert best_checkpoint is not None, "Best checkpoint is None"
-    # last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
-    algo = Algorithm.from_checkpoint(best_checkpoint)
+    last_checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
+    assert last_checkpoint is not None, "Last checkpoint is None"
+    algo = Algorithm.from_checkpoint(last_checkpoint)
     marl_comm_env = env_creator(env_config)
-    seed = 10
     marl_comm_env.comm_env.max_number_episodes = (
         env_config["testing_episodes"] + env_config["training_episodes"]
     )
     obs, _ = marl_comm_env.reset(
-        seed=seed, options={"initial_episode": env_config["training_episodes"]}
+        seed=env_config["seed_test"],
+        options={"initial_episode": env_config["training_episodes"]},
     )
     for step in tqdm(
         np.arange(
@@ -231,16 +241,6 @@ for agent in agents_name:
         obs, reward, terminated, truncated, info = marl_comm_env.step(action)
         assert isinstance(terminated, dict), "Termination must be a dict"
         if terminated["__all__"]:
-            initial_episode = (
-                -1
-                if marl_comm_env.comm_env.episode_number
-                != env_config["training_episodes"]
-                + env_config["testing_episodes"]
-                - 1
-                else env_config["training_episodes"]
-            )
-            obs, _ = marl_comm_env.reset(
-                options={"initial_episode": initial_episode}
-            )
+            obs, _ = marl_comm_env.reset()
 
 ray.shutdown()
