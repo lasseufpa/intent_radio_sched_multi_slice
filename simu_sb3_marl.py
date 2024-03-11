@@ -27,6 +27,7 @@ env_config = {
     "root_path": str(getcwd()),
     "training_epochs": 10,
     "test_episodes": 1000,
+    "enable_evaluation": False,
 }
 
 
@@ -57,7 +58,7 @@ def env_creator(env_config):
         marl_comm_env.comm_env.max_number_slices,
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
-        eval_env,
+        eval_env if env_config["enable_evaluation"] else None,
         agent_type,
         seed=env_config["seed"],
     )
@@ -93,7 +94,7 @@ if training_flag:
     sb3_agent.train(total_time_steps)
 
 sb3_agent.load(
-    f"./agents/models/{env_config['scenario']}/best_sb3_ib_sched/best_model.zip"
+    f"./agents/models/{env_config['scenario']}/best_{env_config['agent']}/best_model.zip"
 )
 
 # Testing

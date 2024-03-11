@@ -1,9 +1,7 @@
 from collections import deque
-from typing import Tuple, Union
+from typing import Tuple
 
 import numpy as np
-from stable_baselines3.common.callbacks import BaseCallback
-from tqdm.auto import tqdm
 
 from sixg_radio_mgmt import MARLCommEnv
 
