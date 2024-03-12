@@ -69,8 +69,13 @@ class IBSched(Agent):
             ][0].astype(np.int8),
         }
 
+        sorted_slices = self.sort_slices(
+            self.last_unformatted_obs[0]["slice_req"],
+            self.last_unformatted_obs[0]["slice_ue_assoc"],
+        )
+
         # intra-slice observations
-        for agent_idx in range(1, obs_space["slice_ue_assoc"].shape[0] + 1):
+        for agent_idx in sorted_slices + 1:
             assert isinstance(
                 self.env, MARLCommEnv
             ), "Environment must be MARLCommEnv"
@@ -309,6 +314,24 @@ class IBSched(Agent):
             ), "Allocated RBs are different from available RBs"
 
         return allocation_rbs
+
+    def sort_slices(
+        self, slice_req: dict, slice_ue_assoc: np.ndarray
+    ) -> np.ndarray:
+        ues_per_slice = np.sum(slice_ue_assoc, axis=1)
+        slice_req_traffic = np.array(
+            [
+                (
+                    slice_req[f"slice_{idx}"]["ues"]["traffic"]
+                    if slice_req[f"slice_{idx}"] != {}
+                    else 0.0
+                )
+                for idx in np.arange(self.max_number_slices)
+            ]
+        )
+        total_slice_traffic = ues_per_slice * slice_req_traffic
+
+        return np.argsort(total_slice_traffic)
 
     def get_action_space(self) -> spaces.Dict:
         action_space = spaces.Dict(
