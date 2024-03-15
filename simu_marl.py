@@ -6,6 +6,7 @@ import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.rllib.algorithms.sac import SACConfig
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
 from ray.tune.registry import register_env
@@ -126,12 +127,15 @@ for agent in agents_name:
     # Training
     if training_flag:
         algo_config = (
-            PPOConfig()
+            PPOConfig()  # TODO
             .environment(
                 env="marl_comm_env",
                 env_config=env_config,
                 is_atari=False,
-                disable_env_checking=True,
+                disable_env_checking=False,
+                # clip_rewards=False,
+                # normalize_actions=True,
+                # clip_actions=False,
             )
             .multi_agent(
                 policies={
@@ -156,7 +160,19 @@ for agent in agents_name:
                 num_gpus_per_learner_worker=1,
             )
             .training(
-                vf_clip_param=np.inf,  # type: ignore
+                lr=0.0003,  # SB3 LR
+                train_batch_size=2048,  # SB3 n_steps
+                sgd_minibatch_size=64,  # type: ignore SB3 batch_size
+                num_sgd_iter=10,  # type: ignore SB3 n_epochs
+                gamma=0.99,  # SB3 gamma
+                lambda_=0.95,  # type: ignore # SB3 gae_lambda
+                clip_param=0.2,  # type: ignore SB3 clip_range,
+                vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
+                use_gae=True,  # type: ignore SB3 normalize_advantage
+                entropy_coeff=0.01,  # type: ignore SB3 ent_coef
+                vf_loss_coeff=0.5,  # type: ignore SB3 vf_coef
+                grad_clip=0.5,  # SB3 max_grad_norm TODO
+                # kl_target=0.00001,  # SB3 target_kl
             )
             .experimental(
                 _enable_new_api_stack=False
@@ -182,13 +198,20 @@ for agent in agents_name:
                 },
                 always_attach_evaluation_results=True,
             )
+            .debugging(
+                seed=env_config["seed"],
+            )
         )
+        algo_config["model"]["fcnet_hiddens"] = [
+            64,
+            64,
+        ]  # Set neural network size
         stop = {
             "episodes_total": env_config["training_episodes"]
             * env_config["training_epochs"],
         }
         results = tune.Tuner(
-            "PPO",
+            "PPO",  # TODO
             param_space=algo_config.to_dict(),
             run_config=air.RunConfig(
                 storage_path=f"{read_checkpoint}/{env_config['scenario']}/",
@@ -196,7 +219,7 @@ for agent in agents_name:
                 stop=stop,
                 verbose=2,
                 checkpoint_config=air.CheckpointConfig(
-                    checkpoint_frequency=3,
+                    checkpoint_frequency=3,  # TODO SAC
                     checkpoint_at_end=True,
                 ),
             ),

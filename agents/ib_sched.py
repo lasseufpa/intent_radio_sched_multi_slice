@@ -216,7 +216,7 @@ class IBSched(Agent):
         )
 
     def action_format(
-        self, action_ori: Union[np.ndarray, dict], intra_rr: bool = False
+        self, action_ori: Union[np.ndarray, dict], intra_rr: bool = True
     ) -> np.ndarray:
         assert isinstance(
             self.env, MARLCommEnv
