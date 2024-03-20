@@ -1,22 +1,19 @@
 from collections import deque
-from copy import deepcopy
 from typing import Optional, Union
 
 import numpy as np
 from gymnasium import spaces
+from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.ppo.ppo import PPO
+from stable_baselines3.sac.sac import SAC
 
-from agents.common import (
-    calculate_slice_ue_obs,
-    get_metric_value,
-    intent_drift_calc,
-    round_robin,
-    scores_to_rbs,
-)
-from associations.mult_slice import MultSliceAssociation
+from agents.common import get_metric_value
+from agents.ib_sched import IBSched
+from agents.sb3_callbacks import CustomEvalCallback as EvalCallback
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
-class TWC(Agent):
+class SchedTWC(Agent):
     def __init__(
         self,
         env: MARLCommEnv,
@@ -24,6 +21,10 @@ class TWC(Agent):
         max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
+        eval_env: Optional[MARLCommEnv] = None,
+        agent_type: str = "ppo",
+        seed: int = np.random.randint(1000),
+        agent_name: str = "twc_sched",
     ) -> None:
         super().__init__(
             env,
@@ -31,29 +32,113 @@ class TWC(Agent):
             max_number_slices,
             max_number_basestations,
             num_available_rbs,
+            seed=seed,
         )
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        max_obs_memory = 10
-        self.max_number_ues_slice = 5
-        self.last_unformatted_obs = deque(maxlen=max_obs_memory)
-        self.last_formatted_obs = {}
-        self.intent_overfulfillment_rate = 0.2
-        self.rbs_per_rbg = 1  # 135/rbs_per_rbg RBGs
-        assert isinstance(
-            self.env.comm_env.associations, MultSliceAssociation
-        ), "Associations must be MultSliceAssociation"
-        self.max_throughput_slice = np.max(
-            [
-                slice_type["ues"]["traffic"]
-                * slice_type["ues"]["max_number_ues"]
-                for slice_type in self.env.comm_env.associations.slice_type_model.values()
-            ]
+        self.agent_name = agent_name
+        self.agent_type = agent_type
+        self.episode_evaluation_freq = 80
+        self.number_evaluation_episodes = 20
+        checkpoint_episode_freq = 10
+        eval_initial_env_episode = 1080
+        eval_maximum_env_episode = (
+            eval_initial_env_episode + self.number_evaluation_episodes
         )
+        self.checkpoint_frequency = (
+            self.env.comm_env.max_number_steps * checkpoint_episode_freq
+        )
+        self.eval_env = eval_env
+        if self.eval_env is not None:
+            self.eval_env.comm_env.initial_episode_number = (
+                eval_initial_env_episode
+            )
+            self.eval_env.comm_env.max_number_episodes = (
+                eval_maximum_env_episode
+            )
+        self.fake_agent = IBSched(
+            env,
+            max_number_ues,
+            max_number_slices,
+            max_number_basestations,
+            num_available_rbs,
+        )
+        self.agent = None
+
+    def init_agent(self) -> None:
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
+        if self.eval_env is not None:
+            self.callback_evaluation = EvalCallback(
+                eval_env=self.eval_env,
+                log_path=f"./evaluations/{self.env.comm_env.simu_name}/{self.agent_name}",
+                best_model_save_path=f"./agents/models/{self.env.comm_env.simu_name}/best_{self.agent_name}/",
+                n_eval_episodes=self.number_evaluation_episodes,
+                eval_freq=self.env.comm_env.max_number_steps
+                * self.episode_evaluation_freq,
+                verbose=False,
+                warn=False,
+                seed=self.eval_env.comm_env.seed,
+            )
+        else:
+            self.callback_evaluation = None
+        self.callback_checkpoint = CheckpointCallback(
+            save_freq=self.checkpoint_frequency,
+            save_path=f"./agents/models/{self.env.comm_env.simu_name}/{self.agent_name}/",
+            name_prefix=self.agent_name,
+        )
+        if self.agent_type == "ppo":
+            self.agent = PPO(
+                "MlpPolicy",
+                self.env,
+                verbose=0,
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
+                seed=self.seed,
+            )
+        elif self.agent_type == "sac":
+            self.agent = SAC(
+                "MlpPolicy",
+                self.env,
+                verbose=0,
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
+                seed=self.seed,
+                # policy_kwargs=dict(net_arch=[2048, 2048]),
+            )
+        else:
+            raise ValueError("Invalid agent type")
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
-        raise NotImplementedError("IBSched does not implement step()")
+        assert self.agent is not None, "Agent must be created first"
+        return self.agent.predict(np.asarray(obs_space), deterministic=True)[0]
+
+    def train(self, total_timesteps: int) -> None:
+        assert self.agent is not None, "Agent must be created first"
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
+        callbacks = [
+            self.callback_checkpoint,
+            self.callback_evaluation,
+        ]
+        callbacks = [cb for cb in callbacks if cb is not None]
+        self.agent.learn(
+            total_timesteps=total_timesteps,
+            progress_bar=True,
+            callback=callbacks,
+            log_interval=1,  # Number of episodes
+        )
+        self.agent.save(
+            f"./agents/models/{self.env.comm_env.simu_name}/final_{self.agent_name}"
+        )
+
+    def load(self, path: str) -> None:
+        assert self.agent is not None, "Agent must be created first"
+        if self.agent_type == "ppo":
+            self.agent = PPO.load(path, self.env)
+        elif self.agent_type == "sac":
+            self.agent = SAC.load(path, self.env)
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         # For each slice keep  nine metrics defined
@@ -64,17 +149,30 @@ class TWC(Agent):
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
-        self.last_unformatted_obs.appendleft(obs_space)
+        self.fake_agent.obs_space_format(
+            obs_space
+        )  # updating internal fake_agent variables
+        self.fake_agent.last_unformatted_obs.appendleft(obs_space)
 
         # Inter-slice observation
         formatted_obs_space = {}
         formatted_obs_space["player_0"] = {
             "observations": np.array([]),
-            "action_mask": self.last_unformatted_obs[0][
+            "action_mask": self.fake_agent.last_unformatted_obs[0][
                 "basestation_slice_assoc"
             ][0].astype(np.int8),
         }
 
+        ordered_metrics = [
+            "requirements",
+            "spectral_efficiencies",
+            "pkt_throughputs",
+            "pkt_effective_thrs",
+            "buffer_occupancies",
+            "buffer_latencies",
+            "pkt_loss_rates",
+            "requested_thrs",
+        ]
         dict_metrics = {
             "requirements": np.array([]),
             "spectral_efficiencies": np.array([]),
@@ -88,15 +186,15 @@ class TWC(Agent):
 
         # intra-slice observations
         for agent_idx in range(1, obs_space["slice_ue_assoc"].shape[0] + 1):
-            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
-                agent_idx - 1
-            ].nonzero()[0]
+            slice_ues = self.fake_agent.last_unformatted_obs[0][
+                "slice_ue_assoc"
+            ][agent_idx - 1].nonzero()[0]
 
             requirements = np.zeros(3)
             if slice_ues.shape[0] != 0:
-                for parameter in self.last_unformatted_obs[0]["slice_req"][
-                    f"slice_{agent_idx-1}"
-                ]["parameters"].values():
+                for parameter in self.fake_agent.last_unformatted_obs[0][
+                    "slice_req"
+                ][f"slice_{agent_idx-1}"]["parameters"].values():
                     if parameter["name"] == "reliability":
                         requirements[0] = parameter["value"]
                     elif parameter["name"] == "latency":
@@ -108,7 +206,7 @@ class TWC(Agent):
             )
             # Pkt size
             pkt_size = (
-                self.last_unformatted_obs[0]["slice_req"][
+                self.fake_agent.last_unformatted_obs[0]["slice_req"][
                     f"slice_{agent_idx-1}"
                 ]["ues"]["message_size"]
                 if slice_ues.shape[0] != 0
@@ -118,16 +216,10 @@ class TWC(Agent):
             # Spectral efficiency
             if slice_ues.shape[0] != 0:
                 spectral_eff = np.mean(
-                    self.last_unformatted_obs[0]["spectral_efficiencies"][
-                        0, slice_ues, :
-                    ],
+                    self.fake_agent.last_unformatted_obs[0][
+                        "spectral_efficiencies"
+                    ][0, slice_ues, :],
                     axis=1,
-                )
-                max_spectral_eff = np.max(spectral_eff)
-                spectral_eff = (
-                    spectral_eff / max_spectral_eff
-                    if max_spectral_eff != 0
-                    else spectral_eff
                 )
             else:
                 spectral_eff = np.array([0])
@@ -137,7 +229,9 @@ class TWC(Agent):
 
             # Served Throughput
             served_thr = (
-                self.last_unformatted_obs[0]["pkt_throughputs"][slice_ues]
+                self.fake_agent.last_unformatted_obs[0]["pkt_throughputs"][
+                    slice_ues
+                ]
                 if slice_ues.shape[0] != 0
                 else np.array([0])
             )
@@ -148,7 +242,9 @@ class TWC(Agent):
 
             # Effective Throughput
             eff_thr = (
-                self.last_unformatted_obs[0]["pkt_effective_thr"][slice_ues]
+                self.fake_agent.last_unformatted_obs[0]["pkt_effective_thr"][
+                    slice_ues
+                ]
                 if slice_ues.shape[0] != 0
                 else np.array([0])
             )
@@ -159,7 +255,9 @@ class TWC(Agent):
 
             # Buffer Occ.
             buffer_occ = (
-                self.last_unformatted_obs[0]["buffer_occupancies"][slice_ues]
+                self.fake_agent.last_unformatted_obs[0]["buffer_occupancies"][
+                    slice_ues
+                ]
                 if slice_ues.shape[0] != 0
                 else np.array([0])
             )
@@ -169,7 +267,9 @@ class TWC(Agent):
 
             # Buffer latencies
             buffer_latencies = (
-                self.last_unformatted_obs[0]["buffer_latencies"][slice_ues]
+                self.fake_agent.last_unformatted_obs[0]["buffer_latencies"][
+                    slice_ues
+                ]
                 if slice_ues.shape[0] != 0
                 else np.array([0])
             )
@@ -181,7 +281,7 @@ class TWC(Agent):
             pkt_loss_rate = (
                 get_metric_value(
                     "reliability",
-                    self.last_unformatted_obs,
+                    self.fake_agent.last_unformatted_obs,
                     agent_idx - 1,
                     slice_ues,
                     reliability_pkt_loss=True,
@@ -195,192 +295,53 @@ class TWC(Agent):
 
             # Requested throughput
             slice_traffic_req = (
-                self.last_unformatted_obs[0]["slice_req"][
+                self.fake_agent.last_unformatted_obs[0]["slice_req"][
                     f"slice_{agent_idx-1}"
                 ]["ues"]["traffic"]
-                if self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                    0, agent_idx - 1
-                ]
-                == 1
+                if np.isclose(
+                    self.fake_agent.last_unformatted_obs[0][
+                        "basestation_slice_assoc"
+                    ][0, agent_idx - 1],
+                    1,
+                )
                 else 0
             )
             dict_metrics["requested_thrs"] = np.append(
                 dict_metrics["requested_thrs"],
                 slice_traffic_req,
             )
-        for key in dict_metrics.keys():
+        for key in ordered_metrics:
             formatted_obs_space["player_0"]["observations"] = np.concatenate(
                 (
                     formatted_obs_space["player_0"]["observations"],
                     dict_metrics[key],
                 )
             )
-        formatted_obs_space["player_1"] = np.array([0, 1])
 
         self.last_formatted_obs = formatted_obs_space
 
-        return formatted_obs_space
+        return formatted_obs_space["player_0"]["observations"]
 
-    def calculate_reward(self, obs_space: dict) -> dict:
-        assert isinstance(
-            self.env, MARLCommEnv
-        ), "Environment must be MARLCommEnv"
-        intent_drift = intent_drift_calc(
-            self.last_unformatted_obs,
-            self.max_number_ues_slice,
-            self.intent_overfulfillment_rate,
-        )
-        valid_intents = np.array([])
-        weights = np.array([])
-        reward = {}
-        for player_idx in np.arange(self.env.comm_env.max_number_slices + 1):
-            slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
-                player_idx - 1
-            ].nonzero()[0]
-            if player_idx == 0 or slice_ues.shape[0] == 0:
-                continue
-            (
-                _,
-                intent_drift_slice,
-            ) = calculate_slice_ue_obs(
-                self.max_number_ues_slice,
-                intent_drift,
-                player_idx - 1,
-                slice_ues,
-                self.last_unformatted_obs[0]["slice_req"],
-            )
-            valid_intent = intent_drift_slice[
-                np.logical_not(np.isclose(intent_drift_slice, -2))
-            ]
-            valid_intents = np.append(
-                valid_intents,
-                valid_intent,
-            )
-            valid_intents[
-                valid_intents > 0
-            ] = 0  # It does not consider positive values
-            weight_value = (
-                2
-                if bool(
-                    self.last_unformatted_obs[0]["slice_req"][
-                        f"slice_{player_idx - 1}"
-                    ]["priority"]
-                )
-                else 1
-            )
-            weights = np.append(
-                weights, weight_value * np.ones_like(valid_intent)
-            )
-        reward["player_0"] = (
-            np.sum(valid_intents * weights / np.sum(weights))
-            if np.sum(weights) != 0
-            else 0
-        )
-        reward["player_1"] = 0  # Keeping a second agent to use MARL ray
-
-        return reward
+    def calculate_reward(self, obs_space: Union[np.ndarray, dict]) -> float:
+        obs_dict = {"player_0": obs_space}
+        reward = self.fake_agent.calculate_reward(obs_dict)
+        return reward["player_0"]
 
     def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
-        assert isinstance(
-            self.env, MARLCommEnv
-        ), "Environment must be MARLCommEnv"
-        allocation_rbs = np.array(
-            [
-                np.zeros(
-                    (self.max_number_ues, self.num_available_rbs[basestation])
-                )
-                for basestation in np.arange(self.max_number_basestations)
-            ]
-        )
-
-        if (
-            np.sum(
-                self.last_unformatted_obs[0]["basestation_slice_assoc"][0, :]
-            )
-            != 0
-        ):
-            action = deepcopy(action_ori)
-            action["player_0"][
-                np.where(
-                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                        0, :
-                    ]
-                    == 0
-                )[0]
-            ] = -1
-
-            # Inter-slice scheduling
-            rbs_per_slice = (
-                scores_to_rbs(
-                    action["player_0"],
-                    np.floor(
-                        self.num_available_rbs[0] / self.rbs_per_rbg
-                    ).astype(int),
-                    self.last_unformatted_obs[0]["basestation_slice_assoc"][
-                        0, :
-                    ],
-                )
-                * self.rbs_per_rbg
-            )
-
-            # Intra-slice scheduling
-            for slice_idx in np.arange(rbs_per_slice.shape[0]):
-                slice_ues = self.last_unformatted_obs[0]["slice_ue_assoc"][
-                    slice_idx, :
-                ].nonzero()[0]
-                if slice_ues.shape[0] == 0:
-                    continue
-                allocation_rbs = round_robin(
-                    allocation_rbs,
-                    slice_idx,
-                    rbs_per_slice,
-                    slice_ues,
-                    self.last_unformatted_obs,
-                )
-            assert (
-                np.sum(allocation_rbs) == self.num_available_rbs[0]
-            ), "Allocated RBs are different from available RBs"
+        action = {
+            "player_0": action_ori,
+        }
+        allocation_rbs = self.fake_agent.action_format(action, intra_rr=True)
 
         return allocation_rbs
 
-    @staticmethod
-    def get_action_space() -> spaces.Dict:
-        num_agents = 2
-        action_space = spaces.Dict(
-            {
-                f"player_{idx}": spaces.Box(
-                    low=-1, high=1, shape=(5,), dtype=np.float64
-                )
-                if idx == 0
-                else spaces.Discrete(
-                    1
-                )  # Three algorithms (RR, PF and Maximum Throughput)
-                for idx in range(num_agents)
-            }
-        )
+    def get_action_space(self) -> spaces.Space:
+        action_space = self.fake_agent.get_action_space()
 
-        return action_space
+        return action_space["player_0"]
 
-    @staticmethod
-    def get_obs_space() -> spaces.Dict:
-        num_agents = 2
-        obs_space = spaces.Dict(
-            {
-                f"player_{idx}": spaces.Dict(
-                    {
-                        "observations": spaces.Box(
-                            low=-2, high=np.inf, shape=(50,), dtype=np.float64
-                        ),
-                        "action_mask": spaces.Box(
-                            0.0, 1.0, shape=(5,), dtype=np.int8
-                        ),
-                    }
-                )
-                if idx == 0
-                else spaces.Box(low=0, high=1, shape=(2,), dtype=np.float64)
-                for idx in range(num_agents)
-            }
-        )
+    def get_obs_space(self) -> spaces.Space:
+        obs_space = self.fake_agent.get_obs_space()["player_0"]["observations"]  # type: ignore
 
         return obs_space
 
