@@ -21,7 +21,7 @@ class IBSchedSB3(Agent):
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         eval_env: Optional[MARLCommEnv] = None,
-        agent_type: str = "ppo",
+        agent_type: str = "sac",
         seed: int = np.random.randint(1000),
         agent_name: str = "sb3_ib_sched",
     ) -> None:

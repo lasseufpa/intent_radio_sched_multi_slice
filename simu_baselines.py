@@ -3,6 +3,7 @@ from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
+from agents.mapf import MAPF
 from agents.marr import MARR
 from agents.sched_twc import SchedTWC
 from associations.mult_slice import MultSliceAssociation
@@ -15,12 +16,12 @@ from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {"mult_slice_seq": MultSliceAssociationSeq}
 agents = {
-    "sched_twc": {
-        "class": SchedTWC,
-        "rl": True,
-        "agent_type": "sac",
-        "train": False,
-    }
+    # "sched_twc": {
+    #     "class": SchedTWC,
+    #     "rl": True,
+    #     "train": False,
+    # },
+    "mapf": {"class": MAPF, "rl": False, "train": False},
 }
 env_config_scenarios = {
     "mult_slice_seq": {
@@ -72,7 +73,6 @@ def env_creator(env_config):
         marl_comm_env.comm_env.max_number_basestations,
         marl_comm_env.comm_env.num_available_rbs,
         eval_env if env_config["enable_evaluation"] else None,
-        env_config["agent_type"],
         seed=env_config["seed"],
     )
     marl_comm_env.set_agent_functions(
@@ -101,7 +101,6 @@ for scenario in scenarios.keys():
         env_config["scenario"] = scenario
         env_config["agent_class"] = agents[agent_name]["class"]
         env_config["association_class"] = scenarios[scenario]
-        env_config["agent_type"] = agents[agent_name]["agent_type"]
 
         marl_comm_env, agent = env_creator(env_config)
 
