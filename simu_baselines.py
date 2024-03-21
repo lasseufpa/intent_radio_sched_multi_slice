@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 from agents.mapf import MAPF
 from agents.marr import MARR
+from agents.sched_colran import SchedColORAN
 from agents.sched_twc import SchedTWC
 from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_seq import MultSliceAssociationSeq
@@ -21,7 +22,13 @@ agents = {
         "rl": True,
         "train": False,
     },
+    "sched_coloran": {
+        "class": SchedColORAN,
+        "rl": True,
+        "train": True,
+    },
     "mapf": {"class": MAPF, "rl": False, "train": False},
+    "marr": {"class": MARR, "rl": False, "train": False},
 }
 env_config_scenarios = {
     "mult_slice_seq": {
@@ -134,5 +141,6 @@ for scenario in scenarios.keys():
         for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
             action = agent.step(obs)
             obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
+            assert isinstance(terminated, bool), "Terminated must be a boolean"
             if terminated:
                 obs, _ = marl_comm_env.reset()
