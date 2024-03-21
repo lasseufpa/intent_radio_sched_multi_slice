@@ -155,7 +155,7 @@ class MultSliceAssociation(Association):
                     },
                     "par3": {
                         "name": "throughput",
-                        "value": 30,
+                        "value": 15,
                         "unit": "Mbps",
                         "operator": self.expectation_params["at_least"],
                     },
