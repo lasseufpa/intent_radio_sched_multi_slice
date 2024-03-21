@@ -327,10 +327,6 @@ class SchedTWC(Agent):
         return formatted_obs_space["player_0"]["observations"]
 
     def calculate_reward(self, obs_space: Union[np.ndarray, dict]) -> float:
-        # obs_dict = {"player_0": obs_space}
-        # reward = self.fake_agent.calculate_reward(obs_dict)
-        # return reward["player_0"]
-
         assert isinstance(
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
