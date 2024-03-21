@@ -1174,6 +1174,7 @@ agent_names = [
     "round_robin",
     "ib_sched",
     "sched_twc",
+    "mapf",
     # "scratch_sb3_ib_sched_sort",
     # "ib_sched_old",
     # "ib_sched_deepmind",

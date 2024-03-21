@@ -6,7 +6,7 @@ repos:
         entry: isort
         language: python
         "types": [python]
-        args: ["--profile", "black"]
+        args: ["--profile", "black", "--line-length=72"]
         require_serial: false
         additional_dependencies: []
         minimum_pre_commit_version: "0"

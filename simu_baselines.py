@@ -16,11 +16,11 @@ from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {"mult_slice_seq": MultSliceAssociationSeq}
 agents = {
-    # "sched_twc": {
-    #     "class": SchedTWC,
-    #     "rl": True,
-    #     "train": False,
-    # },
+    "sched_twc": {
+        "class": SchedTWC,
+        "rl": True,
+        "train": False,
+    },
     "mapf": {"class": MAPF, "rl": False, "train": False},
 }
 env_config_scenarios = {
@@ -32,10 +32,11 @@ env_config_scenarios = {
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
         "training_epochs": 10,
-        "test_episodes": 30,
         "enable_evaluation": False,
         "initial_training_episode": 0,
         "max_training_episodes": 70,
+        "initial_testing_episode": 70,
+        "test_episodes": 30,
     }
 }
 
@@ -123,16 +124,12 @@ for scenario in scenarios.keys():
 
         # Testing
         total_test_steps = env_config["test_episodes"] * steps_per_episode
-        test_initial_episode = (
-            env_config["initial_training_episode"]
-            + env_config["max_training_episodes"]
-        )
         marl_comm_env.comm_env.max_number_episodes = (
-            test_initial_episode + env_config["test_episodes"]
+            env_config["initial_testing_episode"] + env_config["test_episodes"]
         )
         obs, _ = marl_comm_env.reset(
             seed=env_config["seed_test"],
-            options={"initial_episode": test_initial_episode},
+            options={"initial_episode": env_config["initial_testing_episode"]},
         )
         for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
             action = agent.step(obs)

@@ -16,6 +16,8 @@ class MARR(Agent):
         max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
+        eval_env: Optional[MARLCommEnv] = None,
+        seed: int = 0,
     ) -> None:
         super().__init__(
             env,
@@ -47,6 +49,9 @@ class MARR(Agent):
         action["player_0"][action["player_0"] == 0] = -1
 
         return action
+
+    def init_agent(self) -> None:
+        pass  # No need to initialize the agent
 
     def obs_space_format(self, obs_space: dict) -> Union[np.ndarray, dict]:
         obs = self.fake_agent.obs_space_format(obs_space)
