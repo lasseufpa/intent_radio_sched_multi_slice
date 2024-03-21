@@ -7,7 +7,11 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.ppo.ppo import PPO
 from stable_baselines3.sac.sac import SAC
 
-from agents.common import get_metric_value
+from agents.common import (
+    calculate_slice_ue_obs,
+    get_metric_value,
+    intent_drift_calc,
+)
 from agents.ib_sched import IBSched
 from agents.sb3_callbacks import CustomEvalCallback as EvalCallback
 from sixg_radio_mgmt import Agent, MARLCommEnv
@@ -24,7 +28,7 @@ class SchedTWC(Agent):
         eval_env: Optional[MARLCommEnv] = None,
         agent_type: str = "ppo",
         seed: int = np.random.randint(1000),
-        agent_name: str = "twc_sched",
+        agent_name: str = "sched_twc",
     ) -> None:
         super().__init__(
             env,
@@ -323,15 +327,83 @@ class SchedTWC(Agent):
         return formatted_obs_space["player_0"]["observations"]
 
     def calculate_reward(self, obs_space: Union[np.ndarray, dict]) -> float:
-        obs_dict = {"player_0": obs_space}
-        reward = self.fake_agent.calculate_reward(obs_dict)
-        return reward["player_0"]
+        # obs_dict = {"player_0": obs_space}
+        # reward = self.fake_agent.calculate_reward(obs_dict)
+        # return reward["player_0"]
+
+        assert isinstance(
+            self.env, MARLCommEnv
+        ), "Environment must be MARLCommEnv"
+        intent_drift = intent_drift_calc(
+            self.fake_agent.last_unformatted_obs,
+            self.fake_agent.max_number_ues_slice,
+            self.fake_agent.intent_overfulfillment_rate,
+        )
+        valid_intents = np.array([])
+        weights = np.array([])
+        reward = {}
+        for player_idx in np.arange(
+            1, self.env.comm_env.max_number_slices + 1
+        ):
+            slice_ues = self.fake_agent.last_unformatted_obs[0][
+                "slice_ue_assoc"
+            ][player_idx - 1].nonzero()[0]
+            if slice_ues.shape[0] == 0:
+                continue
+            (
+                _,
+                intent_drift_slice,
+            ) = calculate_slice_ue_obs(
+                self.fake_agent.max_number_ues_slice,
+                intent_drift,
+                player_idx - 1,
+                slice_ues,
+                self.fake_agent.last_unformatted_obs[0]["slice_req"],
+            )
+            valid_intent = intent_drift_slice[
+                np.logical_not(np.isclose(intent_drift_slice, -2))
+            ]
+            valid_intents = np.append(
+                valid_intents,
+                valid_intent,
+            )
+            weight_value = (
+                2
+                if bool(
+                    self.fake_agent.last_unformatted_obs[0]["slice_req"][
+                        f"slice_{player_idx - 1}"
+                    ]["priority"]
+                )
+                else 1
+            )
+            weights = np.append(
+                weights, weight_value * np.ones_like(valid_intent)
+            )
+        valid_intents[valid_intents > 0] = (
+            0  # It does not consider positive values
+        )
+        idx_negative_intents = valid_intents < 0
+        negative_intents = valid_intents[idx_negative_intents]
+        negative_intents_weights = weights[idx_negative_intents]
+        reward = (
+            np.sum(
+                negative_intents
+                * negative_intents_weights
+                / np.sum(negative_intents_weights)
+            )
+            if not np.isclose(np.sum(negative_intents_weights), 0)
+            else 0
+        )
+
+        return reward
 
     def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
         action = {
             "player_0": action_ori,
         }
-        allocation_rbs = self.fake_agent.action_format(action, intra_rr=True)
+        allocation_rbs = self.fake_agent.action_format(
+            action, fixed_intra="rr"
+        )
 
         return allocation_rbs
 

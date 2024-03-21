@@ -403,6 +403,7 @@ def calculate_reward_no_mask(
     last_formatted_obs: dict,
     last_unformatted_obs: deque,
     var_obs_per_slice: int,
+    priority_flag: bool = True,
 ) -> dict:
     reward = {}
     for player_idx, agent_obs in enumerate(last_formatted_obs.items()):
@@ -427,15 +428,18 @@ def calculate_reward_no_mask(
                 active_observations[element_idx] = metrics
             if np.isclose(np.sum(active_observations < 0), 0):
                 reward[agent_obs[0]] = 0  # np.mean(active_observations)
-            # elif not np.isclose(
-            #     np.sum((slice_priorities * active_observations) < 0), 0
-            # ):
-            #     negative_obs_idx = (
-            #         active_observations * slice_priorities < 0
-            #     ).nonzero()[0]
-            #     reward[agent_obs[0]] = (
-            #         np.mean(active_observations[negative_obs_idx]) - 1
-            #     )
+            elif (
+                not np.isclose(
+                    np.sum((slice_priorities * active_observations) < 0), 0
+                )
+                and priority_flag
+            ):
+                negative_obs_idx = (
+                    active_observations * slice_priorities < 0
+                ).nonzero()[0]
+                reward[agent_obs[0]] = (
+                    np.mean(active_observations[negative_obs_idx]) - 1
+                )
             else:
                 negative_obs_idx = (active_observations < 0).nonzero()[0]
                 reward[agent_obs[0]] = np.mean(

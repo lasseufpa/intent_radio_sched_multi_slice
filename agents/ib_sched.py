@@ -216,7 +216,9 @@ class IBSched(Agent):
         )
 
     def action_format(
-        self, action_ori: Union[np.ndarray, dict], intra_rr: bool = True
+        self,
+        action_ori: Union[np.ndarray, dict],
+        fixed_intra: Optional[str] = None,
     ) -> np.ndarray:
         assert isinstance(
             self.env, MARLCommEnv
@@ -267,14 +269,39 @@ class IBSched(Agent):
                 ].nonzero()[0]
                 if slice_ues.shape[0] == 0:
                     continue
-                if intra_rr:
-                    allocation_rbs = round_robin(
-                        allocation_rbs,
-                        slice_idx,
-                        rbs_per_slice,
-                        slice_ues,
-                        self.last_unformatted_obs,
-                    )
+                if fixed_intra is not None:
+                    if fixed_intra == "rr":
+                        allocation_rbs = round_robin(
+                            allocation_rbs,
+                            slice_idx,
+                            rbs_per_slice,
+                            slice_ues,
+                            self.last_unformatted_obs,
+                        )
+                    elif fixed_intra == "pf":
+                        allocation_rbs = proportional_fairness(
+                            allocation_rbs,
+                            slice_idx,
+                            rbs_per_slice,
+                            slice_ues,
+                            self.env,
+                            self.last_unformatted_obs,
+                            self.num_available_rbs,
+                        )
+                    elif fixed_intra == "mt":
+                        allocation_rbs = max_throughput(
+                            allocation_rbs,
+                            slice_idx,
+                            rbs_per_slice,
+                            slice_ues,
+                            self.env,
+                            self.last_unformatted_obs,
+                            self.num_available_rbs,
+                        )
+                    else:
+                        raise ValueError(
+                            "Invalid intra-slice scheduling action"
+                        )
                 else:
                     match action[f"player_{slice_idx+1}"]:
                         case 0:

@@ -1173,6 +1173,7 @@ agent_names = [
     # "random",
     "round_robin",
     "ib_sched",
+    "sched_twc",
     # "scratch_sb3_ib_sched_sort",
     # "ib_sched_old",
     # "ib_sched_deepmind",

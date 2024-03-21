@@ -153,7 +153,9 @@ class IBSchedSB3(Agent):
         action = {
             "player_0": action_ori,
         }
-        allocation_rbs = self.fake_agent.action_format(action, intra_rr=True)
+        allocation_rbs = self.fake_agent.action_format(
+            action, fixed_intra="rr"
+        )
 
         return allocation_rbs
 

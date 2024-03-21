@@ -59,7 +59,9 @@ class MARR(Agent):
         return reward["player_0"]
 
     def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
-        allocation_rbs = self.fake_agent.action_format(action, intra_rr=True)
+        allocation_rbs = self.fake_agent.action_format(
+            action, fixed_intra="rr"
+        )
 
         return allocation_rbs
 
