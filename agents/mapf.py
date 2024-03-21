@@ -71,13 +71,13 @@ class MAPF(Agent):
                 )
                 * slice_pkt_size
                 / 1e6
-            )  # in Mbps
+            )  # In Mbps
             slices_thr_sent[slice_idx] = (
                 np.mean(
                     np.mean(
                         [
                             self.fake_agent.last_unformatted_obs[idx][
-                                "pkt_throughputs"
+                                "pkt_effective_thr"
                             ][slice_ues]
                             for idx in range(
                                 len(self.fake_agent.last_unformatted_obs)
@@ -87,7 +87,7 @@ class MAPF(Agent):
                     )
                 )
                 * slice_pkt_size
-            ) / 1e6  # Convert to Mbps
+            ) / 1e6  # In Mbps
         weights = np.divide(
             slices_buffer_occ,
             slices_thr_sent,

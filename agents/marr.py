@@ -37,16 +37,12 @@ class MARR(Agent):
             num_available_rbs,
         )
 
-    def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> dict:
+    def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         slice_ue_assoc = self.fake_agent.last_unformatted_obs[0][
             "slice_ue_assoc"
         ]
-        action = {
-            f"player_{idx}": 0
-            for idx in np.arange(slice_ue_assoc.shape[0] + 1)
-        }
-        action["player_0"] = (np.sum(slice_ue_assoc, axis=1) > 0).astype(int)
-        action["player_0"][action["player_0"] == 0] = -1
+        action = (np.sum(slice_ue_assoc, axis=1) > 0).astype(int)
+        action[action == 0] = -1
 
         return action
 
@@ -63,7 +59,10 @@ class MARR(Agent):
         reward = self.fake_agent.calculate_reward(obs_dict)
         return reward["player_0"]
 
-    def action_format(self, action: Union[np.ndarray, dict]) -> np.ndarray:
+    def action_format(self, action_ori: Union[np.ndarray, dict]) -> np.ndarray:
+        action = {
+            "player_0": action_ori,
+        }
         allocation_rbs = self.fake_agent.action_format(
             action, fixed_intra="rr"
         )
