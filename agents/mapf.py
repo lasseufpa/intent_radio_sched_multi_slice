@@ -43,7 +43,6 @@ class MAPF(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         action = {}
-        slices_spectral_eff = np.zeros(self.max_number_slices)
         slices_thr_sent = np.zeros(self.max_number_slices)
         slices_buffer_occ = np.zeros(self.max_number_slices)
         weights = -1 * np.ones(self.max_number_slices)
@@ -55,14 +54,6 @@ class MAPF(Agent):
             slice_ues = self.fake_agent.last_unformatted_obs[0][
                 "slice_ue_assoc"
             ][slice_idx].nonzero()[0]
-            slices_spectral_eff[slice_idx] = np.mean(
-                np.mean(
-                    self.fake_agent.last_unformatted_obs[0][
-                        "spectral_efficiencies"
-                    ][0, slice_ues, :],
-                    axis=1,
-                )
-            )
             slice_pkt_size = self.fake_agent.last_unformatted_obs[0][
                 "slice_req"
             ][f"slice_{slice_idx}"]["ues"]["message_size"]
@@ -98,14 +89,12 @@ class MAPF(Agent):
                 * slice_pkt_size
             ) / 1e6  # Convert to Mbps
         weights = np.divide(
-            slices_buffer_occ,  # slices_spectral_eff,
+            slices_buffer_occ,
             slices_thr_sent,
             where=np.logical_not(
                 np.isclose(slices_thr_sent, np.zeros_like(slices_thr_sent))
             ),
-            out=2
-            * np.max(slices_spectral_eff)
-            * np.ones_like(slices_thr_sent),
+            out=2 * np.max(slices_buffer_occ) * np.ones_like(slices_thr_sent),
         )
         inactive_slice_idxs = np.logical_not(
             self.fake_agent.last_unformatted_obs[0]["basestation_slice_assoc"][
