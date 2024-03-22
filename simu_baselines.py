@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 from agents.mapf import MAPF
 from agents.marr import MARR
+from agents.sb3_ib_sched import IBSchedSB3
 from agents.sched_colran import SchedColORAN
 from agents.sched_twc import SchedTWC
 from associations.mult_slice import MultSliceAssociation
@@ -15,12 +16,20 @@ from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
-scenarios = {"mult_slice_seq": MultSliceAssociationSeq}
+scenarios = {
+    "mult_slice_seq": MultSliceAssociationSeq,
+    # "mult_slice": MultSliceAssociation,
+}
 agents = {
+    "sb3_ib_sched": {
+        "class": IBSchedSB3,
+        "rl": True,
+        "train": True,
+    },
     "sched_twc": {
         "class": SchedTWC,
         "rl": True,
-        "train": False,
+        "train": True,
     },
     "sched_coloran": {
         "class": SchedColORAN,
@@ -44,7 +53,21 @@ env_config_scenarios = {
         "max_training_episodes": 70,
         "initial_testing_episode": 70,
         "test_episodes": 30,
-    }
+    },
+    "mult_slice": {
+        "seed": 10,
+        "seed_test": 15,
+        "channel_class": MimicQuadriga,  # QuadrigaChannel,
+        "traffic_class": MultSliceTraffic,
+        "mobility_class": SimpleMobility,
+        "root_path": str(getcwd()),
+        "training_epochs": 10,
+        "enable_evaluation": False,
+        "initial_training_episode": 0,
+        "max_training_episodes": 2000,  # 20 different scenarios with 100 channel episodes each
+        "initial_testing_episode": 2000,
+        "test_episodes": 1000,  # Testing on 10 different unseen scenarios
+    },
 }
 
 
@@ -123,6 +146,7 @@ for scenario in scenarios.keys():
         )
         if agents[agent_name]["rl"]:
             if agents[agent_name]["train"]:
+                print(f"Training {agent_name} on {scenario} scenario")
                 agent.train(total_time_steps)
 
             agent.load(
@@ -130,6 +154,7 @@ for scenario in scenarios.keys():
             )
 
         # Testing
+        print(f"Testing {agent_name} on {scenario} scenario")
         total_test_steps = env_config["test_episodes"] * steps_per_episode
         marl_comm_env.comm_env.max_number_episodes = (
             env_config["initial_testing_episode"] + env_config["test_episodes"]

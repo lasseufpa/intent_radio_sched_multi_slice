@@ -1026,6 +1026,7 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
     ylabel = ""
     x_values = np.arange(episodes[0], episodes[-1] + 1, dtype=int)
     y_values = np.array([])
+    y2_values = np.array([])
     for episode in episodes:
         data = np.load(
             f"hist/{scenario}/{agent}/ep_{episode}.npz",
@@ -1064,6 +1065,13 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
             case "violations_per_episode" | "violations_per_episode_cumsum":
                 violations, _, _, _ = calc_slice_violations(data_metrics)
                 y_values = np.append(y_values, np.sum(violations))
+            case "distance_fulfill" | "distance_fulfill_cumsum":
+                distance = calc_intent_distance(data_metrics)
+                y_values = np.append(y_values, np.sum(distance))
+                distance_pri = calc_intent_distance(
+                    data_metrics, priority=True
+                )
+                y2_values = np.append(y2_values, np.sum(distance_pri))
 
     match metric:
         case "reward_per_episode_cumsum":
@@ -1078,6 +1086,20 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
         case "violations_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "# Violations"
+        case "distance_fulfill":
+            plt.scatter(x_values, y_values, label=f"{agent}")
+            plt.scatter(x_values, y2_values, label=f"{agent}, prioritary")
+            ylabel = "Distance to fulfill"
+        case "distance_fulfill_cumsum":
+            plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
+            plt.plot(
+                x_values,
+                np.cumsum(y2_values),
+                label=f"{agent}, prioritary",
+                color=plt.gca().lines[-1].get_color(),
+                linestyle="--",
+            )
+            ylabel = "Cumulative distance to fulfill"
 
     return (xlabel, ylabel)
 
@@ -1175,6 +1197,7 @@ agent_names = [
     "ib_sched",
     "sched_twc",
     "mapf",
+    # "sched_coloran",
     # "scratch_sb3_ib_sched_sort",
     # "ib_sched_old",
     # "ib_sched_deepmind",
@@ -1186,6 +1209,7 @@ agent_names = [
     # "finetune_sb3_ib_sched",
     "scratch_sb3_ib_sched",
     "scratch_sb3_ppo_ib_sched",
+    "sb3_ib_sched",
     # "base_shuffle_sb3_ib_sched",
 ]
 episodes = np.arange(70, 100, dtype=int)
@@ -1241,9 +1265,10 @@ metrics = [
 
 # One graph for all agents considering all episodes (one graph for all episodes)
 metrics = [
-    "reward_per_episode_cumsum",
+    # "reward_per_episode_cumsum",
     #    "reward_per_episode",
     #    "violations_per_episode",
-    "violations_per_episode_cumsum",
+    "distance_fulfill_cumsum",
+    # "violations_per_episode_cumsum",
 ]
 gen_results_total(scenario_names, agent_names, episodes, metrics, slices)

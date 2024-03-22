@@ -98,7 +98,7 @@ class SchedTWC(Agent):
                 "MlpPolicy",
                 self.env,
                 verbose=0,
-                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/{self.agent_name}/",
                 seed=self.seed,
             )
         elif self.agent_type == "sac":
@@ -106,7 +106,7 @@ class SchedTWC(Agent):
                 "MlpPolicy",
                 self.env,
                 verbose=0,
-                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/{self.agent_name}/",
                 seed=self.seed,
                 # policy_kwargs=dict(net_arch=[2048, 2048]),
             )

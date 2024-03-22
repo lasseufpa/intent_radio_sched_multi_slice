@@ -26,7 +26,9 @@ class MultSliceAssociationSeq(Association):
             rng,
             root_path,
         )
-        self.scenario_name = "mult_slice"
+        self.scenario_name = (
+            "mult_slice"  # Reading association files from mult_slice
+        )
         self.min_number_slices = 3
         self.max_number_slices = 5
         self.channels_per_association = 100

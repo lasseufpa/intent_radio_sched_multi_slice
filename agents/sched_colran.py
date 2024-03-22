@@ -28,7 +28,7 @@ class SchedColORAN(Agent):
         eval_env: Optional[MARLCommEnv] = None,
         agent_type: str = "sac",
         seed: int = np.random.randint(1000),
-        agent_name: str = "sched_twc",
+        agent_name: str = "sched_coloran",
     ) -> None:
         super().__init__(
             env,
@@ -98,7 +98,7 @@ class SchedColORAN(Agent):
                 "MlpPolicy",
                 self.env,
                 verbose=0,
-                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/{self.agent_name}/",
                 seed=self.seed,
             )
         elif self.agent_type == "sac":
@@ -106,7 +106,7 @@ class SchedColORAN(Agent):
                 "MlpPolicy",
                 self.env,
                 verbose=0,
-                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/",
+                tensorboard_log=f"tensorboard-logs/{self.env.comm_env.simu_name}/{self.agent_name}/",
                 seed=self.seed,
                 # policy_kwargs=dict(net_arch=[2048, 2048]),
             )
@@ -335,6 +335,8 @@ class SchedColORAN(Agent):
         # requirements or with throughput requirements bigger than 20 Mbps as eMBB.
         # A slice can be classified as both eMBB and urllc at the same time too.
         # In case the slice type does not fit none of the above assumptions, we assume eMBB.
+        maximum_throughput = 200  # in Mbps (only for normalization purpose)
+        maximum_buffer_size = 2000  # in Mbps (only for normalization purpose)
         slice_type_to_use_case = {
             "control_case_2": ["urllc"],
             "monitoring_case_1": ["embb"],
@@ -373,7 +375,7 @@ class SchedColORAN(Agent):
                     )
                     * slice_pkt_size
                 ) / 1e6  # in Mbps
-                reward += slice_throughput
+                reward += slice_throughput / maximum_throughput
             if "urllc" in slice_type_to_use_case[slice_name]:
                 slice_pkt_size = self.fake_agent.last_unformatted_obs[0][
                     "slice_req"
@@ -393,7 +395,7 @@ class SchedColORAN(Agent):
                     * slice_pkt_size
                     / 1e6
                 )  # in Mbps
-                reward -= slice_buffer_mbps
+                reward -= slice_buffer_mbps / maximum_buffer_size
 
         return reward
 
