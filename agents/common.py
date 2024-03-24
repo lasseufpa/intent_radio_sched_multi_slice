@@ -447,16 +447,15 @@ def calculate_reward_no_mask(
                 )
         else:
             reward[agent_obs[0]] = 0
-            elements_idx = last_unformatted_obs[0]["slice_ue_assoc"][
-                player_idx - 1, :
-            ].nonzero()[0]
-            if elements_idx.shape[0] > 0:
-                buffer_occ = last_unformatted_obs[0]["buffer_occupancies"][
-                    elements_idx
-                ]
-                reward[agent_obs[0]] = -(
-                    np.mean(buffer_occ) + np.std(buffer_occ)
+            active_metrics = agent_obs[1]["observations"][3:6]
+            if np.sum(active_metrics > 0) > 0:
+                intent_drifts = agent_obs[1]["observations"][0:3]
+                intent_drifts[intent_drifts > 0] = 0
+                active_metrics = agent_obs[1]["observations"][3:6]
+                reward[agent_obs[0]] = np.min(
+                    intent_drifts[active_metrics.astype(bool)]
                 )
+
     return reward
 
 

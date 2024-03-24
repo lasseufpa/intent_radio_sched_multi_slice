@@ -130,22 +130,6 @@ class IBSched(Agent):
                 np.isclose(intent_drift_slice, -2)
             ).astype(int)
             intent_drift_slice[np.isclose(intent_drift_slice, -2)] = 0
-            # slice_buffer_occ = (
-            #     np.mean(
-            #         self.last_unformatted_obs[0]["buffer_occupancies"][
-            #             slice_ues
-            #         ]
-            #     )
-            #     if slice_ues.shape[0] > 0
-            #     else 0
-            # )
-            # slice_buffer_latency = (
-            #     np.mean(
-            #         self.last_unformatted_obs[0]["buffer_latencies"][slice_ues]
-            #     )
-            #     if slice_ues.shape[0] > 0
-            #     else 0
-            # )
             spectral_eff_slice = (
                 np.mean(
                     np.mean(
@@ -176,32 +160,31 @@ class IBSched(Agent):
             )
 
             # Intra-slice scheduling
-            if agent_idx < len(self.env.agents):
-                slice_rbs_allocated = np.sum(
-                    np.sum(
-                        self.last_unformatted_obs[0]["sched_decision"], axis=2
-                    )[0]
-                    * self.last_unformatted_obs[0]["slice_ue_assoc"][
-                        agent_idx - 1
-                    ]
-                )
-                association_slice_ue = np.zeros(
-                    self.max_number_ues_slice, dtype=np.int8
-                )
-                association_slice_ue[0 : slice_ues.shape[0]] = 1
-                formatted_obs_space[f"player_{agent_idx}"] = {
-                    "observations": np.concatenate(
-                        (
-                            np.array([slice_rbs_allocated])
-                            / self.num_available_rbs[0],
-                            np.array([slice_traffic_req]) / 120.0,
-                            np.array([slice_ues.shape[0]]) / 5.0,
-                            buffer_occ,
-                            spectral_eff / 40.0,
-                        )
-                    ),
-                    "action_mask": association_slice_ue,
-                }
+            slice_rbs_allocated = np.sum(
+                np.sum(self.last_unformatted_obs[0]["sched_decision"], axis=2)[
+                    0
+                ]
+                * self.last_unformatted_obs[0]["slice_ue_assoc"][agent_idx - 1]
+            )
+            association_slice_ue = np.zeros(
+                self.max_number_ues_slice, dtype=np.int8
+            )
+            association_slice_ue[0 : slice_ues.shape[0]] = 1
+            formatted_obs_space[f"player_{agent_idx}"] = {
+                "observations": np.concatenate(
+                    (
+                        intent_drift_slice,
+                        active_metrics,
+                        np.array([slice_rbs_allocated])
+                        / self.num_available_rbs[0],
+                        np.array([slice_traffic_req]) / 120.0,
+                        np.array([slice_ues.shape[0]]) / 5.0,
+                        buffer_occ,
+                        spectral_eff / 40.0,
+                    )
+                ),
+                "action_mask": association_slice_ue,
+            }
 
         self.last_formatted_obs = formatted_obs_space
 
@@ -414,7 +397,7 @@ class IBSched(Agent):
                                         / self.max_number_slices
                                     )
                                     * self.var_obs_intra_ue
-                                    + 3,
+                                    + 9,
                                 ),
                                 dtype=np.float64,
                             ),
