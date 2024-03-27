@@ -24,6 +24,10 @@ class IBSchedSB3(Agent):
         agent_type: str = "sac",
         seed: int = np.random.randint(1000),
         agent_name: str = "sb3_sched",
+        episode_evaluation_freq: Optional[int] = None,
+        number_evaluation_episodes: Optional[int] = None,
+        checkpoint_episode_freq: Optional[int] = None,
+        eval_initial_env_episode: Optional[int] = None,
     ) -> None:
         super().__init__(
             env,
@@ -38,18 +42,24 @@ class IBSchedSB3(Agent):
         ), "Environment must be MARLCommEnv"
         self.agent_name = agent_name
         self.agent_type = agent_type
-        self.episode_evaluation_freq = 160
-        self.number_evaluation_episodes = 40
-        checkpoint_episode_freq = 10
-        eval_initial_env_episode = 160
+        self.episode_evaluation_freq = episode_evaluation_freq
+        self.number_evaluation_episodes = number_evaluation_episodes
+        checkpoint_episode_freq = checkpoint_episode_freq
+        eval_initial_env_episode = eval_initial_env_episode
         eval_maximum_env_episode = (
-            eval_initial_env_episode + self.number_evaluation_episodes
+            (eval_initial_env_episode + self.number_evaluation_episodes)
+            if eval_initial_env_episode is not None
+            and self.number_evaluation_episodes is not None
+            else 0
         )
         self.checkpoint_frequency = (
             self.env.comm_env.max_number_steps * checkpoint_episode_freq
         )
         self.eval_env = eval_env
         if self.eval_env is not None:
+            assert isinstance(
+                eval_initial_env_episode, int
+            ), "eval_initial_env_episode needs to be int"
             self.eval_env.comm_env.initial_episode_number = (
                 eval_initial_env_episode
             )
@@ -70,6 +80,9 @@ class IBSchedSB3(Agent):
             self.env, MARLCommEnv
         ), "Environment must be MARLCommEnv"
         if self.eval_env is not None:
+            assert isinstance(
+                self.number_evaluation_episodes, int
+            ), "self.number_evaluation_episodes needs to be int"
             self.callback_evaluation = EvalCallback(
                 eval_env=self.eval_env,
                 log_path=f"./evaluations/{self.env.comm_env.simu_name}/{self.agent_name}",
