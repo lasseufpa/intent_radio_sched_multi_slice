@@ -3,7 +3,7 @@ from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
-from agents.sb3_ib_sched import IBSchedSB3
+from agents.sb3_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
 from channels.fixed_se import FixedSE
 from channels.mimic_quadriga import MimicQuadriga
@@ -23,7 +23,7 @@ env_config = {
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "sb3_ib_sched",
+    "agent": "sb3_sched",
     "root_path": str(getcwd()),
     "training_epochs": 10,
     "test_episodes": 1000,

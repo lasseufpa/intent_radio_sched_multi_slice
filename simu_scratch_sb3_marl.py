@@ -3,7 +3,7 @@ from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
-from agents.sb3_ib_sched import IBSchedSB3
+from agents.sb3_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_seq import MultSliceAssociationSeq
 from channels.fixed_se import FixedSE
@@ -24,7 +24,7 @@ env_config = {
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociationSeq,
     "scenario": "mult_slice_seq",
-    "agent": "scratch_sb3_ib_sched_sort",
+    "agent": "scratch_sb3_sched_sort",
     "root_path": str(getcwd()),
     "training_epochs": 10,
     "initial_training_episode": 0,

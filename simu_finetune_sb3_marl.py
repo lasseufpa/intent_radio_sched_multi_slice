@@ -3,7 +3,7 @@ from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
-from agents.sb3_ib_sched import IBSchedSB3
+from agents.sb3_sched import IBSchedSB3
 from associations.mult_slice import MultSliceAssociation
 from channels.fixed_se import FixedSE
 from channels.mimic_quadriga import MimicQuadriga
@@ -23,7 +23,7 @@ env_config = {
     "mobility_class": SimpleMobility,
     "association_class": MultSliceAssociation,
     "scenario": "mult_slice",
-    "agent": "finetune_sb3_ib_sched",
+    "agent": "finetune_sb3_sched",
     "root_path": str(getcwd()),
     "training_epochs": 2,
     "initial_training_episode": 1000,
@@ -85,13 +85,13 @@ total_time_steps = (
 
 if training_flag:
     sb3_agent.load(
-        f"./agents/models/{env_config['scenario']}/final_base_sb3_ib_sched.zip"
+        f"./agents/models/{env_config['scenario']}/final_base_sb3_sched.zip"
     )
     sb3_agent.train(total_time_steps)
 
 # Testing
 sb3_agent.load(
-    f"./agents/models/{env_config['scenario']}/final_finetune_sb3_ib_sched.zip"
+    f"./agents/models/{env_config['scenario']}/final_finetune_sb3_sched.zip"
 )
 total_test_steps = env_config["test_episodes"] * steps_per_episode
 

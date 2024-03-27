@@ -1058,7 +1058,7 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
                     ]
-                    if "ib_sched" == agent  # TODO remove 3
+                    if "ib_sched" in agent  # TODO remove 3
                     else data_metrics["reward"]
                 )
                 y_values = np.append(y_values, np.sum(reward))
@@ -1193,10 +1193,11 @@ def fair_comparison_check(
 scenario_names = ["mult_slice_seq"]
 agent_names = [
     # "random",
-    "round_robin",
     "ib_sched",
-    "sched_twc",
+    "ib_sched_mask",
+    # "sched_twc",
     "mapf",
+    "marr",
     # "sched_coloran",
     # "scratch_sb3_ib_sched_sort",
     # "ib_sched_old",
@@ -1207,9 +1208,9 @@ agent_names = [
     # "sched_twc",
     # "base_sb3_ib_sched",
     # "finetune_sb3_ib_sched",
-    "scratch_sb3_ib_sched",
-    "scratch_sb3_ppo_ib_sched",
-    "sb3_ib_sched",
+    # "scratch_sb3_ib_sched",
+    # "scratch_sb3_ppo_ib_sched",
+    # "sb3_ib_sched",
     # "base_shuffle_sb3_ib_sched",
 ]
 episodes = np.arange(70, 100, dtype=int)
@@ -1265,10 +1266,10 @@ metrics = [
 
 # One graph for all agents considering all episodes (one graph for all episodes)
 metrics = [
-    # "reward_per_episode_cumsum",
+    "reward_per_episode_cumsum",
     #    "reward_per_episode",
     #    "violations_per_episode",
     "distance_fulfill_cumsum",
-    # "violations_per_episode_cumsum",
+    "violations_per_episode_cumsum",
 ]
 gen_results_total(scenario_names, agent_names, episodes, metrics, slices)

@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from agents.mapf import MAPF
 from agents.marr import MARR
-from agents.sb3_ib_sched import IBSchedSB3
+from agents.sb3_sched import IBSchedSB3
 from agents.sched_colran import SchedColORAN
 from agents.sched_twc import SchedTWC
 from associations.mult_slice import MultSliceAssociation
@@ -18,13 +18,13 @@ from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
     "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
+    "mult_slice": MultSliceAssociation,
 }
 agents = {
-    "sb3_ib_sched": {
-        "class": IBSchedSB3,
-        "rl": True,
-        "train": True,
+    "sb3_sched": {
+       "class": IBSchedSB3,
+       "rl": True,
+       "train": True,
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -61,12 +61,12 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 10,
-        "enable_evaluation": False,
+        "training_epochs": 20,
+        "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 2000,  # 20 different scenarios with 100 channel episodes each
-        "initial_testing_episode": 2000,
-        "test_episodes": 1000,  # Testing on 10 different unseen scenarios
+        "max_training_episodes": 160,  # 160 different scenarios with 1 channel episodes each
+        "initial_testing_episode": 160,
+        "test_episodes": 40,  # Testing on 40 different unseen scenarios
     },
 }
 

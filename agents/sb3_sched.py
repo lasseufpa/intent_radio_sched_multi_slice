@@ -23,7 +23,7 @@ class IBSchedSB3(Agent):
         eval_env: Optional[MARLCommEnv] = None,
         agent_type: str = "sac",
         seed: int = np.random.randint(1000),
-        agent_name: str = "sb3_ib_sched",
+        agent_name: str = "sb3_sched",
     ) -> None:
         super().__init__(
             env,
@@ -38,10 +38,10 @@ class IBSchedSB3(Agent):
         ), "Environment must be MARLCommEnv"
         self.agent_name = agent_name
         self.agent_type = agent_type
-        self.episode_evaluation_freq = 80
-        self.number_evaluation_episodes = 20
+        self.episode_evaluation_freq = 160
+        self.number_evaluation_episodes = 40
         checkpoint_episode_freq = 10
-        eval_initial_env_episode = 1080
+        eval_initial_env_episode = 160
         eval_maximum_env_episode = (
             eval_initial_env_episode + self.number_evaluation_episodes
         )
