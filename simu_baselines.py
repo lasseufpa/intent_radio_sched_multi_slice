@@ -19,12 +19,13 @@ from traffics.mult_slice import MultSliceTraffic
 scenarios = {
     "mult_slice_seq": MultSliceAssociationSeq,
     "mult_slice": MultSliceAssociation,
+    "mult_slice_test_on_trained": MultSliceAssociation,
 }
 agents = {
     "sb3_sched": {
-       "class": IBSchedSB3,
-       "rl": True,
-       "train": True,
+        "class": IBSchedSB3,
+        "rl": True,
+        "train": False,
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -53,6 +54,10 @@ env_config_scenarios = {
         "max_training_episodes": 70,
         "initial_testing_episode": 70,
         "test_episodes": 30,
+        "episode_evaluation_freq": None,
+        "number_evaluation_episodes": None,
+        "checkpoint_episode_freq": None,
+        "eval_initial_env_episode": None,
     },
     "mult_slice": {
         "seed": 10,
@@ -67,6 +72,28 @@ env_config_scenarios = {
         "max_training_episodes": 160,  # 160 different scenarios with 1 channel episodes each
         "initial_testing_episode": 160,
         "test_episodes": 40,  # Testing on 40 different unseen scenarios
+        "episode_evaluation_freq": 160,
+        "number_evaluation_episodes": 40,
+        "checkpoint_episode_freq": 10,
+        "eval_initial_env_episode": 160,
+    },
+    "mult_slice_test_on_trained": {
+        "seed": 10,
+        "seed_test": 15,
+        "channel_class": MimicQuadriga,  # QuadrigaChannel,
+        "traffic_class": MultSliceTraffic,
+        "mobility_class": SimpleMobility,
+        "root_path": str(getcwd()),
+        "training_epochs": 20,
+        "enable_evaluation": True,
+        "initial_training_episode": 0,
+        "max_training_episodes": 160,  # 160 different scenarios with 1 channel episodes each
+        "initial_testing_episode": 0,
+        "test_episodes": 160,  # Testing on 40 different unseen scenarios
+        "episode_evaluation_freq": 160,
+        "number_evaluation_episodes": 160,
+        "checkpoint_episode_freq": 10,
+        "eval_initial_env_episode": 0,
     },
 }
 
@@ -97,15 +124,29 @@ def env_creator(env_config):
         env_config["seed"],
         root_path=env_config["root_path"],
     )
-    agent = env_config["agent_class"](
-        marl_comm_env,
-        marl_comm_env.comm_env.max_number_ues,
-        marl_comm_env.comm_env.max_number_slices,
-        marl_comm_env.comm_env.max_number_basestations,
-        marl_comm_env.comm_env.num_available_rbs,
-        eval_env if env_config["enable_evaluation"] else None,
-        seed=env_config["seed"],
-    )
+    if env_config["rl"]:
+        agent = env_config["agent_class"](
+            marl_comm_env,
+            marl_comm_env.comm_env.max_number_ues,
+            marl_comm_env.comm_env.max_number_slices,
+            marl_comm_env.comm_env.max_number_basestations,
+            marl_comm_env.comm_env.num_available_rbs,
+            eval_env if env_config["enable_evaluation"] else None,
+            seed=env_config["seed"],
+            episode_evaluation_freq=env_config["episode_evaluation_freq"],
+            number_evaluation_episodes=env_config["number_evaluation_episodes"],
+            checkpoint_episode_freq=env_config["checkpoint_episode_freq"],
+            eval_initial_env_episode=env_config["eval_initial_env_episode"],
+        )
+    else:
+        agent = env_config["agent_class"](
+            marl_comm_env,
+            marl_comm_env.comm_env.max_number_ues,
+            marl_comm_env.comm_env.max_number_slices,
+            marl_comm_env.comm_env.max_number_basestations,
+            marl_comm_env.comm_env.num_available_rbs,
+            seed=env_config["seed"],
+        )
     marl_comm_env.set_agent_functions(
         agent.obs_space_format,
         agent.action_format,
@@ -132,6 +173,7 @@ for scenario in scenarios.keys():
         env_config["scenario"] = scenario
         env_config["agent_class"] = agents[agent_name]["class"]
         env_config["association_class"] = scenarios[scenario]
+        env_config["rl"] = agents[agent_name]["rl"]
 
         marl_comm_env, agent = env_creator(env_config)
 
