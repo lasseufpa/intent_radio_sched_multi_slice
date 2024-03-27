@@ -17,7 +17,6 @@ class MAPF(Agent):
         max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
-        eval_env: Optional[MARLCommEnv] = None,
         seed: int = 0,
     ) -> None:
         super().__init__(
