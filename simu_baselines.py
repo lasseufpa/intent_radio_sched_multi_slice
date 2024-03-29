@@ -134,7 +134,9 @@ def env_creator(env_config):
             eval_env if env_config["enable_evaluation"] else None,
             seed=env_config["seed"],
             episode_evaluation_freq=env_config["episode_evaluation_freq"],
-            number_evaluation_episodes=env_config["number_evaluation_episodes"],
+            number_evaluation_episodes=env_config[
+                "number_evaluation_episodes"
+            ],
             checkpoint_episode_freq=env_config["checkpoint_episode_freq"],
             eval_initial_env_episode=env_config["eval_initial_env_episode"],
         )

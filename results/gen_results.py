@@ -156,7 +156,7 @@ def plot_graph(
                 xlabel = "Step (n)"
                 ylabel = "Number of UEs"
             case "reward":
-                if agent not in ["sb3_ib_sched", "round_robin"]:
+                if agent not in ["sb3_sched", "marr"]:
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
@@ -183,7 +183,7 @@ def plot_graph(
                             data_metrics["reward"][idx]["player_0"]
                             for idx in range(data_metrics["reward"].shape[0])
                         ]
-                        if agent not in ["sb3_ib_sched", "round_robin"]
+                        if agent not in ["sb3_sched", "marr"]
                         else [
                             data_metrics["reward"][idx]
                             for idx in range(data_metrics["reward"].shape[0])
@@ -195,7 +195,7 @@ def plot_graph(
                             data_metrics["reward"][idx]["player_0"]
                             for idx in range(data_metrics["reward"].shape[0])
                         ]
-                        if agent not in ["sb3_ib_sched", "round_robin"]
+                        if agent not in ["sb3_sched", "marr"]
                         else [
                             data_metrics["reward"][idx]
                             for idx in range(data_metrics["reward"].shape[0])
@@ -211,10 +211,10 @@ def plot_graph(
                     break
             case "reward_cumsum":
                 if agent not in [
-                    "sb3_ib_sched",
-                    "round_robin",
-                    "finetune_sb3_ib_sched",
-                    "base_sb3_ib_sched",
+                    "sb3_sched",
+                    "marr",
+                    "finetune_sb3_sched",
+                    "base_sb3_sched",
                 ]:
                     reward = [
                         data_metrics["reward"][idx]["player_0"]
@@ -674,7 +674,7 @@ def plot_graph(
             case "agent_action":
                 actions = (
                     data_metrics["agent_action"]["agent_0"][:, slice]
-                    if agent not in ["sb3_ib_sched"]
+                    if agent not in ["sb3_sched"]
                     else data_metrics["agent_action"][:, slice]
                 )
                 plt.scatter(
@@ -1190,30 +1190,32 @@ def fair_comparison_check(
     return True
 
 
-scenario_names = ["mult_slice_seq"]
+scenario_names = ["mult_slice"]  # ["mult_slice_seq"]
 agent_names = [
     # "random",
-    "ib_sched",
-    "ib_sched_mask",
+    # "ib_sched",
+    # "ib_sched_mask",
     # "sched_twc",
-    "mapf",
+    # "mapf",
+    "sb3_sched",
     "marr",
     # "sched_coloran",
-    # "scratch_sb3_ib_sched_sort",
+    # "scratch_sb3_sched_sort",
     # "ib_sched_old",
     # "ib_sched_deepmind",
     # "ib_sched_mask",
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
     # "sched_twc",
-    # "base_sb3_ib_sched",
-    # "finetune_sb3_ib_sched",
-    # "scratch_sb3_ib_sched",
+    # "base_sb3_sched",
+    # "finetune_sb3_sched",
+    # "scratch_sb3_sched",
     # "scratch_sb3_ppo_ib_sched",
-    # "sb3_ib_sched",
-    # "base_shuffle_sb3_ib_sched",
+    # "sb3_sched",
+    # "base_shuffle_sb3_sched",
 ]
-episodes = np.arange(70, 100, dtype=int)
+# episodes = np.arange(70, 100, dtype=int)
+episodes = np.arange(160, 200, dtype=int)
 slices = np.arange(5)
 
 # Check if agents are compared in episodes with the same characteristics
