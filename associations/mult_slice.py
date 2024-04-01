@@ -30,7 +30,7 @@ class MultSliceAssociation(Association):
         self.min_number_slices = 3
         self.generator_mode = generator_mode
         self.max_number_slices = 5
-        self.channels_per_association = 100
+        self.maximum_number_scenarios = 200
         self.current_episode = -1
         self.slices_to_use = np.array([])
         self.slice_types = [
@@ -422,8 +422,11 @@ class MultSliceAssociation(Association):
                 slice_req,
             )
         else:
-            episode_to_use = episode_number % self.channels_per_association
-            if episode_to_use != self.current_episode:
+            episode_to_use, condition = self.choose_episode(
+                episode_number, self.current_episode
+            )
+            if condition:
+                # print("Network scenario: ", episode_to_use)
                 self.load_episode_data(episode_to_use)  # Update variables
                 self.update_ues(
                     self.hist_slice_ue_assoc[step_number],
@@ -437,6 +440,16 @@ class MultSliceAssociation(Association):
                 self.hist_slice_ue_assoc[step_number],
                 self.hist_slice_req[step_number],
             )
+
+    def choose_episode(
+        self,
+        episode_number: int,
+        current_episode: int,
+    ) -> Tuple[int, bool]:
+        episode_to_use = episode_number % self.maximum_number_scenarios
+        if episode_to_use != current_episode:
+            return (episode_to_use, True)
+        return (0, False)
 
     def slice_generator(
         self, slice_req: dict, slices_to_use: np.ndarray
