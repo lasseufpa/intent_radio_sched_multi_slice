@@ -26,7 +26,7 @@ class MultSliceAssociation(Association):
             rng,
             root_path,
         )
-        self.scenario_name = scenario_name
+        self.scenario_name = "mult_slice"  # Always use mult_slice associations
         self.min_number_slices = 3
         self.generator_mode = generator_mode
         self.max_number_slices = 5

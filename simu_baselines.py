@@ -20,12 +20,13 @@ scenarios = {
     "mult_slice_seq": MultSliceAssociationSeq,
     "mult_slice": MultSliceAssociation,
     "mult_slice_test_on_trained": MultSliceAssociation,
+    "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "sb3_sched": {
         "class": IBSchedSB3,
         "rl": True,
-        "train": False,
+        "train": True,
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -39,6 +40,14 @@ agents = {
     },
     "mapf": {"class": MAPF, "rl": False, "train": False},
     "marr": {"class": MARR, "rl": False, "train": False},
+    "finetune_sb3_sched": {
+        "class": IBSchedSB3,
+        "rl": True,
+        "train": True,
+        "base_agent": "sb3_sched",
+        "base_scenario": "mult_slice",
+        "load_method": "last",  # Could be "best", "last" or a int number
+    },
 }
 env_config_scenarios = {
     "mult_slice_seq": {
@@ -58,6 +67,10 @@ env_config_scenarios = {
         "number_evaluation_episodes": None,
         "checkpoint_episode_freq": None,
         "eval_initial_env_episode": None,
+        "save_hist": False,
+        "agents": [
+            agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        ],  # All agents besides fine-tuned ones
     },
     "mult_slice": {
         "seed": 10,
@@ -76,6 +89,10 @@ env_config_scenarios = {
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 80,
+        "save_hist": False,
+        "agents": [
+            agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        ],  # All agents besides fine-tuned ones
     },
     "mult_slice_test_on_trained": {
         "seed": 10,
@@ -94,6 +111,30 @@ env_config_scenarios = {
         "number_evaluation_episodes": 80,
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 0,
+        "save_hist": False,
+        "agents": [
+            agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        ],  # All agents besides fine-tuned ones
+    },
+    "finetune_mult_slice_seq": {
+        "seed": 10,
+        "seed_test": 15,
+        "channel_class": MimicQuadriga,  # QuadrigaChannelSeq,
+        "traffic_class": MultSliceTraffic,
+        "mobility_class": SimpleMobility,
+        "root_path": str(getcwd()),
+        "training_epochs": 1,
+        "enable_evaluation": True,
+        "initial_training_episode": 0,
+        "max_training_episodes": 80,  # 80 different channels from the same scenario
+        "initial_testing_episode": 0,
+        "test_episodes": 20,  # Testing on 20 channels from the same scenario
+        "episode_evaluation_freq": 80,
+        "number_evaluation_episodes": 20,
+        "checkpoint_episode_freq": 10,
+        "eval_initial_env_episode": 80,
+        "save_hist": False,
+        "agents": ["finetune_sb3_sched", "marr"],
     },
 }
 
@@ -104,11 +145,13 @@ def env_creator(env_config):
         env_config["traffic_class"],
         env_config["mobility_class"],
         env_config["association_class"],
-        env_config["scenario"],
+        "mult_slice",
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
         initial_episode_number=env_config["initial_training_episode"],
+        simu_name=env_config["scenario"],
+        save_hist=env_config["save_hist"],
     )
     marl_comm_env.comm_env.max_number_episodes = (
         env_config["initial_training_episode"]
@@ -119,10 +162,12 @@ def env_creator(env_config):
         env_config["traffic_class"],
         env_config["mobility_class"],
         env_config["association_class"],
-        env_config["scenario"],
+        "mult_slice",
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
+        simu_name=env_config["scenario"],
+        save_hist=env_config["save_hist"],
     )
     if env_config["rl"]:
         agent = env_config["agent_class"](
@@ -132,6 +177,7 @@ def env_creator(env_config):
             marl_comm_env.comm_env.max_number_basestations,
             marl_comm_env.comm_env.num_available_rbs,
             eval_env if env_config["enable_evaluation"] else None,
+            agent_name=env_config["agent"],
             seed=env_config["seed"],
             episode_evaluation_freq=env_config["episode_evaluation_freq"],
             number_evaluation_episodes=env_config[
@@ -168,9 +214,20 @@ def env_creator(env_config):
     return marl_comm_env, agent
 
 
+def finetune_sb3_load_path(agent_name, scenario, method="last"):
+    if method == "last":
+        return f"./agents/models/{agents[agent_name]['base_scenario']}/final_{agents[agent_name]['base_agent']}.zip"
+    elif method == "best":
+        return f"./agents/models/{agents[agent_name]['base_scenario']}/best_{agents[agent_name]['base_agent']}/best_model.zip"
+    elif isinstance(method, int):
+        return f"./agents/models/{agents[agent_name]['base_scenario']}/{agents[agent_name]['base_agent']}/{agents[agent_name]['base_agent']}_{method}_steps.zip"
+    else:
+        raise ValueError(f"Invalid method {method} for finetune load")
+
+
 for scenario in scenarios.keys():
-    for agent_name in agents.keys():
-        env_config = env_config_scenarios[scenario]
+    env_config = env_config_scenarios[scenario]
+    for agent_name in env_config["agents"]:
         env_config["agent"] = agent_name
         env_config["scenario"] = scenario
         env_config["agent_class"] = agents[agent_name]["class"]
@@ -190,6 +247,12 @@ for scenario in scenarios.keys():
         )
         if agents[agent_name]["rl"]:
             if agents[agent_name]["train"]:
+                if "finetune" in agent_name:
+                    print(
+                        f"Fine-tuning model from Agent {agents[agent_name]['base_agent']} scenario {agents[agent_name]['base_scenario']} on {scenario} scenario"
+                    )
+                    path = finetune_sb3_load_path(agent_name, scenario)
+                    agent.load(path)  # Loading base model
                 print(f"Training {agent_name} on {scenario} scenario")
                 agent.train(total_time_steps)
 
@@ -203,6 +266,7 @@ for scenario in scenarios.keys():
         marl_comm_env.comm_env.max_number_episodes = (
             env_config["initial_testing_episode"] + env_config["test_episodes"]
         )
+        marl_comm_env.comm_env.save_hist = True  # Save metrics for test
         obs, _ = marl_comm_env.reset(
             seed=env_config["seed_test"],
             options={"initial_episode": env_config["initial_testing_episode"]},

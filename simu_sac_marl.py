@@ -212,9 +212,9 @@ for agent in agents_name:
         algo_config["optimization"]["actor_learning_rate"] = 0.0003
         algo_config["optimization"]["critic_learning_rate"] = 0.0003
         algo_config["optimization"]["entropy_learning_rate"] = 0.0003
+        algo_config["train_batch_size"] = 256
 
         # Custom
-        algo_config["train_batch_size"] = 256
         algo_config["training_intensity"] = 256 / 4
 
         stop = {

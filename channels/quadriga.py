@@ -14,7 +14,7 @@ class QuadrigaChannel(Channel):
         num_available_rbs: np.ndarray,
         rng: np.random.Generator = np.random.default_rng(),
         root_path: str = "",
-        scenario_name: str = "",
+        scenario_name: str = "mult_slice",
     ) -> None:
         super().__init__(
             max_number_ues,
@@ -23,6 +23,9 @@ class QuadrigaChannel(Channel):
             rng,
             root_path,
             scenario_name,
+        )
+        self.scenario_name = (
+            "mult_slice"  # We always use the mult_slice scenario for channels
         )
         self.current_episode_number = -1
         self.file = None
