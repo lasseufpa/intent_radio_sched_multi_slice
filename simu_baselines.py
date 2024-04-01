@@ -44,7 +44,7 @@ env_config_scenarios = {
     "mult_slice_seq": {
         "seed": 10,
         "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannel,
+        "channel_class": MimicQuadriga,  # QuadrigaChannelSeq,
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
@@ -69,13 +69,13 @@ env_config_scenarios = {
         "training_epochs": 20,
         "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 160,  # 160 different scenarios with 1 channel episodes each
-        "initial_testing_episode": 160,
-        "test_episodes": 40,  # Testing on 40 different unseen scenarios
-        "episode_evaluation_freq": 160,
-        "number_evaluation_episodes": 40,
+        "max_training_episodes": 80,  # 80 different scenarios with 1 channel episodes each
+        "initial_testing_episode": 80,
+        "test_episodes": 20,  # Testing on 20 different unseen scenarios
+        "episode_evaluation_freq": 80,
+        "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 160,
+        "eval_initial_env_episode": 80,
     },
     "mult_slice_test_on_trained": {
         "seed": 10,
@@ -87,11 +87,11 @@ env_config_scenarios = {
         "training_epochs": 20,
         "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 160,  # 160 different scenarios with 1 channel episodes each
+        "max_training_episodes": 80,  # 80 different scenarios with 1 channel episodes each
         "initial_testing_episode": 0,
-        "test_episodes": 160,  # Testing on 40 different unseen scenarios
-        "episode_evaluation_freq": 160,
-        "number_evaluation_episodes": 160,
+        "test_episodes": 80,  # Testing on 80 different seen scenarios
+        "episode_evaluation_freq": 80,
+        "number_evaluation_episodes": 80,
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 0,
     },

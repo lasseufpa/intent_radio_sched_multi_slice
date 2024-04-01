@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import h5py
 import numpy as np
@@ -30,6 +30,7 @@ class QuadrigaChannel(Channel):
         self.spectral_efficiencies = np.array([])
         self.transmission_power = 100  # Watts
         self.thermal_noise_power = 10e-14
+        self.maximum_number_scenarios = 100
 
     def step(
         self,
@@ -38,12 +39,15 @@ class QuadrigaChannel(Channel):
         mobilities: np.ndarray,
         sched_decision: Optional[np.ndarray] = None,
     ) -> np.ndarray:
-        if episode_number != self.current_episode_number:
-            self.current_episode_number = episode_number
+        episode_to_use, condition = self.choose_episode(
+            episode_number, self.current_episode_number
+        )
+        if condition:
+            self.current_episode_number = episode_to_use
             if self.file is not None:
                 self.file.close()
             self.file = h5py.File(
-                f"{self.channels_path}ep_{episode_number}/target_cell_power.mat",
+                f"{self.channels_path}ep_{episode_to_use}/target_cell_power.mat",
                 "r",
             )
         if self.file is not None:
@@ -67,3 +71,17 @@ class QuadrigaChannel(Channel):
             raise ValueError("File is None")
 
         return np.array([self.spectral_efficiencies])
+
+    def choose_episode(
+        self,
+        episode_number: int,
+        current_episode: int,
+    ) -> Tuple[int, bool]:
+        episode_to_use = int(
+            (episode_number // self.maximum_number_scenarios)
+            + (episode_number % self.maximum_number_scenarios)
+            * self.maximum_number_scenarios
+        )
+        if episode_to_use != current_episode:
+            return (episode_to_use, True)
+        return (0, False)
