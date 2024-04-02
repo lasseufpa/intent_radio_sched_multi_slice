@@ -29,6 +29,10 @@ class SchedTWC(Agent):
         agent_type: str = "sac",
         seed: int = np.random.randint(1000),
         agent_name: str = "sched_twc",
+        episode_evaluation_freq: Optional[int] = None,
+        number_evaluation_episodes: Optional[int] = None,
+        checkpoint_episode_freq: Optional[int] = None,
+        eval_initial_env_episode: Optional[int] = None,
     ) -> None:
         super().__init__(
             env,
