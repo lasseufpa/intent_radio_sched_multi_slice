@@ -65,7 +65,7 @@ env_config_scenarios = {
         "test_episodes": 30,
         "episode_evaluation_freq": None,
         "number_evaluation_episodes": None,
-        "checkpoint_episode_freq": None,
+        "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": None,
         "save_hist": False,
         "agents": [
@@ -123,11 +123,11 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 1,
+        "training_epochs": 5,
         "enable_evaluation": True,
         "initial_training_episode": 0,
         "max_training_episodes": 80,  # 80 different channels from the same scenario
-        "initial_testing_episode": 0,
+        "initial_testing_episode": 80,
         "test_episodes": 20,  # Testing on 20 channels from the same scenario
         "episode_evaluation_freq": 80,
         "number_evaluation_episodes": 20,
@@ -135,6 +135,7 @@ env_config_scenarios = {
         "eval_initial_env_episode": 80,
         "save_hist": False,
         "agents": ["finetune_sb3_sched", "marr"],
+        "number_scenarios": 3,
     },
 }
 
@@ -153,10 +154,9 @@ def env_creator(env_config):
         simu_name=env_config["scenario"],
         save_hist=env_config["save_hist"],
     )
-    marl_comm_env.comm_env.max_number_episodes = (
-        env_config["initial_training_episode"]
-        + env_config["max_training_episodes"]
-    )
+    marl_comm_env.comm_env.max_number_episodes = env_config[
+        "max_training_episodes"
+    ]
     eval_env = MARLCommEnv(
         env_config["channel_class"],
         env_config["traffic_class"],
@@ -226,54 +226,74 @@ def finetune_sb3_load_path(agent_name, scenario, method="last"):
 
 
 for scenario in scenarios.keys():
-    env_config = env_config_scenarios[scenario]
-    for agent_name in env_config["agents"]:
+    for agent_name in env_config_scenarios[scenario]["agents"]:
+        env_config = env_config_scenarios[scenario].copy()
         env_config["agent"] = agent_name
         env_config["scenario"] = scenario
         env_config["agent_class"] = agents[agent_name]["class"]
         env_config["association_class"] = scenarios[scenario]
         env_config["rl"] = agents[agent_name]["rl"]
 
-        marl_comm_env, agent = env_creator(env_config)
+        number_scenarios = env_config.get("number_scenarios", 1)
+        for scenario_number in range(number_scenarios):
+            marl_comm_env, agent = env_creator(env_config)
 
-        # Training
-        number_episodes = (
-            marl_comm_env.comm_env.max_number_episodes
-            - env_config["initial_training_episode"]
-        )
-        steps_per_episode = marl_comm_env.comm_env.max_number_steps
-        total_time_steps = (
-            number_episodes * steps_per_episode * env_config["training_epochs"]
-        )
-        if agents[agent_name]["rl"]:
-            if agents[agent_name]["train"]:
-                if "finetune" in agent_name:
-                    print(
-                        f"Fine-tuning model from Agent {agents[agent_name]['base_agent']} scenario {agents[agent_name]['base_scenario']} on {scenario} scenario"
-                    )
-                    path = finetune_sb3_load_path(agent_name, scenario)
-                    agent.load(path)  # Loading base model
-                print(f"Training {agent_name} on {scenario} scenario")
-                agent.train(total_time_steps)
-
-            agent.load(
-                f"./agents/models/{env_config['scenario']}/final_{env_config['agent']}.zip"
+            # Training
+            number_episodes = (
+                marl_comm_env.comm_env.max_number_episodes
+                - env_config["initial_training_episode"]
             )
+            steps_per_episode = marl_comm_env.comm_env.max_number_steps
+            total_time_steps = (
+                number_episodes
+                * steps_per_episode
+                * env_config["training_epochs"]
+            )
+            if agents[agent_name]["rl"]:
+                if agents[agent_name]["train"]:
+                    if "finetune" in agent_name:
+                        print(
+                            f"Fine-tuning model from Agent {agents[agent_name]['base_agent']} scenario {agents[agent_name]['base_scenario']} on {scenario} scenario"
+                        )
+                        path = finetune_sb3_load_path(agent_name, scenario)
+                        agent.load(path)  # Loading base model
+                    print(f"Training {agent_name} on {scenario} scenario")
+                    agent.train(total_time_steps)
 
-        # Testing
-        print(f"Testing {agent_name} on {scenario} scenario")
-        total_test_steps = env_config["test_episodes"] * steps_per_episode
-        marl_comm_env.comm_env.max_number_episodes = (
-            env_config["initial_testing_episode"] + env_config["test_episodes"]
-        )
-        marl_comm_env.comm_env.save_hist = True  # Save metrics for test
-        obs, _ = marl_comm_env.reset(
-            seed=env_config["seed_test"],
-            options={"initial_episode": env_config["initial_testing_episode"]},
-        )
-        for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
-            action = agent.step(obs)
-            obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
-            assert isinstance(terminated, bool), "Terminated must be a boolean"
-            if terminated:
-                obs, _ = marl_comm_env.reset()
+                agent.load(
+                    f"./agents/models/{env_config['scenario']}/final_{env_config['agent']}.zip"
+                )
+
+            # Testing
+            print(f"Testing {agent_name} on {scenario} scenario")
+            total_test_steps = env_config["test_episodes"] * steps_per_episode
+            marl_comm_env.comm_env.max_number_episodes = (
+                env_config["initial_testing_episode"]
+                + env_config["test_episodes"]
+            )
+            marl_comm_env.comm_env.save_hist = True  # Save metrics for test
+            obs, _ = marl_comm_env.reset(
+                seed=env_config["seed_test"],
+                options={
+                    "initial_episode": env_config["initial_testing_episode"]
+                },
+            )
+            for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
+                action = agent.step(obs)
+                obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
+                assert isinstance(
+                    terminated, bool
+                ), "Terminated must be a boolean"
+                if terminated:
+                    obs, _ = marl_comm_env.reset()
+
+            # Updating values for next scenario
+            if "finetune" in scenario:
+                scenario_episodes = (
+                    env_config["max_training_episodes"]
+                    - env_config["initial_training_episode"]
+                ) + env_config["test_episodes"]
+                env_config["initial_training_episode"] += scenario_episodes
+                env_config["max_training_episodes"] += scenario_episodes
+                env_config["initial_testing_episode"] += scenario_episodes
+                env_config["eval_initial_env_episode"] += scenario_episodes

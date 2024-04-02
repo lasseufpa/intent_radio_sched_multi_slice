@@ -1024,7 +1024,7 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
 def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
     xlabel = "Episode number"
     ylabel = ""
-    x_values = np.arange(episodes[0], episodes[-1] + 1, dtype=int)
+    x_values = np.arange(episodes.shape[0], dtype=int)
     y_values = np.array([])
     y2_values = np.array([])
     for episode in episodes:
@@ -1190,14 +1190,14 @@ def fair_comparison_check(
     return True
 
 
-scenario_names = ["mult_slice"]  # ["mult_slice_seq"]
+scenario_names = ["finetune_mult_slice_seq"]  # ["mult_slice_seq"]
 agent_names = [
     # "random",
     # "ib_sched",
     # "ib_sched_mask",
     # "sched_twc",
     # "mapf",
-    "sb3_sched",
+    "finetune_sb3_sched",
     "marr",
     # "sched_coloran",
     # "scratch_sb3_sched_sort",
@@ -1215,7 +1215,13 @@ agent_names = [
     # "base_shuffle_sb3_sched",
 ]
 # episodes = np.arange(70, 100, dtype=int)
-episodes = np.arange(160, 200, dtype=int)
+episodes = np.array(
+    [
+        np.arange(80, 100, dtype=int),
+        np.arange(180, 200, dtype=int),
+        np.arange(280, 300, dtype=int),
+    ],
+).flatten()
 slices = np.arange(5)
 
 # Check if agents are compared in episodes with the same characteristics

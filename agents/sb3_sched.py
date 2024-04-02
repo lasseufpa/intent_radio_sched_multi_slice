@@ -42,21 +42,21 @@ class IBSchedSB3(Agent):
         ), "Environment must be MARLCommEnv"
         self.agent_name = agent_name
         self.agent_type = agent_type
-        self.episode_evaluation_freq = episode_evaluation_freq
-        self.number_evaluation_episodes = number_evaluation_episodes
-        checkpoint_episode_freq = checkpoint_episode_freq
-        eval_initial_env_episode = eval_initial_env_episode
-        eval_maximum_env_episode = (
-            (eval_initial_env_episode + self.number_evaluation_episodes)
-            if eval_initial_env_episode is not None
-            and self.number_evaluation_episodes is not None
-            else 0
-        )
+        self.checkpoint_episode_freq = checkpoint_episode_freq
         self.checkpoint_frequency = (
             self.env.comm_env.max_number_steps * checkpoint_episode_freq
         )
         self.eval_env = eval_env
         if self.eval_env is not None:
+            self.episode_evaluation_freq = episode_evaluation_freq
+            self.number_evaluation_episodes = number_evaluation_episodes
+            self.eval_initial_env_episode = eval_initial_env_episode
+            self.eval_maximum_env_episode = (
+                (eval_initial_env_episode + self.number_evaluation_episodes)
+                if eval_initial_env_episode is not None
+                and self.number_evaluation_episodes is not None
+                else 0
+            )
             assert isinstance(
                 eval_initial_env_episode, int
             ), "eval_initial_env_episode needs to be int"
@@ -64,7 +64,7 @@ class IBSchedSB3(Agent):
                 eval_initial_env_episode
             )
             self.eval_env.comm_env.max_number_episodes = (
-                eval_maximum_env_episode
+                self.eval_maximum_env_episode
             )
         self.fake_agent = IBSched(
             env,
@@ -135,6 +135,7 @@ class IBSchedSB3(Agent):
             self.callback_evaluation,
         ]
         callbacks = [cb for cb in callbacks if cb is not None]
+        self.agent.tensorboard_log = f"tensorboard-logs/{self.env.comm_env.simu_name}/{self.agent_name}/"
         self.agent.learn(
             total_timesteps=total_timesteps,
             progress_bar=True,
