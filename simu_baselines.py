@@ -3,6 +3,7 @@ from os import getcwd
 import numpy as np
 from tqdm import tqdm
 
+from agents.ib_sched import IBSched
 from agents.mapf import MAPF
 from agents.marr import MARR
 from agents.sb3_sched import IBSchedSB3
@@ -17,9 +18,9 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    "mult_slice_seq": MultSliceAssociationSeq,
-    "mult_slice": MultSliceAssociation,
-    "mult_slice_test_on_trained": MultSliceAssociation,
+    # "mult_slice_seq": MultSliceAssociationSeq,
+    # "mult_slice": MultSliceAssociation,
+    # "mult_slice_test_on_trained": MultSliceAssociation,
     "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
@@ -27,16 +28,25 @@ agents = {
         "class": IBSchedSB3,
         "rl": True,
         "train": True,
+        "load_method": "best",
+    },
+    "ray_ib_sched": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
     },
     "sched_twc": {
         "class": SchedTWC,
         "rl": True,
         "train": True,
+        "load_method": "best",
     },
     "sched_coloran": {
         "class": SchedColORAN,
         "rl": True,
         "train": True,
+        "load_method": "last",
     },
     "mapf": {"class": MAPF, "rl": False, "train": False},
     "marr": {"class": MARR, "rl": False, "train": False},
@@ -46,7 +56,21 @@ agents = {
         "train": True,
         "base_agent": "sb3_sched",
         "base_scenario": "mult_slice",
+        "load_method": 50000,  # Could be "best", "last" or a int number
+    },
+    "finetune_sched_twc": {
+        "class": SchedTWC,
+        "rl": True,
+        "train": True,
+        "base_agent": "sched_twc",
+        "base_scenario": "mult_slice",
         "load_method": "last",  # Could be "best", "last" or a int number
+    },
+    "scratch_sb3_sched": {
+        "class": IBSchedSB3,
+        "rl": True,
+        "train": True,
+        "load_method": 50000,
     },
 }
 env_config_scenarios = {
@@ -68,9 +92,10 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": None,
         "save_hist": False,
-        "agents": [
-            agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        ],  # All agents besides fine-tuned ones
+        # "agents": [
+        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        # ],  # All agents besides fine-tuned ones
+        "agents": ["marr"],
     },
     "mult_slice": {
         "seed": 10,
@@ -79,20 +104,21 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 20,
+        "training_epochs": 10,
         "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 80,  # 80 different scenarios with 1 channel episodes each
+        "max_training_episodes": 60,
         "initial_testing_episode": 80,
-        "test_episodes": 20,  # Testing on 20 different unseen scenarios
-        "episode_evaluation_freq": 80,
+        "test_episodes": 20,
+        "episode_evaluation_freq": 60,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 80,
+        "eval_initial_env_episode": 60,
         "save_hist": False,
-        "agents": [
-            agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        ],  # All agents besides fine-tuned ones
+        # "agents": [
+        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        # ],  # All agents besides fine-tuned ones
+        "agents": ["sched_twc"],  # "sb3_sched"],
     },
     "mult_slice_test_on_trained": {
         "seed": 10,
@@ -129,13 +155,14 @@ env_config_scenarios = {
         "max_training_episodes": 80,  # 80 different channels from the same scenario
         "initial_testing_episode": 80,
         "test_episodes": 20,  # Testing on 20 channels from the same scenario
-        "episode_evaluation_freq": 80,
+        "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 80,
         "save_hist": False,
-        "agents": ["finetune_sb3_sched", "marr"],
-        "number_scenarios": 3,
+        # "agents": ["finetune_sched_twc"],  # , "marr"],
+        "agents": ["scratch_sb3_sched", "finetune_sb3_sched"],
+        "number_scenarios": 1,
     },
 }
 
@@ -214,13 +241,13 @@ def env_creator(env_config):
     return marl_comm_env, agent
 
 
-def finetune_sb3_load_path(agent_name, scenario, method="last"):
+def sb3_load_path(agent_name, scenario, method="last"):
     if method == "last":
-        return f"./agents/models/{agents[agent_name]['base_scenario']}/final_{agents[agent_name]['base_agent']}.zip"
+        return f"./agents/models/{scenario}/final_{agent_name}.zip"
     elif method == "best":
-        return f"./agents/models/{agents[agent_name]['base_scenario']}/best_{agents[agent_name]['base_agent']}/best_model.zip"
+        return f"./agents/models/{scenario}/best_{agent_name}/best_model.zip"
     elif isinstance(method, int):
-        return f"./agents/models/{agents[agent_name]['base_scenario']}/{agents[agent_name]['base_agent']}/{agents[agent_name]['base_agent']}_{method}_steps.zip"
+        return f"./agents/models/{scenario}/{agent_name}/{agent_name}_{method}_steps.zip"
     else:
         raise ValueError(f"Invalid method {method} for finetune load")
 
@@ -237,8 +264,6 @@ for scenario in scenarios.keys():
         number_scenarios = env_config.get("number_scenarios", 1)
         for scenario_number in range(number_scenarios):
             marl_comm_env, agent = env_creator(env_config)
-
-            # Training
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes
                 - env_config["initial_training_episode"]
@@ -251,18 +276,26 @@ for scenario in scenarios.keys():
             )
             if agents[agent_name]["rl"]:
                 if agents[agent_name]["train"]:
+                    # Training
                     if "finetune" in agent_name:
                         print(
                             f"Fine-tuning model from Agent {agents[agent_name]['base_agent']} scenario {agents[agent_name]['base_scenario']} on {scenario} scenario"
                         )
-                        path = finetune_sb3_load_path(agent_name, scenario)
+                        path = sb3_load_path(
+                            agents[agent_name]["base_agent"],
+                            agents[agent_name]["base_scenario"],
+                            agents[agents[agent_name]["base_agent"]][
+                                "load_method"
+                            ],
+                        )
                         agent.load(path)  # Loading base model
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)
 
-                agent.load(
-                    f"./agents/models/{env_config['scenario']}/final_{env_config['agent']}.zip"
+                path_test = sb3_load_path(
+                    agent_name, scenario, agents[agent_name]["load_method"]
                 )
+                agent.load(path_test)
 
             # Testing
             print(f"Testing {agent_name} on {scenario} scenario")
