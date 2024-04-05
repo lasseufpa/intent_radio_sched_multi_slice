@@ -131,6 +131,7 @@ class SchedTWC(Agent):
             self.callback_evaluation,
         ]
         callbacks = [cb for cb in callbacks if cb is not None]
+        self.agent.tensorboard_log = f"tensorboard-logs/{self.env.comm_env.simu_name}/{self.agent_name}/"
         self.agent.learn(
             total_timesteps=total_timesteps,
             progress_bar=True,
