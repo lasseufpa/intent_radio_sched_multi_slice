@@ -14,6 +14,7 @@ from agents.common import (
 )
 from agents.ib_sched import IBSched
 from agents.sb3_callbacks import CustomEvalCallback as EvalCallback
+from agents.sb3_sched import IBSchedSB3
 from sixg_radio_mgmt import Agent, MARLCommEnv
 
 
@@ -142,7 +143,8 @@ class SchedTWC(Agent):
             f"./agents/models/{self.env.comm_env.simu_name}/final_{self.agent_name}"
         )
 
-    def load(self, path: str) -> None:
+    def load(self, agent_name, scenario, method="last") -> None:
+        path = IBSchedSB3.sb3_load_path(agent_name, scenario, method)
         assert self.agent is not None, "Agent must be created first"
         if self.agent_type == "ppo":
             self.agent = PPO.load(path, self.env)

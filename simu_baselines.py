@@ -6,6 +6,7 @@ from tqdm import tqdm
 from agents.ib_sched import IBSched
 from agents.mapf import MAPF
 from agents.marr import MARR
+from agents.ray_agent import RayAgent
 from agents.sb3_sched import IBSchedSB3
 from agents.sched_colran import SchedColORAN
 from agents.sched_twc import SchedTWC
@@ -18,23 +19,23 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    # "mult_slice_seq": MultSliceAssociationSeq,
+    "mult_slice_seq": MultSliceAssociationSeq,
     # "mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
-    "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "sb3_sched": {
         "class": IBSchedSB3,
         "rl": True,
         "train": True,
-        "load_method": "best",
+        "load_method": "last",
     },
     "ray_ib_sched": {
         "class": IBSched,
         "rl": True,
-        "train": True,
-        "load_method": "best",
+        "train": False,
+        "load_method": "last",
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -56,7 +57,7 @@ agents = {
         "train": True,
         "base_agent": "sb3_sched",
         "base_scenario": "mult_slice",
-        "load_method": 50000,  # Could be "best", "last" or a int number
+        "load_method": 50,  # Could be "best", "last" or a int number
     },
     "finetune_sched_twc": {
         "class": SchedTWC,
@@ -70,7 +71,7 @@ agents = {
         "class": IBSchedSB3,
         "rl": True,
         "train": True,
-        "load_method": 50000,
+        "load_method": 50,
     },
 }
 env_config_scenarios = {
@@ -95,7 +96,7 @@ env_config_scenarios = {
         # "agents": [
         #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
         # ],  # All agents besides fine-tuned ones
-        "agents": ["marr"],
+        "agents": ["sb3_sched"],
     },
     "mult_slice": {
         "seed": 10,
@@ -167,7 +168,7 @@ env_config_scenarios = {
 }
 
 
-def env_creator(env_config):
+def env_creator(env_config, only_env=False):
     marl_comm_env = MARLCommEnv(
         env_config["channel_class"],
         env_config["traffic_class"],
@@ -198,12 +199,12 @@ def env_creator(env_config):
     )
     if env_config["rl"]:
         agent = env_config["agent_class"](
-            marl_comm_env,
-            marl_comm_env.comm_env.max_number_ues,
-            marl_comm_env.comm_env.max_number_slices,
-            marl_comm_env.comm_env.max_number_basestations,
-            marl_comm_env.comm_env.num_available_rbs,
-            eval_env if env_config["enable_evaluation"] else None,
+            env=marl_comm_env,
+            max_number_ues=marl_comm_env.comm_env.max_number_ues,
+            max_number_slices=marl_comm_env.comm_env.max_number_slices,
+            max_number_basestations=marl_comm_env.comm_env.max_number_basestations,
+            num_available_rbs=marl_comm_env.comm_env.num_available_rbs,
+            eval_env=eval_env if env_config["enable_evaluation"] else None,
             agent_name=env_config["agent"],
             seed=env_config["seed"],
             episode_evaluation_freq=env_config["episode_evaluation_freq"],
@@ -238,18 +239,10 @@ def env_creator(env_config):
     )
     agent.init_agent()
 
-    return marl_comm_env, agent
-
-
-def sb3_load_path(agent_name, scenario, method="last"):
-    if method == "last":
-        return f"./agents/models/{scenario}/final_{agent_name}.zip"
-    elif method == "best":
-        return f"./agents/models/{scenario}/best_{agent_name}/best_model.zip"
-    elif isinstance(method, int):
-        return f"./agents/models/{scenario}/{agent_name}/{agent_name}_{method}_steps.zip"
+    if only_env:
+        return marl_comm_env
     else:
-        raise ValueError(f"Invalid method {method} for finetune load")
+        return marl_comm_env, agent
 
 
 for scenario in scenarios.keys():
@@ -263,7 +256,14 @@ for scenario in scenarios.keys():
 
         number_scenarios = env_config.get("number_scenarios", 1)
         for scenario_number in range(number_scenarios):
-            marl_comm_env, agent = env_creator(env_config)
+            marl_comm_env, agent = env_creator(env_config, False)  # type: ignore
+            if "ray" in agent_name:
+                agent = RayAgent(
+                    env_creator=env_creator,
+                    env_config=env_config,
+                    debug_mode=True,
+                    enable_masks=True,
+                )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes
                 - env_config["initial_training_episode"]
@@ -281,21 +281,18 @@ for scenario in scenarios.keys():
                         print(
                             f"Fine-tuning model from Agent {agents[agent_name]['base_agent']} scenario {agents[agent_name]['base_scenario']} on {scenario} scenario"
                         )
-                        path = sb3_load_path(
-                            agents[agent_name]["base_agent"],
-                            agents[agent_name]["base_scenario"],
-                            agents[agents[agent_name]["base_agent"]][
+                        agent.load(
+                            agent_name=agents[agent_name]["base_agent"],
+                            scenario=agents[agent_name]["base_scenario"],
+                            method=agents[agents[agent_name]["base_agent"]][
                                 "load_method"
                             ],
-                        )
-                        agent.load(path)  # Loading base model
+                        )  # Loading base model
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)
-
-                path_test = sb3_load_path(
+                agent.load(
                     agent_name, scenario, agents[agent_name]["load_method"]
                 )
-                agent.load(path_test)
 
             # Testing
             print(f"Testing {agent_name} on {scenario} scenario")
@@ -314,6 +311,8 @@ for scenario in scenarios.keys():
             for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
                 action = agent.step(obs)
                 obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
+                if isinstance(terminated, dict):
+                    terminated = terminated["__all__"]
                 assert isinstance(
                     terminated, bool
                 ), "Terminated must be a boolean"

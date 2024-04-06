@@ -62,7 +62,7 @@ def env_creator(env_config):
         env_config["traffic_class"],
         env_config["mobility_class"],
         env_config["association_class"],
-        env_config["scenario"],
+        "mult_slice",
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
@@ -76,6 +76,7 @@ def env_creator(env_config):
             if "max_episode_number" in env_config.keys()
             else None
         ),
+        simu_name=env_config["scenario"],
     )
     agent = env_config["agent_class"](
         marl_comm_env,
@@ -215,7 +216,7 @@ for agent in agents_name:
         algo_config["train_batch_size"] = 256
 
         # Custom
-        algo_config["training_intensity"] = 256 / 4
+        # algo_config["training_intensity"] = 256 / 4
 
         stop = {
             "episodes_total": env_config["training_episodes"]

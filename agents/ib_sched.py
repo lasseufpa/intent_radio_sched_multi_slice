@@ -26,6 +26,14 @@ class IBSched(Agent):
         max_number_slices: int,
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
+        eval_env: Optional[MARLCommEnv] = None,
+        agent_type: str = "None",
+        seed: int = np.random.randint(1000),
+        agent_name: str = "ib_sched",
+        episode_evaluation_freq: Optional[int] = None,
+        number_evaluation_episodes: Optional[int] = None,
+        checkpoint_episode_freq: Optional[int] = None,
+        eval_initial_env_episode: Optional[int] = None,
     ) -> None:
         super().__init__(
             env,
@@ -369,7 +377,7 @@ class IBSched(Agent):
                     spaces.Dict(
                         {
                             "observations": spaces.Box(
-                                low=0,
+                                low=-1,
                                 high=np.inf,
                                 shape=(
                                     self.max_number_slices
@@ -389,7 +397,7 @@ class IBSched(Agent):
                     else spaces.Dict(
                         {
                             "observations": spaces.Box(
-                                low=0,
+                                low=-1,
                                 high=np.inf,
                                 shape=(
                                     int(
@@ -420,3 +428,6 @@ class IBSched(Agent):
         )
 
         return obs_space
+
+    def init_agent(self) -> None:
+        pass

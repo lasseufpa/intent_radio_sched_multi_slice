@@ -146,7 +146,8 @@ class IBSchedSB3(Agent):
             f"./agents/models/{self.env.comm_env.simu_name}/final_{self.agent_name}"
         )
 
-    def load(self, path: str) -> None:
+    def load(self, agent_name, scenario, method="last") -> None:
+        path = self.sb3_load_path(agent_name, scenario, method)
         assert self.agent is not None, "Agent must be created first"
         if self.agent_type == "ppo":
             self.agent = PPO.load(path, self.env)
@@ -182,3 +183,16 @@ class IBSchedSB3(Agent):
         obs_space = self.fake_agent.get_obs_space()["player_0"]["observations"]  # type: ignore
 
         return obs_space
+
+    @staticmethod
+    def sb3_load_path(agent_name, scenario, method="last"):
+        if method == "last":
+            return f"./agents/models/{scenario}/final_{agent_name}.zip"
+        elif method == "best":
+            return (
+                f"./agents/models/{scenario}/best_{agent_name}/best_model.zip"
+            )
+        elif isinstance(method, int):
+            return f"./agents/models/{scenario}/{agent_name}/{agent_name}_{int(method*1000)}_steps.zip"
+        else:
+            raise ValueError(f"Invalid method {method} for finetune load")
