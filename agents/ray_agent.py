@@ -8,7 +8,9 @@ from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import PolicySpec
+from ray.tune.logger import pretty_print
 from ray.tune.registry import register_env
+from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
 from agents.masked_action_distribution import TorchDiagGaussian
@@ -37,7 +39,7 @@ class RayAgent:
         self.algo = None
         self.train_batch_size = 2048
         self.steps_per_episode = 1000
-        self.min_ep_checkpoint = np.rint(
+        self.eps_per_iteration = np.rint(
             self.train_batch_size // self.steps_per_episode
         ).astype(int)
 
@@ -65,7 +67,7 @@ class RayAgent:
                 checkpoint_config=air.CheckpointConfig(
                     checkpoint_frequency=np.rint(
                         self.env_config["checkpoint_episode_freq"]
-                        / self.min_ep_checkpoint
+                        / self.eps_per_iteration
                     ).astype(int),
                     checkpoint_at_end=True,
                 ),
@@ -133,7 +135,12 @@ class RayAgent:
         )
         if self.env_config["enable_evaluation"]:
             algo_config.evaluation(
-                evaluation_interval=env_config["episode_evaluation_freq"],
+                evaluation_interval=np.rint(
+                    env_config["episode_evaluation_freq"]
+                    / self.eps_per_iteration
+                ).astype(
+                    int
+                ),  # Convert to iterations
                 evaluation_duration=env_config["number_evaluation_episodes"],
                 evaluation_duration_unit="episodes",
                 evaluation_config={
@@ -206,3 +213,37 @@ class RayAgent:
                 explore=False,
             )
         return action
+
+    def train_alternative(self, total_timesteps: int):
+        # Total timesteps is not used in this implementation
+        # it is just a placeholder to keep the same interface as SB3
+        algo_config = self.gen_config(self.env_config)
+        self.algo = algo_config.build()
+        total_episodes_train = (
+            self.env_config["max_training_episodes"]
+            - self.env_config["initial_training_episode"]
+        ) * self.env_config["training_epochs"]
+        train_iterations = np.ceil(
+            total_episodes_train / self.eps_per_iteration
+        ).astype(int)
+        checkpoint_iter_freq = np.rint(
+            self.env_config["checkpoint_episode_freq"] / self.eps_per_iteration
+        ).astype(int)
+        for it_idx in tqdm(np.arange(train_iterations), desc="Training..."):
+            result = self.algo.train()
+            print(
+                f"\nIteration {it_idx + 1}/{train_iterations}: time {result['time_this_iter_s']:.2f}s"
+            )
+            print(
+                pretty_print(result["sampler_results"]["policy_reward_mean"])
+            )
+
+            if it_idx % checkpoint_iter_freq == 0:
+                checkpoint = self.algo.save(
+                    f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}"
+                )
+                print(f"Checkpoint saved at {checkpoint}")
+        # Save final checkpoint
+        checkpoint = self.algo.save(
+            f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}"
+        )
