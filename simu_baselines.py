@@ -20,9 +20,9 @@ from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
     "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
-    # "mult_slice_test_on_trained": MultSliceAssociation,
-    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    "mult_slice": MultSliceAssociation,
+    "mult_slice_test_on_trained": MultSliceAssociation,
+    "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "sb3_sched": {
@@ -34,7 +34,7 @@ agents = {
     "ray_ib_sched": {
         "class": IBSched,
         "rl": True,
-        "train": False,
+        "train": True,
         "load_method": "last",
     },
     "sched_twc": {
@@ -73,6 +73,14 @@ agents = {
         "train": True,
         "load_method": 50,
     },
+    "finetune_ray_ib_sched": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "base_agent": "ray_ib_sched",
+        "base_scenario": "mult_slice",
+        "load_method": "last",  # Could be "best", "last" or a int number
+    },
 }
 env_config_scenarios = {
     "mult_slice_seq": {
@@ -93,10 +101,9 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": None,
         "save_hist": False,
-        # "agents": [
-        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        # ],  # All agents besides fine-tuned ones
-        "agents": ["sb3_sched"],
+        "agents": [
+            agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        ],  # All agents besides fine-tuned ones
     },
     "mult_slice": {
         "seed": 10,
@@ -116,10 +123,30 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 60,
         "save_hist": False,
-        # "agents": [
-        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        # ],  # All agents besides fine-tuned ones
-        "agents": ["sched_twc"],  # "sb3_sched"],
+        "agents": [
+            agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        ],  # All agents besides fine-tuned ones
+    },
+    "finetune_mult_slice_seq": {
+        "seed": 10,
+        "seed_test": 15,
+        "channel_class": MimicQuadriga,  # QuadrigaChannelSeq,
+        "traffic_class": MultSliceTraffic,
+        "mobility_class": SimpleMobility,
+        "root_path": str(getcwd()),
+        "training_epochs": 5,
+        "enable_evaluation": True,
+        "initial_training_episode": 0,
+        "max_training_episodes": 80,  # 80 different channels from the same scenario
+        "initial_testing_episode": 80,
+        "test_episodes": 20,  # Testing on 20 channels from the same scenario
+        "episode_evaluation_freq": 20,
+        "number_evaluation_episodes": 20,
+        "checkpoint_episode_freq": 10,
+        "eval_initial_env_episode": 80,
+        "save_hist": False,
+        "agents": ["finetune_ray_ib_sched"],
+        "number_scenarios": 1,
     },
     "mult_slice_test_on_trained": {
         "seed": 10,
@@ -142,28 +169,6 @@ env_config_scenarios = {
         "agents": [
             agent for agent in list(agents.keys()) if ("finetune" not in agent)
         ],  # All agents besides fine-tuned ones
-    },
-    "finetune_mult_slice_seq": {
-        "seed": 10,
-        "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannelSeq,
-        "traffic_class": MultSliceTraffic,
-        "mobility_class": SimpleMobility,
-        "root_path": str(getcwd()),
-        "training_epochs": 5,
-        "enable_evaluation": True,
-        "initial_training_episode": 0,
-        "max_training_episodes": 80,  # 80 different channels from the same scenario
-        "initial_testing_episode": 80,
-        "test_episodes": 20,  # Testing on 20 channels from the same scenario
-        "episode_evaluation_freq": 10,
-        "number_evaluation_episodes": 20,
-        "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 80,
-        "save_hist": False,
-        # "agents": ["finetune_sched_twc"],  # , "marr"],
-        "agents": ["scratch_sb3_sched", "finetune_sb3_sched"],
-        "number_scenarios": 1,
     },
 }
 
@@ -253,6 +258,10 @@ for scenario in scenarios.keys():
         env_config["agent_class"] = agents[agent_name]["class"]
         env_config["association_class"] = scenarios[scenario]
         env_config["rl"] = agents[agent_name]["rl"]
+        if "finetune" in agent_name:
+            env_config["base_agent"] = agents[agent_name]["base_agent"]
+            env_config["base_scenario"] = agents[agent_name]["base_scenario"]
+            env_config["load_method"] = agents[agent_name]["load_method"]
 
         number_scenarios = env_config.get("number_scenarios", 1)
         for scenario_number in range(number_scenarios):
@@ -287,6 +296,7 @@ for scenario in scenarios.keys():
                             method=agents[agents[agent_name]["base_agent"]][
                                 "load_method"
                             ],
+                            finetune=True,
                         )  # Loading base model
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)

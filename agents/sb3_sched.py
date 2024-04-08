@@ -146,7 +146,9 @@ class IBSchedSB3(Agent):
             f"./agents/models/{self.env.comm_env.simu_name}/final_{self.agent_name}"
         )
 
-    def load(self, agent_name, scenario, method="last") -> None:
+    def load(
+        self, agent_name, scenario, method="last", finetune=False
+    ) -> None:
         path = self.sb3_load_path(agent_name, scenario, method)
         assert self.agent is not None, "Agent must be created first"
         if self.agent_type == "ppo":

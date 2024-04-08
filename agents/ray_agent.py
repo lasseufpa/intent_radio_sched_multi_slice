@@ -1,16 +1,15 @@
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Dict
 
 import numpy as np
 import ray
 from ray import air, tune
 from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.models import ModelCatalog
-from ray.rllib.policy.policy import PolicySpec
-from ray.tune.logger import pretty_print
+from ray.rllib.policy.policy import Policy, PolicySpec
 from ray.tune.registry import register_env
-from tqdm import tqdm
 
 from agents.action_mask_model import TorchActionMaskModel
 from agents.masked_action_distribution import TorchDiagGaussian
@@ -132,6 +131,7 @@ class RayAgent:
                 seed=env_config["seed"],
             )
             .reporting(metrics_num_episodes_for_smoothing=1)
+            .callbacks(UpdatePolicyCallback)
         )
         if self.env_config["enable_evaluation"]:
             algo_config.evaluation(
@@ -179,25 +179,28 @@ class RayAgent:
 
         return "inter_slice_sched" if agent_idx == 0 else "intra_slice_sched"
 
-    def load(self, agent_name, scenario, method="last") -> None:
-        analysis = tune.ExperimentAnalysis(
-            f"{self.read_checkpoint}/{scenario}/{agent_name}/"
-        )
-        assert analysis.trials is not None, "Analysis trial is None"
-        if method == "last":
-            checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
-        elif method == "best":
-            checkpoint = analysis.get_best_checkpoint(
-                analysis.trials[0], "episode_reward_mean", "max"
+    def load(
+        self, agent_name, scenario, method="last", finetune=False
+    ) -> None:
+        if not finetune:
+            analysis = tune.ExperimentAnalysis(
+                f"{self.read_checkpoint}/{scenario}/{agent_name}/"
             )
-        elif isinstance(method, int):
-            raise NotImplementedError(
-                "Checkpoint by iteration not implemented"
-            )
-        else:
-            raise ValueError(f"Invalid method {method} for finetune load")
-        assert checkpoint is not None, "Ray checkpoint is None"
-        self.algo = Algorithm.from_checkpoint(checkpoint)
+            assert analysis.trials is not None, "Analysis trial is None"
+            if method == "last":
+                checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
+            elif method == "best":
+                checkpoint = analysis.get_best_checkpoint(
+                    analysis.trials[0], "episode_reward_mean", "max"
+                )
+            elif isinstance(method, int):
+                raise NotImplementedError(
+                    "Checkpoint by iteration not implemented"
+                )
+            else:
+                raise ValueError(f"Invalid method {method} for finetune load")
+            assert checkpoint is not None, "Ray checkpoint is None"
+            self.algo = Algorithm.from_checkpoint(checkpoint)
 
     def step(self, obs):
         action = {}
@@ -214,36 +217,54 @@ class RayAgent:
             )
         return action
 
-    def train_alternative(self, total_timesteps: int):
-        # Total timesteps is not used in this implementation
-        # it is just a placeholder to keep the same interface as SB3
-        algo_config = self.gen_config(self.env_config)
-        self.algo = algo_config.build()
-        total_episodes_train = (
-            self.env_config["max_training_episodes"]
-            - self.env_config["initial_training_episode"]
-        ) * self.env_config["training_epochs"]
-        train_iterations = np.ceil(
-            total_episodes_train / self.eps_per_iteration
-        ).astype(int)
-        checkpoint_iter_freq = np.rint(
-            self.env_config["checkpoint_episode_freq"] / self.eps_per_iteration
-        ).astype(int)
-        for it_idx in tqdm(np.arange(train_iterations), desc="Training..."):
-            result = self.algo.train()
-            print(
-                f"\nIteration {it_idx + 1}/{train_iterations}: time {result['time_this_iter_s']:.2f}s"
-            )
-            print(
-                pretty_print(result["sampler_results"]["policy_reward_mean"])
-            )
 
-            if it_idx % checkpoint_iter_freq == 0:
-                checkpoint = self.algo.save(
-                    f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}"
-                )
-                print(f"Checkpoint saved at {checkpoint}")
-        # Save final checkpoint
-        checkpoint = self.algo.save(
-            f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}"
+class UpdatePolicyCallback(DefaultCallbacks):
+    def on_algorithm_init(
+        self,
+        *,
+        algorithm: "Algorithm",
+        **kwargs,
+    ) -> None:
+        """
+        Loading previous Policy weights from a checkpoint to fine-tune the model.
+        """
+        agent = algorithm.config.env_config["agent"]
+        if "finetune" in agent:
+            root_path = (
+                algorithm.config.env_config["root_path"] + "/ray_results"
+            )
+            base_agent = algorithm.config.env_config["base_agent"]
+            base_scenario = algorithm.config.env_config["base_scenario"]
+            load_method = algorithm.config.env_config["load_method"]
+            policies = self.load(
+                root_path, base_agent, base_scenario, load_method
+            )
+            inter_slice_weights = policies["inter_slice_sched"].get_weights()
+            intra_slice_weights = policies["intra_slice_sched"].get_weights()
+            loaded_policy_weights = {
+                "inter_slice_sched": inter_slice_weights,
+                "intra_slice_sched": intra_slice_weights,
+            }
+            algorithm.set_weights(loaded_policy_weights)
+
+    def load(self, root_path, agent_name, scenario, method="last") -> dict:
+        analysis = tune.ExperimentAnalysis(
+            f"{root_path}/{scenario}/{agent_name}/"
         )
+        assert analysis.trials is not None, "Analysis trial is None"
+        if method == "last":
+            checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
+        elif method == "best":
+            checkpoint = analysis.get_best_checkpoint(
+                analysis.trials[0], "episode_reward_mean", "max"
+            )
+        elif isinstance(method, int):
+            raise NotImplementedError(
+                "Checkpoint by iteration not implemented"
+            )
+        else:
+            raise ValueError(f"Invalid method {method} for finetune load")
+        assert checkpoint is not None, "Ray checkpoint is None"
+        policy = Policy.from_checkpoint(checkpoint)
+        assert isinstance(policy, dict), "Policy is not a dictionary"
+        return policy
