@@ -1190,15 +1190,18 @@ def fair_comparison_check(
     return True
 
 
-scenario_names = ["finetune_mult_slice_seq"]  # ["mult_slice_seq"]
+scenario_names = [
+    "mult_slice"
+]  # ["finetune_mult_slice_seq"]  # ["mult_slice_seq"]
 agent_names = [
     # "random",
     # "ib_sched",
     # "ib_sched_mask",
     # "sched_twc",
     # "mapf",
-    "finetune_sb3_sched",
+    # "finetune_sb3_sched",
     "marr",
+    "ray_ib_sched",
     # "sched_coloran",
     # "scratch_sb3_sched_sort",
     # "ib_sched_old",
@@ -1206,22 +1209,25 @@ agent_names = [
     # "ib_sched_mask",
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
-    # "sched_twc",
+    "sched_twc",
+    "ray_ib_sched_intra_rr",
+    "ray_ib_sched_obs_filter",
     # "base_sb3_sched",
+    # "finetune_sched_twc",
     # "finetune_sb3_sched",
     # "scratch_sb3_sched",
     # "scratch_sb3_ppo_ib_sched",
-    # "sb3_sched",
+    "sb3_sched",
     # "base_shuffle_sb3_sched",
 ]
-# episodes = np.arange(70, 100, dtype=int)
-episodes = np.array(
-    [
-        np.arange(80, 100, dtype=int),
-        np.arange(180, 200, dtype=int),
-        np.arange(280, 300, dtype=int),
-    ],
-).flatten()
+episodes = np.arange(80, 100, dtype=int)
+# episodes = np.array(
+#     [
+#         np.arange(80, 100, dtype=int),
+#         np.arange(180, 200, dtype=int),
+#         np.arange(280, 300, dtype=int),
+#     ],
+# ).flatten()
 slices = np.arange(5)
 
 # Check if agents are compared in episodes with the same characteristics

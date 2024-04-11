@@ -19,9 +19,9 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    "mult_slice_seq": MultSliceAssociationSeq,
-    "mult_slice": MultSliceAssociation,
-    "mult_slice_test_on_trained": MultSliceAssociation,
+    # "mult_slice_seq": MultSliceAssociationSeq,
+    # "mult_slice": MultSliceAssociation,
+    # "mult_slice_test_on_trained": MultSliceAssociation,
     "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
@@ -34,8 +34,42 @@ agents = {
     "ray_ib_sched": {
         "class": IBSched,
         "rl": True,
+        "train": False,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": True,
+    },
+    "ray_ib_sched_no_mask": {
+        "class": IBSched,
+        "rl": True,
         "train": True,
-        "load_method": "last",
+        "load_method": "best",
+        "enable_masks": False,
+        "debug_mode": True,
+    },
+    "ray_ib_sched_prep_none_masks_on": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": True,
+    },
+    "ray_ib_sched_intra_rr": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": True,
+    },
+    "ray_ib_sched_obs_filter": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": False,
+        "debug_mode": True,
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -80,6 +114,8 @@ agents = {
         "base_agent": "ray_ib_sched",
         "base_scenario": "mult_slice",
         "load_method": "last",  # Could be "best", "last" or a int number
+        "enable_masks": True,
+        "debug_mode": True,
     },
 }
 env_config_scenarios = {
@@ -123,9 +159,10 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 60,
         "save_hist": False,
-        "agents": [
-            agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        ],  # All agents besides fine-tuned ones
+        # "agents": [
+        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        # ],  # All agents besides fine-tuned ones
+        "agents": ["ray_ib_sched_obs_filter"],
     },
     "finetune_mult_slice_seq": {
         "seed": 10,
@@ -270,8 +307,8 @@ for scenario in scenarios.keys():
                 agent = RayAgent(
                     env_creator=env_creator,
                     env_config=env_config,
-                    debug_mode=True,
-                    enable_masks=True,
+                    debug_mode=agents[agent_name]["debug_mode"],
+                    enable_masks=agents[agent_name]["enable_masks"],
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes
