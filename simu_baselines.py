@@ -39,38 +39,6 @@ agents = {
         "enable_masks": True,
         "debug_mode": True,
     },
-    "ray_ib_sched_no_mask": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "load_method": "best",
-        "enable_masks": False,
-        "debug_mode": True,
-    },
-    "ray_ib_sched_prep_none_masks_on": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "load_method": "best",
-        "enable_masks": True,
-        "debug_mode": True,
-    },
-    "ray_ib_sched_intra_rr": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "load_method": "best",
-        "enable_masks": True,
-        "debug_mode": True,
-    },
-    "ray_ib_sched_obs_filter": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "load_method": "best",
-        "enable_masks": False,
-        "debug_mode": True,
-    },
     "sched_twc": {
         "class": SchedTWC,
         "rl": True,
@@ -116,6 +84,24 @@ agents = {
         "load_method": "last",  # Could be "best", "last" or a int number
         "enable_masks": True,
         "debug_mode": True,
+    },
+    "scratch_ray_ib_sched": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "last",
+        "enable_masks": True,
+        "debug_mode": True,
+    },
+    "base_ray_ib_sched": {
+        "class": IBSched,
+        "rl": True,
+        "train": False,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": True,
+        "base_agent": "ray_ib_sched",
+        "base_scenario": "mult_slice",
     },
 }
 env_config_scenarios = {
@@ -337,8 +323,10 @@ for scenario in scenarios.keys():
                         )  # Loading base model
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)
+                agent_load = agents[agent_name]["base_agent"] if "base" in agent_name else agent_name
+                scenario_load = agents[agent_name]["base_scenario"] if "base" in agent_name else scenario
                 agent.load(
-                    agent_name, scenario, agents[agent_name]["load_method"]
+                    agent_load, scenario_load, agents[agent_name]["load_method"]
                 )
 
             # Testing
