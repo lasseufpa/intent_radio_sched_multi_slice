@@ -1064,7 +1064,11 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
                 y_values = np.append(y_values, np.sum(reward))
             case "violations_per_episode" | "violations_per_episode_cumsum":
                 violations, _, _, _ = calc_slice_violations(data_metrics)
+                violations_pri, _, _, _ = calc_slice_violations(
+                    data_metrics, priority=True
+                )
                 y_values = np.append(y_values, np.sum(violations))
+                y2_values = np.append(y2_values, np.sum(violations_pri))
             case "distance_fulfill" | "distance_fulfill_cumsum":
                 distance = calc_intent_distance(data_metrics)
                 y_values = np.append(y_values, np.sum(distance))
@@ -1082,6 +1086,13 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
             ylabel = "Reward (inter-slice agent)"
         case "violations_per_episode_cumsum":
             plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
+            plt.plot(
+                x_values,
+                np.cumsum(y2_values),
+                label=f"{agent}, prioritary",
+                color=plt.gca().lines[-1].get_color(),
+                linestyle="--",
+            )
             ylabel = "Cumulative # Violations"
         case "violations_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
@@ -1191,7 +1202,7 @@ def fair_comparison_check(
 
 
 scenario_names = [
-    "mult_slice"
+    "finetune_mult_slice_seq"
 ]  # ["finetune_mult_slice_seq"]  # ["mult_slice_seq"]
 agent_names = [
     # "random",
@@ -1201,7 +1212,9 @@ agent_names = [
     # "mapf",
     # "finetune_sb3_sched",
     "marr",
-    "ray_ib_sched",
+    "base_ray_ib_sched",
+    "finetune_ray_ib_sched",
+    "scratch_ray_ib_sched",
     # "sched_coloran",
     # "scratch_sb3_sched_sort",
     # "ib_sched_old",
@@ -1209,15 +1222,15 @@ agent_names = [
     # "ib_sched_mask",
     # "ib_sched_mask_deepmind",
     # "ib_sched_lstm",
-    "sched_twc",
-    "ray_ib_sched_intra_rr",
-    "ray_ib_sched_obs_filter",
+    # "sched_twc",
+    # "ray_ib_sched_intra_rr",
+    # "ray_ib_sched_obs_filter",
     # "base_sb3_sched",
     # "finetune_sched_twc",
     # "finetune_sb3_sched",
     # "scratch_sb3_sched",
     # "scratch_sb3_ppo_ib_sched",
-    "sb3_sched",
+    # "sb3_sched",
     # "base_shuffle_sb3_sched",
 ]
 episodes = np.arange(80, 100, dtype=int)
