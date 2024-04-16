@@ -1,6 +1,7 @@
 from os import getcwd
 
 import numpy as np
+import ray
 from tqdm import tqdm
 
 from agents.ib_sched import IBSched
@@ -81,7 +82,7 @@ agents = {
         "train": True,
         "base_agent": "ray_ib_sched",
         "base_scenario": "mult_slice",
-        "load_method": "last",  # Could be "best", "last" or a int number
+        "load_method": "best",  # Could be "best", "last" or a int number
         "enable_masks": True,
         "debug_mode": True,
     },
@@ -89,7 +90,7 @@ agents = {
         "class": IBSched,
         "rl": True,
         "train": True,
-        "load_method": "last",
+        "load_method": "best",
         "enable_masks": True,
         "debug_mode": True,
     },
@@ -160,15 +161,15 @@ env_config_scenarios = {
         "training_epochs": 5,
         "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 80,  # 80 different channels from the same scenario
+        "max_training_episodes": 60,  # 80 different channels from the same scenario
         "initial_testing_episode": 80,
         "test_episodes": 20,  # Testing on 20 channels from the same scenario
         "episode_evaluation_freq": 20,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 80,
+        "eval_initial_env_episode": 60,
         "save_hist": False,
-        "agents": ["finetune_ray_ib_sched"],
+        "agents": ["finetune_ray_ib_sched", "scratch_ray_ib_sched"],
         "number_scenarios": 1,
     },
     "mult_slice_test_on_trained": {
@@ -323,10 +324,20 @@ for scenario in scenarios.keys():
                         )  # Loading base model
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)
-                agent_load = agents[agent_name]["base_agent"] if "base" in agent_name else agent_name
-                scenario_load = agents[agent_name]["base_scenario"] if "base" in agent_name else scenario
+                agent_load = (
+                    agents[agent_name]["base_agent"]
+                    if "base" in agent_name
+                    else agent_name
+                )
+                scenario_load = (
+                    agents[agent_name]["base_scenario"]
+                    if "base" in agent_name
+                    else scenario
+                )
                 agent.load(
-                    agent_load, scenario_load, agents[agent_name]["load_method"]
+                    agent_load,
+                    scenario_load,
+                    agents[agent_name]["load_method"],
                 )
 
             # Testing
@@ -353,6 +364,7 @@ for scenario in scenarios.keys():
                 ), "Terminated must be a boolean"
                 if terminated:
                     obs, _ = marl_comm_env.reset()
+            ray.shutdown()
 
             # Updating values for next scenario
             if "finetune" in scenario:
