@@ -378,26 +378,6 @@ def calculate_slice_ue_obs(
     return (intent_ue_values, intent_slice_values)
 
 
-def calculate_reward_mask(obs_space: dict, last_formatted_obs: dict) -> dict:
-    reward = {}
-    for player_idx, agent_obs in enumerate(last_formatted_obs.items()):
-        elements_idx = agent_obs[1]["action_mask"].nonzero()[0]
-        active_observations = (
-            agent_obs[1]["observations"][elements_idx]
-            if elements_idx.shape[0] > 0
-            else np.array([1])
-        )
-        if np.sum(active_observations < 0) == 0:
-            reward[agent_obs[0]] = np.mean(active_observations)
-        else:
-            negative_obs_idx = (active_observations < 0).nonzero()[0]
-            reward[agent_obs[0]] = np.mean(
-                active_observations[negative_obs_idx]
-            )
-
-    return reward
-
-
 def calculate_reward_no_mask(
     obs_space: dict,
     last_formatted_obs: dict,
