@@ -22,8 +22,9 @@ from traffics.mult_slice import MultSliceTraffic
 scenarios = {
     # "mult_slice_seq": MultSliceAssociationSeq,
     # "mult_slice": MultSliceAssociation,
+    "hyperparam_opt_mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
-    "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "sb3_sched": {
@@ -150,6 +151,29 @@ env_config_scenarios = {
         #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
         # ],  # All agents besides fine-tuned ones
         "agents": ["ray_ib_sched_obs_filter"],
+    },
+    "hyperparam_opt_mult_slice": {
+        "seed": 10,
+        "seed_test": 15,
+        "channel_class": MimicQuadriga,  # QuadrigaChannel,
+        "traffic_class": MultSliceTraffic,
+        "mobility_class": SimpleMobility,
+        "root_path": str(getcwd()),
+        "training_epochs": 1,
+        "enable_evaluation": True,
+        "initial_training_episode": 0,
+        "max_training_episodes": 60,
+        "initial_testing_episode": 80,
+        "test_episodes": 20,
+        "episode_evaluation_freq": 10,
+        "number_evaluation_episodes": 20,
+        "checkpoint_episode_freq": 10,
+        "eval_initial_env_episode": 60,
+        "save_hist": False,
+        # "agents": [
+        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
+        # ],  # All agents besides fine-tuned ones
+        "agents": ["ray_ib_sched"],
     },
     "finetune_mult_slice_seq": {
         "seed": 10,

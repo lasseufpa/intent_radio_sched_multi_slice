@@ -10,6 +10,7 @@ from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import Policy, PolicySpec
 from ray.tune.registry import register_env
+from ray.tune.schedulers.pb2 import PB2
 
 from agents.action_mask_model import TorchActionMaskModel
 from agents.masked_action_distribution import TorchDiagGaussian
@@ -55,9 +56,31 @@ class RayAgent:
                 * self.env_config["training_epochs"]
             ),
         }
+        tune_config = None
+        if "hyperparam_opt" in self.env_config["scenario"]:
+            perturbation_interval = 5
+            pb2 = PB2(
+                time_attr="training_iteration",
+                perturbation_interval=perturbation_interval,
+                hyperparam_bounds={
+                    # hyperparameter bounds.
+                    "lr": [0.0001, 0.02],
+                    "sgd_minibatch_size": [8, 1024],
+                    "train_batch_size": [128, 10240],
+                    "gamma": [0.5, 0.9999],
+                },
+            )
+            tune_config = tune.TuneConfig(
+                metric="evaluation/episode_reward_mean",
+                mode="max",
+                scheduler=pb2,
+                num_samples=8,
+            )
+
         results = tune.Tuner(
             "PPO",
             param_space=algo_config.to_dict(),
+            tune_config=tune_config,
             run_config=air.RunConfig(
                 storage_path=f"{self.read_checkpoint}/{self.env_config['scenario']}/",
                 name=self.env_config["agent"],
@@ -186,6 +209,10 @@ class RayAgent:
             analysis = tune.ExperimentAnalysis(
                 f"{self.read_checkpoint}/{scenario}/{agent_name}/"
             )
+            # for idx, trial in enumerate(analysis.trials):
+            #     print(
+            #         f"Trial number: {idx}\nlr={trial.config['lr']}\nsgd_minibatch_size={trial.config['sgd_minibatch_size']}\ntrain_batch_size={trial.config['train_batch_size']}\ngamma={trial.config['gamma']}\n\n\n"
+            #     )
             assert analysis.trials is not None, "Analysis trial is None"
             if method == "last":
                 checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
