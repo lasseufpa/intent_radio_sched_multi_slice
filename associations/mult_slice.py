@@ -165,7 +165,7 @@ class MultSliceAssociation(Association):
                     "buffer_latency": 40,  # ms
                     "message_size": 80 * 8,
                     "mobility": 0,  # Km/h
-                    "traffic": 30,  # Mbps,
+                    "traffic": 15,  # Mbps,
                     "min_number_ues": 4,
                     "max_number_ues": 5,
                 },
