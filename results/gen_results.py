@@ -1201,6 +1201,60 @@ def fair_comparison_check(
     return True
 
 
+def get_scenario_metrics(
+    episodes: np.ndarray,
+    slices: np.ndarray,
+    scenario: str,
+    number_metrics: int,
+    sort_thr: bool = False,
+):
+    metrics = np.zeros((len(episodes), len(slices), number_metrics))
+    for idx, episode in enumerate(episodes):
+        data = np.load(
+            f"associations/data/{scenario}/ep_{episode}.npz",
+            allow_pickle=True,
+        )
+        data_metrics = {
+            "hist_basestation_slice_assoc": data[
+                "hist_basestation_slice_assoc"
+            ],
+            "hist_slice_ue_assoc": data["hist_slice_ue_assoc"],
+            "hist_slice_req": data["hist_slice_req"],
+        }
+        # Array metrics for each slice: reliability, latency, throughput,
+        # number_ues, mobility, buffer_size, message_size, max_buffer_lat, traffic
+        for slice in slices:
+            if data_metrics["hist_basestation_slice_assoc"][0][0][slice] == 1:
+                slice_req = data_metrics["hist_slice_req"][0][f"slice_{slice}"]
+                reliability, latency, throughput = 0, 0, 0
+                for par in slice_req["parameters"].values():
+                    if par["name"] == "reliability":
+                        reliability = par["value"]
+                    elif par["name"] == "latency":
+                        latency = par["value"]
+                    elif par["name"] == "throughput":
+                        throughput = par["value"]
+                metrics[idx, slice, :] = np.array(
+                    [
+                        reliability,
+                        latency,
+                        throughput,
+                        np.sum(data_metrics["hist_slice_ue_assoc"][0][slice]),
+                        slice_req["ues"]["mobility"],
+                        slice_req["ues"]["buffer_size"],
+                        slice_req["ues"]["message_size"],
+                        slice_req["ues"]["buffer_latency"],
+                        slice_req["ues"]["traffic"],
+                    ]
+                )
+    if sort_thr:  # Sort slices by throughput as done in the observation space
+        for episode in np.arange(episodes.shape[0]):
+            metrics[episode, :, :] = metrics[
+                episode, np.argsort(metrics[episode, :, 2]), :
+            ]
+    return metrics
+
+
 def plot_scenario_analysis(
     scenario_names: list[str],
     episodes: np.ndarray,
@@ -1220,65 +1274,16 @@ def plot_scenario_analysis(
     ]
     number_metrics = len(metric_names)
     for scenario in scenario_names:
-        metrics = np.zeros((len(episodes), len(slices), number_metrics))
-        for episode in np.arange(episodes.shape[0]):
-            data = np.load(
-                f"associations/data/{scenario}/ep_{episode}.npz",
-                allow_pickle=True,
-            )
-            data_metrics = {
-                "hist_basestation_slice_assoc": data[
-                    "hist_basestation_slice_assoc"
-                ],
-                "hist_slice_ue_assoc": data["hist_slice_ue_assoc"],
-                "hist_slice_req": data["hist_slice_req"],
-            }
-            # Array metrics for each slice: reliability, latency, throughput, number_ues, mobility, buffer_size, message_size, max_buffer_lat, traffic
-            for slice in slices:
-                if (
-                    data_metrics["hist_basestation_slice_assoc"][0][0][slice]
-                    == 1
-                ):
-                    slice_req = data_metrics["hist_slice_req"][0][
-                        f"slice_{slice}"
-                    ]
-                    reliability, latency, throughput = 0, 0, 0
-                    for par in slice_req["parameters"].values():
-                        if par["name"] == "reliability":
-                            reliability = par["value"]
-                        elif par["name"] == "latency":
-                            latency = par["value"]
-                        elif par["name"] == "throughput":
-                            throughput = par["value"]
-                    metrics[episode, slice, :] = np.array(
-                        [
-                            reliability,
-                            latency,
-                            throughput,
-                            np.sum(
-                                data_metrics["hist_slice_ue_assoc"][0][slice]
-                            ),
-                            slice_req["ues"]["mobility"],
-                            slice_req["ues"]["buffer_size"],
-                            slice_req["ues"]["message_size"],
-                            slice_req["ues"]["buffer_latency"],
-                            slice_req["ues"]["traffic"],
-                        ]
-                    )
-        if (
-            sort_thr
-        ):  # Sort slices by throughput as done in the observation space
-            for episode in np.arange(episodes.shape[0]):
-                metrics[episode, :, :] = metrics[
-                    episode, np.argsort(metrics[episode, :, 2]), :
-                ]
+        metrics = get_scenario_metrics(
+            episodes, slices, scenario, number_metrics, sort_thr
+        )
         w, h = matfig.figaspect(0.6)
         fig, axs = plt.subplots(
             ncols=3, nrows=3, figsize=(w, h), layout="constrained"
         )
+        metric_idx = 0
         for row in range(3):
             for col in range(3):
-                metric_idx = (row + 1) * (col + 1) - 1
                 for slice in slices:
                     y_values = metrics[
                         :,
@@ -1293,11 +1298,81 @@ def plot_scenario_analysis(
                     axs[row, col].grid()
                     axs[row, col].set_xlabel("Slice number")
                     axs[row, col].set_ylabel(metric_names[metric_idx])
+                metric_idx += 1
         sort_str = "sorted" if sort_thr else "unsorted"
+        os.makedirs(
+            f"./results/{scenario}/",
+            exist_ok=True,
+        )
         fig.savefig(
             f"./results/{scenario}/scenario_analysis_{episodes[0]}_{episodes[-1]}_{sort_str}.pdf"
         )
         plt.close(fig)
+
+
+def scenario_diff_train_test(
+    scenario: str,
+    train_episodes: np.ndarray,
+    test_episodes: np.ndarray,
+    slices: np.ndarray,
+):
+    metric_names = [
+        "req_reliability",
+        "req_latency",
+        "req_throughput",
+        "number_ues",
+        "mobility",
+        "buffer_size",
+        "message_size",
+        "max_buffer_lat",
+        "traffic",
+    ]
+    number_metrics = len(metric_names)
+    train_metrics = get_scenario_metrics(
+        train_episodes, slices, scenario, number_metrics, False
+    )
+    test_metrics = get_scenario_metrics(
+        test_episodes, slices, scenario, number_metrics, False
+    )
+    max_metrics = np.max(
+        np.max(np.concatenate((train_metrics, test_metrics)), axis=0), axis=0
+    )
+    max_metrics = np.repeat([max_metrics], len(slices), axis=0)
+
+    diff_test_per_ep = 9999999 * np.ones(test_metrics.shape[0])
+    for test_ep in np.arange(test_metrics.shape[0]):
+        for train_ep in np.arange(train_metrics.shape[0]):
+            diff_mag = np.sum(
+                np.abs(
+                    (
+                        test_metrics[test_ep, :, :]
+                        - train_metrics[train_ep, :, :]
+                    )
+                    / max_metrics
+                )
+            )
+            diff_test_per_ep[test_ep] = min(
+                diff_test_per_ep[test_ep], diff_mag
+            )
+    w, h = matfig.figaspect(0.6)
+    plt.figure(figsize=(w, h))
+    plt.plot(test_episodes, diff_test_per_ep)
+    plt.grid()
+    plt.xlabel("Episodes", fontsize=14)
+    plt.ylabel("Normalized Min Absolute Error", fontsize=14)
+    plt.xticks(fontsize=12)
+    os.makedirs(
+        f"./results/{scenario}/",
+        exist_ok=True,
+    )
+    plt.savefig(
+        f"./results/{scenario}/min_abs_diff_train_{train_episodes[0]}-{train_episodes[-1]}_test_{test_episodes[0]}-{test_episodes[-1]}.pdf",
+        bbox_inches="tight",
+        pad_inches=0,
+        format="pdf",
+        dpi=1000,
+    )
+    plt.close()
 
 
 scenario_names = [
@@ -1404,3 +1479,7 @@ plot_scenario_analysis(["mult_slice"], np.arange(0, 100), np.arange(5))
 plot_scenario_analysis(["mult_slice"], np.arange(0, 80), np.arange(5))
 plot_scenario_analysis(["mult_slice"], np.arange(80, 100), np.arange(5))
 plot_scenario_analysis(["mult_slice"], np.arange(0, 80), np.arange(5), True)
+
+scenario_diff_train_test(
+    "mult_slice", np.arange(80), np.arange(80, 100), np.arange(5)
+)
