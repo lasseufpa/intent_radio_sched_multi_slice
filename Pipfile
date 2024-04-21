@@ -23,13 +23,15 @@ pyarrow = "*"
 lz4 = "*"
 tensorboardx = "*"
 fsspec = "*"
-ray = {extras = ["tune"], version = "*"}
 gputil = "*"
 h5py = "*"
 iteround = "*"
 tomli = "*"
 rich = "*"
 optuna = "*"
+gpy = "*"
+scikit-learn = "*"
+ray = {extras = ["rllib"], version = "*"}
 
 [dev-packages]
 torch-tb-profiler = "*"
