@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 import numpy as np
 import ray
@@ -25,6 +25,9 @@ class RayAgent:
         env_config: dict,
         debug_mode: bool = False,
         enable_masks: bool = True,
+        param_config_mode: str = "default",
+        param_config_scenario: Optional[str] = None,
+        param_config_agent: Optional[str] = None,
     ):
         ray.init(local_mode=debug_mode)
         register_env("marl_comm_env", lambda config: env_creator(config, True))
@@ -37,10 +40,60 @@ class RayAgent:
         self.enable_masks = enable_masks
         self.read_checkpoint = str(Path("./ray_results/").resolve())
         self.algo = None
-        self.train_batch_size = 2048
         self.steps_per_episode = 1000
+
+        if "hyperparam_opt" in env_config["scenario"]:
+            self.initial_hyperparam = {
+                "lr": tune.uniform(0.0001, 0.02),
+                "sgd_minibatch_size": tune.randint(8, 1024),
+                "train_batch_size": tune.randint(128, 50240),
+                "gamma": tune.uniform(0.5, 0.9999),
+                "num_sgd_iter": tune.randint(1, 30),
+            }
+            self.hyperparam_bounds = {
+                # hyperparameter bounds.
+                "lr": [0.0001, 0.02],
+                "sgd_minibatch_size": [8, 1024],
+                "train_batch_size": [128, 10240],
+                "gamma": [0.5, 0.9999],
+                "num_sgd_iter": [1, 30],
+            }
+            self.pertubation_interval = 2
+            self.num_samples = 14
+        else:
+            self.initial_hyperparam = None
+            self.hyperparam_bounds = {}
+            self.pertubation_interval = 0
+            self.num_samples = 0
+
+        if param_config_mode == "default":
+            self.param_config = {
+                "lr": 0.0003,
+                "train_batch_size": 2048,
+                "sgd_minibatch_size": 64,
+                "num_sgd_iter": 10,
+                "gamma": 0.99,
+            }
+        elif param_config_mode == "checkpoint":
+            self.param_config = self.load_config(
+                param_config_agent, param_config_scenario
+            )
+        elif param_config_mode == "pre_computed":
+            # Computed using hyperparam_opt_mult_slice scenario
+            self.param_config = {
+                "lr": 0.019999999552965164,
+                "train_batch_size": 10240,
+                "sgd_minibatch_size": 8,
+                "num_sgd_iter": 30,
+                "gamma": 0.5,
+            }
+        else:
+            raise ValueError(
+                f"Invalid param_config_mode: {param_config_mode}."
+            )
+
         self.eps_per_iteration = np.rint(
-            self.train_batch_size // self.steps_per_episode
+            self.param_config["train_batch_size"] // self.steps_per_episode
         ).astype(int)
 
     def train(self, total_timesteps: int):
@@ -58,23 +111,27 @@ class RayAgent:
         }
         tune_config = None
         if "hyperparam_opt" in self.env_config["scenario"]:
-            perturbation_interval = 5
+
+            def explore(config):
+                # ensure we collect enough timesteps to do sgd
+                if config["train_batch_size"] < config["sgd_minibatch_size"]:
+                    config["train_batch_size"] = config["sgd_minibatch_size"]
+                # ensure we run at least one sgd iter
+                if config["num_sgd_iter"] < 1:
+                    config["num_sgd_iter"] = 1
+                return config
+
             pb2 = PB2(
                 time_attr="training_iteration",
-                perturbation_interval=perturbation_interval,
-                hyperparam_bounds={
-                    # hyperparameter bounds.
-                    "lr": [0.0001, 0.02],
-                    "sgd_minibatch_size": [8, 1024],
-                    "train_batch_size": [128, 10240],
-                    "gamma": [0.5, 0.9999],
-                },
+                perturbation_interval=self.pertubation_interval,
+                hyperparam_bounds=self.hyperparam_bounds,
+                custom_explore_fn=explore,
             )
             tune_config = tune.TuneConfig(
-                metric="evaluation/episode_reward_mean",
+                metric="episode_reward_mean",
                 mode="max",
                 scheduler=pb2,
-                num_samples=8,
+                num_samples=self.num_samples,
             )
 
         results = tune.Tuner(
@@ -127,17 +184,32 @@ class RayAgent:
                 enable_connectors=False,
                 num_envs_per_worker=1,
             )
-            .resources(
-                num_gpus=1,
-                num_gpus_per_worker=1,
-                num_gpus_per_learner_worker=1,
-            )
             .training(
-                lr=0.0003,  # SB3 LR
-                train_batch_size=self.train_batch_size,  # SB3 n_steps
-                sgd_minibatch_size=64,  # type: ignore SB3 batch_size
-                num_sgd_iter=10,  # type: ignore SB3 n_epochs
-                gamma=0.99,  # SB3 gamma
+                lr=(
+                    self.param_config["lr"]
+                    if self.initial_hyperparam is None
+                    else self.initial_hyperparam["lr"]
+                ),  # SB3 LR
+                train_batch_size=(
+                    self.param_config["train_batch_size"]
+                    if self.initial_hyperparam is None
+                    else self.initial_hyperparam["train_batch_size"]
+                ),  # SB3 n_steps
+                sgd_minibatch_size=(  # type: ignore SB3 batch_size
+                    self.param_config["sgd_minibatch_size"]
+                    if self.initial_hyperparam is None
+                    else self.initial_hyperparam["sgd_minibatch_size"]
+                ),
+                num_sgd_iter=(  # type: ignore SB3 n_epochs
+                    self.param_config["num_sgd_iter"]
+                    if self.initial_hyperparam is None
+                    else self.initial_hyperparam["num_sgd_iter"]
+                ),
+                gamma=(
+                    self.param_config["gamma"]
+                    if self.initial_hyperparam is None
+                    else self.initial_hyperparam["gamma"]
+                ),  # SB3 gamma
                 lambda_=0.95,  # type: ignore # SB3 gae_lambda
                 clip_param=0.2,  # type: ignore SB3 clip_range,
                 vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
@@ -156,6 +228,15 @@ class RayAgent:
             .reporting(metrics_num_episodes_for_smoothing=1)
             .callbacks(UpdatePolicyCallback)
         )
+
+        if not ("hyperparam" in self.env_config["scenario"]):
+            # Uses the GPU in case not doing hyperparameter optimization
+            algo_config.resources(
+                num_gpus=1,
+                num_gpus_per_worker=1,
+                num_gpus_per_learner_worker=1,
+            )
+
         if self.env_config["enable_evaluation"]:
             algo_config.evaluation(
                 evaluation_interval=np.rint(
@@ -209,10 +290,6 @@ class RayAgent:
             analysis = tune.ExperimentAnalysis(
                 f"{self.read_checkpoint}/{scenario}/{agent_name}/"
             )
-            # for idx, trial in enumerate(analysis.trials):
-            #     print(
-            #         f"Trial number: {idx}\nlr={trial.config['lr']}\nsgd_minibatch_size={trial.config['sgd_minibatch_size']}\ntrain_batch_size={trial.config['train_batch_size']}\ngamma={trial.config['gamma']}\n\n\n"
-            #     )
             assert analysis.trials is not None, "Analysis trial is None"
             if method == "last":
                 checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
@@ -232,6 +309,26 @@ class RayAgent:
                 raise ValueError(f"Invalid method {method} for finetune load")
             assert checkpoint is not None, "Ray checkpoint is None"
             self.algo = Algorithm.from_checkpoint(checkpoint)
+
+    def load_config(self, agent_name, scenario) -> dict:
+        hyperparameters = [
+            "lr",
+            "sgd_minibatch_size",
+            "train_batch_size",
+            "gamma",
+            "num_sgd_iter",
+        ]
+        analysis = tune.ExperimentAnalysis(
+            f"{self.read_checkpoint}/{scenario}/{agent_name}/"
+        )
+        assert analysis.trials is not None, "Analysis trial is None"
+        config = analysis.get_best_config(
+            metric="episode_reward_mean", mode="max"
+        )
+        assert isinstance(config, dict), "Config is not a dictionary"
+        selected_config = {key: config[key] for key in hyperparameters}
+
+        return selected_config
 
     def step(self, obs):
         action = {}

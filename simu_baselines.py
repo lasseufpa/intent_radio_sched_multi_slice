@@ -20,9 +20,9 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
+    # "hyperparam_opt_mult_slice": MultSliceAssociation,
     # "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
-    "hyperparam_opt_mult_slice": MultSliceAssociation,
+    "mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
     # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
@@ -36,10 +36,13 @@ agents = {
     "ray_ib_sched": {
         "class": IBSched,
         "rl": True,
-        "train": False,
+        "train": True,
         "load_method": "best",
         "enable_masks": True,
-        "debug_mode": True,
+        "debug_mode": False,
+        "param_config_mode": "checkpoint",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched",
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -150,7 +153,7 @@ env_config_scenarios = {
         # "agents": [
         #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
         # ],  # All agents besides fine-tuned ones
-        "agents": ["ray_ib_sched_obs_filter"],
+        "agents": ["ray_ib_sched"],
     },
     "hyperparam_opt_mult_slice": {
         "seed": 10,
@@ -159,15 +162,15 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 1,
-        "enable_evaluation": True,
+        "training_epochs": 20,
+        "enable_evaluation": False,
         "initial_training_episode": 0,
         "max_training_episodes": 60,
         "initial_testing_episode": 80,
         "test_episodes": 20,
         "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
-        "checkpoint_episode_freq": 10,
+        "checkpoint_episode_freq": 4,
         "eval_initial_env_episode": 60,
         "save_hist": False,
         # "agents": [
@@ -315,11 +318,23 @@ for scenario in scenarios.keys():
         for scenario_number in range(number_scenarios):
             marl_comm_env, agent = env_creator(env_config, False)  # type: ignore
             if "ray" in agent_name:
+                param_config_mode = agents[agent_name].get(
+                    "param_config_mode", "default"
+                )
+                param_config_scenario = agents[agent_name].get(
+                    "param_config_scenario", None
+                )
+                param_config_agent = agents[agent_name].get(
+                    "param_config_agent", None
+                )
                 agent = RayAgent(
                     env_creator=env_creator,
                     env_config=env_config,
                     debug_mode=agents[agent_name]["debug_mode"],
                     enable_masks=agents[agent_name]["enable_masks"],
+                    param_config_mode=param_config_mode,
+                    param_config_scenario=param_config_scenario,
+                    param_config_agent=param_config_agent,
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes
@@ -364,30 +379,40 @@ for scenario in scenarios.keys():
                     agents[agent_name]["load_method"],
                 )
 
-            # Testing
-            print(f"Testing {agent_name} on {scenario} scenario")
-            total_test_steps = env_config["test_episodes"] * steps_per_episode
-            marl_comm_env.comm_env.max_number_episodes = (
-                env_config["initial_testing_episode"]
-                + env_config["test_episodes"]
-            )
-            marl_comm_env.comm_env.save_hist = True  # Save metrics for test
-            obs, _ = marl_comm_env.reset(
-                seed=env_config["seed_test"],
-                options={
-                    "initial_episode": env_config["initial_testing_episode"]
-                },
-            )
-            for step in tqdm(np.arange(total_test_steps), desc="Testing..."):
-                action = agent.step(obs)
-                obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
-                if isinstance(terminated, dict):
-                    terminated = terminated["__all__"]
-                assert isinstance(
-                    terminated, bool
-                ), "Terminated must be a boolean"
-                if terminated:
-                    obs, _ = marl_comm_env.reset()
+            enable_test = env_config.get("test", True)
+            if enable_test:
+                # Testing
+                print(f"Testing {agent_name} on {scenario} scenario")
+                total_test_steps = (
+                    env_config["test_episodes"] * steps_per_episode
+                )
+                marl_comm_env.comm_env.max_number_episodes = (
+                    env_config["initial_testing_episode"]
+                    + env_config["test_episodes"]
+                )
+                marl_comm_env.comm_env.save_hist = (
+                    True  # Save metrics for test
+                )
+                obs, _ = marl_comm_env.reset(
+                    seed=env_config["seed_test"],
+                    options={
+                        "initial_episode": env_config[
+                            "initial_testing_episode"
+                        ]
+                    },
+                )
+                for step in tqdm(
+                    np.arange(total_test_steps), desc="Testing..."
+                ):
+                    action = agent.step(obs)
+                    obs, reward, terminated, truncated, info = marl_comm_env.step(action)  # type: ignore
+                    if isinstance(terminated, dict):
+                        terminated = terminated["__all__"]
+                    assert isinstance(
+                        terminated, bool
+                    ), "Terminated must be a boolean"
+                    if terminated:
+                        obs, _ = marl_comm_env.reset()
             ray.shutdown()
 
             # Updating values for next scenario
