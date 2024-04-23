@@ -45,7 +45,7 @@ class RayAgent:
         if "hyperparam_opt" in env_config["scenario"]:
             self.hyperparam_bounds = {
                 # hyperparameter bounds based on SB-Zoo https://github.com/DLR-RM/rl-baselines3-zoo/blob/master/rl_zoo3/hyperparams_opt.py
-                "lr": [1e-5, 1],
+                "lr": [0.0001, 0.1],
                 "sgd_minibatch_size": [8, 512],
                 "train_batch_size": [128, 2048],
                 "gamma": [0.5, 0.9999],
