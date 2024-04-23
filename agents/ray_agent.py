@@ -43,23 +43,40 @@ class RayAgent:
         self.steps_per_episode = 1000
 
         if "hyperparam_opt" in env_config["scenario"]:
-            self.initial_hyperparam = {
-                "lr": tune.uniform(0.0001, 0.02),
-                "sgd_minibatch_size": tune.randint(8, 1024),
-                "train_batch_size": tune.randint(128, 50240),
-                "gamma": tune.uniform(0.5, 0.9999),
-                "num_sgd_iter": tune.randint(1, 30),
-            }
             self.hyperparam_bounds = {
-                # hyperparameter bounds.
-                "lr": [0.0001, 0.02],
-                "sgd_minibatch_size": [8, 1024],
-                "train_batch_size": [128, 10240],
+                # hyperparameter bounds based on SB-Zoo https://github.com/DLR-RM/rl-baselines3-zoo/blob/master/rl_zoo3/hyperparams_opt.py
+                "lr": [1e-5, 1],
+                "sgd_minibatch_size": [8, 512],
+                "train_batch_size": [128, 2048],
                 "gamma": [0.5, 0.9999],
-                "num_sgd_iter": [1, 30],
+                "num_sgd_iter": [1, 20],
+            }
+            self.initial_hyperparam = {
+                "lr": tune.uniform(
+                    self.hyperparam_bounds["lr"][0],
+                    self.hyperparam_bounds["lr"][1],
+                ),
+                "sgd_minibatch_size": tune.randint(
+                    self.hyperparam_bounds["sgd_minibatch_size"][0],
+                    self.hyperparam_bounds["sgd_minibatch_size"][1],
+                ),
+                "train_batch_size": tune.sample_from(
+                    lambda config: np.random.randint(
+                        config["sgd_minibatch_size"],  # type: ignore
+                        self.hyperparam_bounds["train_batch_size"][1],
+                    )
+                ),
+                "gamma": tune.uniform(
+                    self.hyperparam_bounds["gamma"][0],
+                    self.hyperparam_bounds["gamma"][1],
+                ),
+                "num_sgd_iter": tune.randint(
+                    self.hyperparam_bounds["num_sgd_iter"][0],
+                    self.hyperparam_bounds["num_sgd_iter"][1],
+                ),
             }
             self.pertubation_interval = 2
-            self.num_samples = 14
+            self.num_samples = 50
         else:
             self.initial_hyperparam = None
             self.hyperparam_bounds = {}

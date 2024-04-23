@@ -20,9 +20,9 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    # "hyperparam_opt_mult_slice": MultSliceAssociation,
+    "hyperparam_opt_mult_slice": MultSliceAssociation,
     # "mult_slice_seq": MultSliceAssociationSeq,
-    "mult_slice": MultSliceAssociation,
+    # "mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
     # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
@@ -43,6 +43,15 @@ agents = {
         "param_config_mode": "checkpoint",
         "param_config_scenario": "hyperparam_opt_mult_slice",
         "param_config_agent": "ray_ib_sched",
+    },
+    "ray_ib_sched_hyper": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+        "test": False,
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -162,7 +171,7 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 20,
+        "training_epochs": 10,
         "enable_evaluation": False,
         "initial_training_episode": 0,
         "max_training_episodes": 60,
@@ -176,7 +185,7 @@ env_config_scenarios = {
         # "agents": [
         #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
         # ],  # All agents besides fine-tuned ones
-        "agents": ["ray_ib_sched"],
+        "agents": ["ray_ib_sched_hyper"],
     },
     "finetune_mult_slice_seq": {
         "seed": 10,
