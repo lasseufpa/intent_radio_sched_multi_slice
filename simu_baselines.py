@@ -40,6 +40,7 @@ agents = {
         "load_method": "best",
         "enable_masks": True,
         "debug_mode": False,
+        "stochastic_policy": False,
         "param_config_mode": "checkpoint",
         "param_config_scenario": "hyperparam_opt_mult_slice",
         "param_config_agent": "ray_ib_sched",
@@ -338,6 +339,9 @@ for scenario in scenarios.keys():
                     "param_config_agent", None
                 )
                 restore = agents[agent_name].get("restore", False)
+                stochastic_policy = agents[agent_name].get(
+                    "stochastic_policy", False
+                )
                 agent = RayAgent(
                     env_creator=env_creator,
                     env_config=env_config,
@@ -347,6 +351,7 @@ for scenario in scenarios.keys():
                     param_config_scenario=param_config_scenario,
                     param_config_agent=param_config_agent,
                     restore=restore,
+                    stochastic_policy=stochastic_policy,
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes

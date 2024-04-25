@@ -29,6 +29,7 @@ class RayAgent:
         param_config_mode: str = "default",
         param_config_scenario: Optional[str] = None,
         param_config_agent: Optional[str] = None,
+        stochastic_policy: bool = False,
     ):
         ray.init(local_mode=debug_mode)
         register_env("marl_comm_env", lambda config: env_creator(config, True))
@@ -36,6 +37,7 @@ class RayAgent:
             "masked_gaussian", TorchDiagGaussian
         )
 
+        self.stochastic_policy = stochastic_policy
         self.restore = restore
         self.env_config = env_config
         self.agent = None
@@ -276,7 +278,7 @@ class RayAgent:
                 evaluation_duration=env_config["number_evaluation_episodes"],
                 evaluation_duration_unit="episodes",
                 evaluation_config={
-                    "explore": False,
+                    "explore": self.stochastic_policy,
                     "env_config": dict(
                         env_config,
                         initial_episode_number=env_config[
@@ -369,7 +371,7 @@ class RayAgent:
             action[agent_id] = self.algo.compute_single_action(
                 agent_obs,
                 policy_id=policy_id,
-                explore=False,
+                explore=self.stochastic_policy,
             )
         return action
 
