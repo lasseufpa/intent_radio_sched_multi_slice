@@ -52,6 +52,7 @@ agents = {
         "enable_masks": True,
         "debug_mode": False,
         "test": False,
+        "restore": True,
     },
     "sched_twc": {
         "class": SchedTWC,
@@ -336,6 +337,7 @@ for scenario in scenarios.keys():
                 param_config_agent = agents[agent_name].get(
                     "param_config_agent", None
                 )
+                restore = agents[agent_name].get("restore", False)
                 agent = RayAgent(
                     env_creator=env_creator,
                     env_config=env_config,
@@ -344,6 +346,7 @@ for scenario in scenarios.keys():
                     param_config_mode=param_config_mode,
                     param_config_scenario=param_config_scenario,
                     param_config_agent=param_config_agent,
+                    restore=restore,
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes

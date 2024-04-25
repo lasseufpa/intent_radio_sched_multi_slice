@@ -25,6 +25,7 @@ class RayAgent:
         env_config: dict,
         debug_mode: bool = False,
         enable_masks: bool = True,
+        restore: bool = False,
         param_config_mode: str = "default",
         param_config_scenario: Optional[str] = None,
         param_config_agent: Optional[str] = None,
@@ -35,6 +36,7 @@ class RayAgent:
             "masked_gaussian", TorchDiagGaussian
         )
 
+        self.restore = restore
         self.env_config = env_config
         self.agent = None
         self.enable_masks = enable_masks
@@ -151,25 +153,34 @@ class RayAgent:
                 num_samples=self.num_samples,
             )
 
-        results = tune.Tuner(
-            "PPO",
-            param_space=algo_config.to_dict(),
-            tune_config=tune_config,
-            run_config=air.RunConfig(
-                storage_path=f"{self.read_checkpoint}/{self.env_config['scenario']}/",
-                name=self.env_config["agent"],
-                stop=stop,
-                verbose=2,
-                checkpoint_config=air.CheckpointConfig(
-                    checkpoint_frequency=np.rint(
-                        self.env_config["checkpoint_episode_freq"]
-                        / self.eps_per_iteration
-                    ).astype(int),
-                    checkpoint_at_end=True,
+        if self.restore:
+            tuner = tune.Tuner.restore(
+                f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}/",
+                trainable="PPO",
+                param_space=algo_config.to_dict(),
+            )
+            results = tuner.fit()
+            print(results)
+        else:
+            results = tune.Tuner(
+                "PPO",
+                param_space=algo_config.to_dict(),
+                tune_config=tune_config,
+                run_config=air.RunConfig(
+                    storage_path=f"{self.read_checkpoint}/{self.env_config['scenario']}/",
+                    name=self.env_config["agent"],
+                    stop=stop,
+                    verbose=2,
+                    checkpoint_config=air.CheckpointConfig(
+                        checkpoint_frequency=np.rint(
+                            self.env_config["checkpoint_episode_freq"]
+                            / self.eps_per_iteration
+                        ).astype(int),
+                        checkpoint_at_end=True,
+                    ),
                 ),
-            ),
-        ).fit()
-        print(results)
+            ).fit()
+            print(results)
 
     def gen_config(self, env_config):
         algo_config = (
