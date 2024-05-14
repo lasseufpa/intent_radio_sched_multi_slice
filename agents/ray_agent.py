@@ -95,18 +95,18 @@ class RayAgent:
                 "num_sgd_iter": 10,
                 "gamma": 0.99,
             }
-        elif param_config_mode == "checkpoint":
+        elif param_config_mode in ["checkpoint", "checkpoint_avg"]:
             self.param_config = self.load_config(
-                param_config_agent, param_config_scenario
+                param_config_mode, param_config_agent, param_config_scenario
             )
         elif param_config_mode == "pre_computed":
             # Computed using hyperparam_opt_mult_slice scenario
             self.param_config = {
-                "lr": 0.019999999552965164,
-                "train_batch_size": 10240,
-                "sgd_minibatch_size": 8,
-                "num_sgd_iter": 30,
-                "gamma": 0.5,
+                "lr": 0.05453738969779577,
+                "train_batch_size": 384,
+                "sgd_minibatch_size": 256,
+                "num_sgd_iter": 7,
+                "gamma": 0.6981408391808579,
             }
         else:
             raise ValueError(
@@ -340,7 +340,8 @@ class RayAgent:
             assert checkpoint is not None, "Ray checkpoint is None"
             self.algo = Algorithm.from_checkpoint(checkpoint)
 
-    def load_config(self, agent_name, scenario) -> dict:
+    def load_config(self, mode, agent_name, scenario) -> dict:
+        metric = "episode_reward_mean"
         hyperparameters = [
             "lr",
             "sgd_minibatch_size",
@@ -352,9 +353,24 @@ class RayAgent:
             f"{self.read_checkpoint}/{scenario}/{agent_name}/"
         )
         assert analysis.trials is not None, "Analysis trial is None"
-        config = analysis.get_best_config(
-            metric="episode_reward_mean", mode="max"
-        )
+        if mode == "checkpoint":
+            config = analysis.get_best_config(
+                metric="episode_reward_mean", mode="max"
+            )
+        elif mode == "checkpoint_avg":
+            trial_dfs = analysis.trial_dataframes
+            trials_avg = {}
+            for trial_name in trial_dfs.keys():
+                if metric in trial_dfs[trial_name].columns:
+                    trial_df = (
+                        trial_dfs[trial_name][metric].dropna().to_numpy()
+                    )
+                    if trial_df.shape[0] >= 10:
+                        trials_avg[trial_name] = np.mean(trial_df[-10:])
+            best_trial_name = max(trials_avg, key=lambda key: trials_avg[key])
+            config = analysis.get_all_configs()[best_trial_name]
+        else:
+            raise ValueError(f"Invalid mode {mode} for load_config")
         assert isinstance(config, dict), "Config is not a dictionary"
         selected_config = {key: config[key] for key in hyperparameters}
 

@@ -20,9 +20,9 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    "hyperparam_opt_mult_slice": MultSliceAssociation,
+    # "hyperparam_opt_mult_slice": MultSliceAssociation,
     # "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
+    "mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
     # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
@@ -41,9 +41,9 @@ agents = {
         "enable_masks": True,
         "debug_mode": False,
         "stochastic_policy": False,
-        "param_config_mode": "checkpoint",
+        "param_config_mode": "checkpoint_avg",
         "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched",
+        "param_config_agent": "ray_ib_sched_hyper",
     },
     "ray_ib_sched_hyper": {
         "class": IBSched,
