@@ -45,6 +45,7 @@ class RayAgent:
         self.read_checkpoint = str(Path("./ray_results/").resolve())
         self.algo = None
         self.steps_per_episode = 1000
+        self.min_eps_iteration_checkpoint = 2
 
         if "hyperparam_opt" in env_config["scenario"]:
             self.hyperparam_bounds = {
@@ -113,9 +114,11 @@ class RayAgent:
                 f"Invalid param_config_mode: {param_config_mode}."
             )
 
-        self.eps_per_iteration = np.rint(
+        self.eps_per_iteration = (
             self.param_config["train_batch_size"] // self.steps_per_episode
-        ).astype(int)
+            if self.param_config["train_batch_size"] >= self.steps_per_episode
+            else self.param_config["train_batch_size"] / self.steps_per_episode
+        )
 
     def train(self, total_timesteps: int):
         # Total timesteps is not used in this implementation
