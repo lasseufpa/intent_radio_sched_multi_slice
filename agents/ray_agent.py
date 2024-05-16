@@ -10,6 +10,7 @@ from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import Policy, PolicySpec
 from ray.tune.registry import register_env
+from ray.tune.schedulers.async_hyperband import AsyncHyperBandScheduler
 from ray.tune.schedulers.pb2 import PB2
 
 from agents.action_mask_model import TorchActionMaskModel
@@ -30,6 +31,7 @@ class RayAgent:
         param_config_scenario: Optional[str] = None,
         param_config_agent: Optional[str] = None,
         stochastic_policy: bool = False,
+        hyper_opt_algo: Optional[str] = None,
     ):
         ray.init(local_mode=debug_mode)
         register_env("marl_comm_env", lambda config: env_creator(config, True))
@@ -46,8 +48,9 @@ class RayAgent:
         self.algo = None
         self.steps_per_episode = 1000
         self.min_eps_iteration_checkpoint = 2
+        self.hyper_opt_algo = hyper_opt_algo
 
-        if "hyperparam_opt" in env_config["scenario"]:
+        if self.hyper_opt_algo == "pb2":
             self.hyperparam_bounds = {
                 # hyperparameter bounds based on SB-Zoo https://github.com/DLR-RM/rl-baselines3-zoo/blob/master/rl_zoo3/hyperparams_opt.py
                 "lr": [0.0001, 0.1],
@@ -82,11 +85,70 @@ class RayAgent:
             }
             self.pertubation_interval = 2
             self.num_samples = 50
-        else:
+        elif self.hyper_opt_algo == "asha":
+            self.num_samples = 100
+            self.max_t = 300
+            self.time_attr = "episodes_total"
+            self.grace_period = 50
+            self.reduction_factor = 3
+            self.brackets = 1
+            train_batch_size_options = np.array(
+                [
+                    8,
+                    16,
+                    32,
+                    64,
+                    128,
+                    256,
+                    512,
+                    1024,
+                    2048,
+                ]
+            )
+            self.initial_hyperparam = {
+                "lr": tune.uniform(
+                    1e-5,
+                    0.01,
+                ),
+                "sgd_minibatch_size": tune.choice(
+                    [8, 16, 32, 64, 128, 256, 512]
+                ),
+                "train_batch_size": tune.sample_from(
+                    lambda config: np.random.choice(
+                        [
+                            config["sgd_minibatch_size"] * 2**i
+                            for i in range(
+                                train_batch_size_options.shape[0]
+                                - (
+                                    train_batch_size_options
+                                    == config["sgd_minibatch_size"]
+                                ).nonzero()[0][0],
+                            )
+                        ],
+                    )
+                ),
+                "gamma": tune.choice(
+                    [
+                        0.5,
+                        0.6,
+                        0.7,
+                        0.8,
+                        0.9,
+                        0.95,
+                        0.98,
+                        0.99,
+                        0.995,
+                        0.999,
+                        0.9999,
+                    ]
+                ),
+                "num_sgd_iter": tune.choice([1, 5, 10, 20]),
+                "lambda": tune.choice([0.8, 0.9, 0.92, 0.95, 0.98, 0.99, 1.0]),
+            }
+        elif self.hyper_opt_algo is None:
             self.initial_hyperparam = None
-            self.hyperparam_bounds = {}
-            self.pertubation_interval = 0
-            self.num_samples = 0
+        else:
+            raise ValueError(f"Invalid hyper_opt_algo: {self.hyper_opt_algo}.")
 
         if param_config_mode == "default":
             self.param_config = {
@@ -133,23 +195,14 @@ class RayAgent:
                 * self.env_config["training_epochs"]
             ),
         }
-        tune_config = None
-        if "hyperparam_opt" in self.env_config["scenario"]:
 
-            def explore(config):
-                # ensure we collect enough timesteps to do sgd
-                if config["train_batch_size"] < config["sgd_minibatch_size"]:
-                    config["train_batch_size"] = config["sgd_minibatch_size"]
-                # ensure we run at least one sgd iter
-                if config["num_sgd_iter"] < 1:
-                    config["num_sgd_iter"] = 1
-                return config
-
+        # Whether to use a hyperparameter opt algo
+        if self.hyper_opt_algo == "pb2":
             pb2 = PB2(
                 time_attr="training_iteration",
                 perturbation_interval=self.pertubation_interval,
                 hyperparam_bounds=self.hyperparam_bounds,
-                custom_explore_fn=explore,
+                custom_explore_fn=self.explore,
             )
             tune_config = tune.TuneConfig(
                 metric="episode_reward_mean",
@@ -157,17 +210,37 @@ class RayAgent:
                 scheduler=pb2,
                 num_samples=self.num_samples,
             )
+        elif self.hyper_opt_algo == "asha":
+            asha = AsyncHyperBandScheduler(
+                time_attr=self.time_attr,
+                grace_period=self.grace_period,
+                max_t=self.max_t,
+                reduction_factor=self.reduction_factor,
+                brackets=self.brackets,
+                stop_last_trials=True,
+            )
+            tune_config = tune.TuneConfig(
+                metric="evaluation/episode_reward_mean",
+                mode="max",
+                scheduler=asha,
+                num_samples=self.num_samples,
+            )
+        elif self.hyper_opt_algo is None:
+            tune_config = None
+        else:
+            raise ValueError(f"Invalid hyper_opt_algo: {self.hyper_opt_algo}.")
 
-        if self.restore:
+        # Whether to restore from previous experiment
+        if self.restore and tune.Tuner.can_restore(
+            f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}/"
+        ):
             tuner = tune.Tuner.restore(
                 f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}/",
                 trainable="PPO",
                 param_space=algo_config.to_dict(),
             )
-            results = tuner.fit()
-            print(results)
         else:
-            results = tune.Tuner(
+            tuner = tune.Tuner(
                 "PPO",
                 param_space=algo_config.to_dict(),
                 tune_config=tune_config,
@@ -184,8 +257,9 @@ class RayAgent:
                         checkpoint_at_end=True,
                     ),
                 ),
-            ).fit()
-            print(results)
+            )
+        results = tuner.fit()
+        print(results)
 
     def gen_config(self, env_config):
         algo_config = (
@@ -345,13 +419,10 @@ class RayAgent:
 
     def load_config(self, mode, agent_name, scenario) -> dict:
         metric = "episode_reward_mean"
-        hyperparameters = [
-            "lr",
-            "sgd_minibatch_size",
-            "train_batch_size",
-            "gamma",
-            "num_sgd_iter",
-        ]
+        assert isinstance(
+            self.initial_hyperparam, dict
+        ), "Initial hyperparam is not a dictionary"
+        hyperparameters = self.initial_hyperparam.keys()
         analysis = tune.ExperimentAnalysis(
             f"{self.read_checkpoint}/{scenario}/{agent_name}/"
         )
@@ -393,6 +464,16 @@ class RayAgent:
                 explore=self.stochastic_policy,
             )
         return action
+
+    @staticmethod
+    def explore(config):
+        # ensure we collect enough timesteps to do sgd
+        if config["train_batch_size"] < config["sgd_minibatch_size"]:
+            config["train_batch_size"] = config["sgd_minibatch_size"]
+        # ensure we run at least one sgd iter
+        if config["num_sgd_iter"] < 1:
+            config["num_sgd_iter"] = 1
+        return config
 
 
 class UpdatePolicyCallback(DefaultCallbacks):
