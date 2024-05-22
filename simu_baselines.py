@@ -20,9 +20,9 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    "hyperparam_opt_mult_slice": MultSliceAssociation,
+    # "hyperparam_opt_mult_slice": MultSliceAssociation,
     # "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
+    "mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
     # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
@@ -41,14 +41,16 @@ agents = {
         "enable_masks": True,
         "debug_mode": False,
         "stochastic_policy": False,
-        "param_config_mode": "default",
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "checkpoint_avg_peaks",
         "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
     },
     "ray_ib_sched_hyper_asha": {
         "class": IBSched,
         "rl": True,
         "train": True,
+        "hyper_opt_enable": True,
         "hyper_opt_algo": "asha",
         "load_method": "best",
         "enable_masks": True,
@@ -344,6 +346,9 @@ for scenario in scenarios.keys():
                     "stochastic_policy", False
                 )
                 hyper_opt_algo = agents[agent_name].get("hyper_opt_algo", None)
+                hyper_opt_enable = agents[agent_name].get(
+                    "hyper_opt_enable", False
+                )
                 agent = RayAgent(
                     env_creator=env_creator,
                     env_config=env_config,
@@ -355,6 +360,7 @@ for scenario in scenarios.keys():
                     restore=restore,
                     stochastic_policy=stochastic_policy,
                     hyper_opt_algo=hyper_opt_algo,
+                    hyper_opt_enable=hyper_opt_enable,
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes
@@ -383,6 +389,10 @@ for scenario in scenarios.keys():
                         )  # Loading base model
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)
+
+            enable_test = env_config.get("test", True)
+            if enable_test:
+                # Testing
                 agent_load = (
                     agents[agent_name]["base_agent"]
                     if "base" in agent_name
@@ -398,10 +408,6 @@ for scenario in scenarios.keys():
                     scenario_load,
                     agents[agent_name]["load_method"],
                 )
-
-            enable_test = env_config.get("test", True)
-            if enable_test:
-                # Testing
                 print(f"Testing {agent_name} on {scenario} scenario")
                 total_test_steps = (
                     env_config["test_episodes"] * steps_per_episode

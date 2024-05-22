@@ -32,6 +32,7 @@ class RayAgent:
         param_config_agent: Optional[str] = None,
         stochastic_policy: bool = False,
         hyper_opt_algo: Optional[str] = None,
+        hyper_opt_enable: bool = False,
     ):
         ray.init(local_mode=debug_mode)
         register_env("marl_comm_env", lambda config: env_creator(config, True))
@@ -49,7 +50,9 @@ class RayAgent:
         self.steps_per_episode = 1000
         self.min_eps_iteration_checkpoint = 2
         self.hyper_opt_algo = hyper_opt_algo
+        self.hyper_opt_enable = hyper_opt_enable
 
+        # Hyperparameter optimizer configuration
         if self.hyper_opt_algo == "pb2":
             self.hyperparam_bounds = {
                 # hyperparameter bounds based on SB-Zoo https://github.com/DLR-RM/rl-baselines3-zoo/blob/master/rl_zoo3/hyperparams_opt.py
@@ -150,6 +153,7 @@ class RayAgent:
         else:
             raise ValueError(f"Invalid hyper_opt_algo: {self.hyper_opt_algo}.")
 
+        # Initial hyperparameter loading in case not using hyperparameter optimization
         if param_config_mode == "default":
             self.param_config = {
                 "lr": 0.0003,
@@ -157,19 +161,25 @@ class RayAgent:
                 "sgd_minibatch_size": 64,
                 "num_sgd_iter": 10,
                 "gamma": 0.99,
+                "lambda": 0.95,
             }
-        elif param_config_mode in ["checkpoint", "checkpoint_avg"]:
+        elif param_config_mode in [
+            "checkpoint",
+            "checkpoint_avg",
+            "checkpoint_avg_peaks",
+        ]:
             self.param_config = self.load_config(
                 param_config_mode, param_config_agent, param_config_scenario
             )
         elif param_config_mode == "pre_computed":
             # Computed using hyperparam_opt_mult_slice scenario
             self.param_config = {
-                "lr": 0.05453738969779577,
-                "train_batch_size": 384,
-                "sgd_minibatch_size": 256,
-                "num_sgd_iter": 7,
-                "gamma": 0.6981408391808579,
+                "lr": 0.0066760717960586274,
+                "sgd_minibatch_size": 32,
+                "train_batch_size": 128,
+                "gamma": 0.98,
+                "num_sgd_iter": 5,
+                "lambda": 0.95,
             }
         else:
             raise ValueError(
@@ -197,38 +207,43 @@ class RayAgent:
         }
 
         # Whether to use a hyperparameter opt algo
-        if self.hyper_opt_algo == "pb2":
-            pb2 = PB2(
-                time_attr="training_iteration",
-                perturbation_interval=self.pertubation_interval,
-                hyperparam_bounds=self.hyperparam_bounds,
-                custom_explore_fn=self.explore,
-            )
-            tune_config = tune.TuneConfig(
-                metric="episode_reward_mean",
-                mode="max",
-                scheduler=pb2,
-                num_samples=self.num_samples,
-            )
-        elif self.hyper_opt_algo == "asha":
-            asha = AsyncHyperBandScheduler(
-                time_attr=self.time_attr,
-                grace_period=self.grace_period,
-                max_t=self.max_t,
-                reduction_factor=self.reduction_factor,
-                brackets=self.brackets,
-                stop_last_trials=True,
-            )
-            tune_config = tune.TuneConfig(
-                metric="evaluation/episode_reward_mean",
-                mode="max",
-                scheduler=asha,
-                num_samples=self.num_samples,
-            )
-        elif self.hyper_opt_algo is None:
-            tune_config = None
+        if self.hyper_opt_enable:
+            if self.hyper_opt_algo == "pb2":
+                pb2 = PB2(
+                    time_attr="training_iteration",
+                    perturbation_interval=self.pertubation_interval,
+                    hyperparam_bounds=self.hyperparam_bounds,
+                    custom_explore_fn=self.explore,
+                )
+                tune_config = tune.TuneConfig(
+                    metric="episode_reward_mean",
+                    mode="max",
+                    scheduler=pb2,
+                    num_samples=self.num_samples,
+                )
+            elif self.hyper_opt_algo == "asha":
+                asha = AsyncHyperBandScheduler(
+                    time_attr=self.time_attr,
+                    grace_period=self.grace_period,
+                    max_t=self.max_t,
+                    reduction_factor=self.reduction_factor,
+                    brackets=self.brackets,
+                    stop_last_trials=True,
+                )
+                tune_config = tune.TuneConfig(
+                    metric="evaluation/episode_reward_mean",
+                    mode="max",
+                    scheduler=asha,
+                    num_samples=self.num_samples,
+                )
+            elif self.hyper_opt_algo is None:
+                tune_config = None
+            else:
+                raise ValueError(
+                    f"Invalid hyper_opt_algo: {self.hyper_opt_algo}."
+                )
         else:
-            raise ValueError(f"Invalid hyper_opt_algo: {self.hyper_opt_algo}.")
+            tune_config = None
 
         # Whether to restore from previous experiment
         if self.restore and tune.Tuner.can_restore(
@@ -294,30 +309,40 @@ class RayAgent:
             .training(
                 lr=(
                     self.param_config["lr"]
-                    if self.initial_hyperparam is None
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
                     else self.initial_hyperparam["lr"]
                 ),  # SB3 LR
                 train_batch_size=(
                     self.param_config["train_batch_size"]
-                    if self.initial_hyperparam is None
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
                     else self.initial_hyperparam["train_batch_size"]
                 ),  # SB3 n_steps
                 sgd_minibatch_size=(  # type: ignore SB3 batch_size
                     self.param_config["sgd_minibatch_size"]
-                    if self.initial_hyperparam is None
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
                     else self.initial_hyperparam["sgd_minibatch_size"]
                 ),
                 num_sgd_iter=(  # type: ignore SB3 n_epochs
                     self.param_config["num_sgd_iter"]
-                    if self.initial_hyperparam is None
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
                     else self.initial_hyperparam["num_sgd_iter"]
                 ),
                 gamma=(
                     self.param_config["gamma"]
-                    if self.initial_hyperparam is None
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
                     else self.initial_hyperparam["gamma"]
                 ),  # SB3 gamma
-                lambda_=0.95,  # type: ignore # SB3 gae_lambda
+                lambda_=(  # type: ignore # SB3 gae_lambda
+                    self.param_config["lambda"]
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else self.initial_hyperparam["lambda"]
+                ),
                 clip_param=0.2,  # type: ignore SB3 clip_range,
                 vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
                 use_gae=True,  # type: ignore SB3 normalize_advantage
@@ -418,7 +443,7 @@ class RayAgent:
             self.algo = Algorithm.from_checkpoint(checkpoint)
 
     def load_config(self, mode, agent_name, scenario) -> dict:
-        metric = "episode_reward_mean"
+        metric = "evaluation/episode_reward_mean"
         assert isinstance(
             self.initial_hyperparam, dict
         ), "Initial hyperparam is not a dictionary"
@@ -428,9 +453,7 @@ class RayAgent:
         )
         assert analysis.trials is not None, "Analysis trial is None"
         if mode == "checkpoint":
-            config = analysis.get_best_config(
-                metric="episode_reward_mean", mode="max"
-            )
+            config = analysis.get_best_config(metric=metric, mode="max")
         elif mode == "checkpoint_avg":
             trial_dfs = analysis.trial_dataframes
             trials_avg = {}
@@ -440,7 +463,21 @@ class RayAgent:
                         trial_dfs[trial_name][metric].dropna().to_numpy()
                     )
                     if trial_df.shape[0] >= 10:
-                        trials_avg[trial_name] = np.mean(trial_df[-10:])
+                        trials_avg[trial_name] = np.mean(trial_df)
+            best_trial_name = max(trials_avg, key=lambda key: trials_avg[key])
+            config = analysis.get_all_configs()[best_trial_name]
+        elif mode == "checkpoint_avg_peaks":
+            peaks_number = 10
+            trial_dfs = analysis.trial_dataframes
+            trials_avg = {}
+            for trial_name in trial_dfs.keys():
+                if metric in trial_dfs[trial_name].columns:
+                    trial_df = (
+                        trial_dfs[trial_name][metric].dropna().to_numpy()
+                    )
+                    if trial_df.shape[0] >= 10:
+                        trial_df = np.sort(np.unique(trial_df))[-peaks_number:]
+                        trials_avg[trial_name] = np.mean(trial_df)
             best_trial_name = max(trials_avg, key=lambda key: trials_avg[key])
             config = analysis.get_all_configs()[best_trial_name]
         else:
