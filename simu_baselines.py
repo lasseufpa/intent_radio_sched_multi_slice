@@ -159,7 +159,7 @@ env_config_scenarios = {
         "max_training_episodes": 60,
         "initial_testing_episode": 80,
         "test_episodes": 20,
-        "episode_evaluation_freq": 60,
+        "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 60,
