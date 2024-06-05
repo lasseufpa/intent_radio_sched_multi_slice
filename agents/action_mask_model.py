@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 from gymnasium.spaces import Dict
-from ray.rllib.models.torch.fcnet import FullyConnectedNetwork as TorchFC
+from ray.rllib.models.torch.fcnet import (
+    FullyConnectedNetwork as TorchFC,
+)
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 
 
