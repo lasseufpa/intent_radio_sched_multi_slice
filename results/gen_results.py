@@ -1058,7 +1058,7 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
                         data_metrics["reward"][idx]["player_0"]
                         for idx in range(data_metrics["reward"].shape[0])
                     ]
-                    if "ib_sched" in agent  # TODO remove 3
+                    if "ib_sched" in agent
                     else data_metrics["reward"]
                 )
                 y_values = np.append(y_values, np.sum(reward))
@@ -1376,7 +1376,7 @@ def scenario_diff_train_test(
 
 
 scenario_names = [
-    "finetune_mult_slice_seq"
+    "mult_slice"  # "finetune_mult_slice_seq"
 ]  # ["finetune_mult_slice_seq"]  # ["mult_slice_seq"]
 agent_names = [
     # "random",
@@ -1386,7 +1386,8 @@ agent_names = [
     # "mapf",
     # "finetune_sb3_sched",
     "marr",
-    "base_ray_ib_sched",
+    "ray_ib_sched",
+    "old_ray_ib_sched",
     "finetune_ray_ib_sched",
     "scratch_ray_ib_sched",
     # "sched_coloran",
