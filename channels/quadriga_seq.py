@@ -29,8 +29,11 @@ class QuadrigaChannelSeq(QuadrigaChannel):
         self,
         episode_number: int,
         current_episode: int,
-    ) -> Tuple[int, bool]:
-        episode_to_use = int(episode_number)
-        if episode_to_use != current_episode:
-            return (episode_to_use, True)
-        return (0, False)
+    ) -> Tuple[int, int, bool]:
+        if episode_number != current_episode:
+            association_to_use = (
+                episode_number // self.channel_eps_per_scenario
+            )
+            episode_to_use = episode_number % self.channel_eps_per_scenario
+            return (association_to_use, episode_to_use, True)
+        return (0, 0, False)
