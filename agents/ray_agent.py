@@ -523,8 +523,10 @@ class UpdatePolicyCallback(DefaultCallbacks):
         """
         Loading previous Policy weights from a checkpoint to fine-tune the model.
         """
-        agent = algorithm.config.env_config["agent"]
-        if "finetune" in agent:
+        enable_finetune = algorithm.config.env_config.get(
+            "enable_finetune", False
+        )
+        if enable_finetune:
             root_path = (
                 algorithm.config.env_config["root_path"] + "/ray_results"
             )
@@ -551,7 +553,7 @@ class UpdatePolicyCallback(DefaultCallbacks):
             checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
         elif method == "best":
             checkpoint = analysis.get_best_checkpoint(
-                analysis.trials[0], "episode_reward_mean", "max"
+                analysis.trials[0], "evaluation/episode_reward_mean", "max"
             )
         elif isinstance(method, int):
             raise NotImplementedError(

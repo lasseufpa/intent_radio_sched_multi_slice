@@ -22,9 +22,9 @@ from traffics.mult_slice import MultSliceTraffic
 scenarios = {
     # "hyperparam_opt_mult_slice": MultSliceAssociation,
     # "mult_slice_seq": MultSliceAssociationSeq,
-    "mult_slice": MultSliceAssociation,
+    # "mult_slice": MultSliceAssociation,
     # "mult_slice_test_on_trained": MultSliceAssociation,
-    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "sb3_sched": {
@@ -76,6 +76,7 @@ agents = {
         "class": IBSchedSB3,
         "rl": True,
         "train": True,
+        "enable_finetune": True,
         "base_agent": "sb3_sched",
         "base_scenario": "mult_slice",
         "load_method": 50,  # Could be "best", "last" or a int number
@@ -84,6 +85,7 @@ agents = {
         "class": SchedTWC,
         "rl": True,
         "train": True,
+        "enable_finetune": True,
         "base_agent": "sched_twc",
         "base_scenario": "mult_slice",
         "load_method": "last",  # Could be "best", "last" or a int number
@@ -98,11 +100,67 @@ agents = {
         "class": IBSched,
         "rl": True,
         "train": True,
+        "enable_finetune": True,
         "base_agent": "ray_ib_sched",
         "base_scenario": "mult_slice",
         "load_method": "best",  # Could be "best", "last" or a int number
         "enable_masks": True,
-        "debug_mode": True,
+        "debug_mode": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "checkpoint_avg_peaks",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "hyper_opt_enable": False,
+    },
+    "finetune_ray_ib_sched_last": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "enable_finetune": True,
+        "base_agent": "ray_ib_sched",
+        "base_scenario": "mult_slice",
+        "load_method": "last",  # Could be "best", "last" or a int number
+        "enable_masks": True,
+        "debug_mode": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "checkpoint_avg_peaks",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "hyper_opt_enable": False,
+    },
+    "finetune_ray_ib_sched_stochastic": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "enable_finetune": True,
+        "base_agent": "ray_ib_sched",
+        "base_scenario": "mult_slice",
+        "load_method": "best",  # Could be "best", "last" or a int number
+        "stochastic_policy": True,
+        "enable_masks": True,
+        "debug_mode": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "checkpoint_avg_peaks",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "hyper_opt_enable": False,
+    },
+    "finetune_ray_ib_sched_stochastic_last": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "enable_finetune": True,
+        "base_agent": "ray_ib_sched",
+        "base_scenario": "mult_slice",
+        "load_method": "last",  # Could be "best", "last" or a int number
+        "stochastic_policy": True,
+        "enable_masks": True,
+        "debug_mode": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "checkpoint_avg_peaks",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "hyper_opt_enable": False,
     },
     "scratch_ray_ib_sched": {
         "class": IBSched,
@@ -110,7 +168,12 @@ agents = {
         "train": True,
         "load_method": "best",
         "enable_masks": True,
-        "debug_mode": True,
+        "debug_mode": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "checkpoint_avg_peaks",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "hyper_opt_enable": False,
     },
     "base_ray_ib_sched": {
         "class": IBSched,
@@ -118,7 +181,7 @@ agents = {
         "train": False,
         "load_method": "best",
         "enable_masks": True,
-        "debug_mode": True,
+        "debug_mode": False,
         "base_agent": "ray_ib_sched",
         "base_scenario": "mult_slice",
     },
@@ -143,7 +206,7 @@ env_config_scenarios = {
         "eval_initial_env_episode": None,
         "save_hist": False,
         "agents": [
-            agent for agent in list(agents.keys()) if ("finetune" not in agent)
+            agent for agent in list(agents.keys()) if "finetune" not in agent
         ],  # All agents besides fine-tuned ones
     },
     "mult_slice": {
@@ -167,7 +230,7 @@ env_config_scenarios = {
         # "agents": [
         #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
         # ],  # All agents besides fine-tuned ones
-        "agents": ["ray_ib_sched"],
+        "agents": ["marr"],
     },
     "hyperparam_opt_mult_slice": {
         "seed": 10,
@@ -205,35 +268,20 @@ env_config_scenarios = {
         "max_training_episodes": 60,  # 80 different channels from the same scenario
         "initial_testing_episode": 80,
         "test_episodes": 20,  # Testing on 20 channels from the same scenario
-        "episode_evaluation_freq": 20,
+        "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 60,
         "save_hist": False,
-        "agents": ["finetune_ray_ib_sched", "scratch_ray_ib_sched"],
-        "number_scenarios": 1,
-    },
-    "mult_slice_test_on_trained": {
-        "seed": 10,
-        "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannel,
-        "traffic_class": MultSliceTraffic,
-        "mobility_class": SimpleMobility,
-        "root_path": str(getcwd()),
-        "training_epochs": 20,
-        "enable_evaluation": True,
-        "initial_training_episode": 0,
-        "max_training_episodes": 80,  # 80 different scenarios with 1 channel episodes each
-        "initial_testing_episode": 0,
-        "test_episodes": 80,  # Testing on 80 different seen scenarios
-        "episode_evaluation_freq": 80,
-        "number_evaluation_episodes": 80,
-        "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 0,
-        "save_hist": False,
         "agents": [
-            agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        ],  # All agents besides fine-tuned ones
+            # "finetune_ray_ib_sched",
+            # "finetune_ray_ib_sched_stochastic",
+            # "scratch_ray_ib_sched",
+            # "base_ray_ib_sched",
+            "finetune_ray_ib_sched_stochastic_last",
+            "finetune_ray_ib_sched_last",
+        ],
+        "number_scenarios": 2,
     },
 }
 
@@ -323,7 +371,9 @@ for scenario in scenarios.keys():
         env_config["agent_class"] = agents[agent_name]["class"]
         env_config["association_class"] = scenarios[scenario]
         env_config["rl"] = agents[agent_name]["rl"]
-        if "finetune" in agent_name:
+        enable_finetune = agents[agent_name].get("enable_finetune", False)
+        env_config["enable_finetune"] = enable_finetune
+        if enable_finetune:
             env_config["base_agent"] = agents[agent_name]["base_agent"]
             env_config["base_scenario"] = agents[agent_name]["base_scenario"]
             env_config["load_method"] = agents[agent_name]["load_method"]
@@ -375,7 +425,7 @@ for scenario in scenarios.keys():
             if agents[agent_name]["rl"]:
                 if agents[agent_name]["train"]:
                     # Training
-                    if "finetune" in agent_name:
+                    if enable_finetune:
                         print(
                             f"Fine-tuning model from Agent {agents[agent_name]['base_agent']} scenario {agents[agent_name]['base_scenario']} on {scenario} scenario"
                         )
@@ -403,11 +453,12 @@ for scenario in scenarios.keys():
                     if "base" in agent_name
                     else scenario
                 )
-                agent.load(
-                    agent_load,
-                    scenario_load,
-                    agents[agent_name]["load_method"],
-                )
+                if agents[agent_name]["rl"]:
+                    agent.load(
+                        agent_load,
+                        scenario_load,
+                        agents[agent_name]["load_method"],
+                    )
                 print(f"Testing {agent_name} on {scenario} scenario")
                 total_test_steps = (
                     env_config["test_episodes"] * steps_per_episode
@@ -444,9 +495,13 @@ for scenario in scenarios.keys():
             # Updating values for next scenario
             if "finetune" in scenario:
                 scenario_episodes = (
-                    env_config["max_training_episodes"]
-                    - env_config["initial_training_episode"]
-                ) + env_config["test_episodes"]
+                    (
+                        env_config["max_training_episodes"]
+                        - env_config["initial_training_episode"]
+                    )
+                    + env_config["test_episodes"]
+                    + env_config["number_evaluation_episodes"]
+                )
                 env_config["initial_training_episode"] += scenario_episodes
                 env_config["max_training_episodes"] += scenario_episodes
                 env_config["initial_testing_episode"] += scenario_episodes
