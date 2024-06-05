@@ -12,7 +12,7 @@ from traffics.mult_slice import MultSliceTraffic
 config_file = "mult_slice"
 seed = 10
 initial_episode = 0
-number_episodes = 100
+number_episodes = 200
 generate_quadriga = True
 class_association = MultSliceAssociation
 generate_plots = False

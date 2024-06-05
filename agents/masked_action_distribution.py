@@ -4,7 +4,9 @@ import gymnasium as gym
 import numpy as np
 import torch
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.models.torch.torch_action_dist import TorchDistributionWrapper
+from ray.rllib.models.torch.torch_action_dist import (
+    TorchDistributionWrapper,
+)
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import ModelConfigDict, TensorType

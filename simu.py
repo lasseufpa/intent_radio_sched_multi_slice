@@ -15,15 +15,15 @@ from associations.mult_slice import MultSliceAssociation
 from associations.mult_slice_seq import MultSliceAssociationSeq
 from channels.mimic_quadriga import MimicQuadriga
 from channels.quadriga import QuadrigaChannel
+from channels.quadriga_seq import QuadrigaChannelSeq
 from mobilities.simple import SimpleMobility
 from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    # "hyperparam_opt_mult_slice": MultSliceAssociation,
-    # "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
-    # "mult_slice_test_on_trained": MultSliceAssociation,
+    "hyperparam_opt_mult_slice": MultSliceAssociation,
+    "mult_slice_seq": MultSliceAssociationSeq,
+    "mult_slice": MultSliceAssociation,
     "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
@@ -106,61 +106,6 @@ agents = {
         "load_method": "best",  # Could be "best", "last" or a int number
         "enable_masks": True,
         "debug_mode": False,
-        "hyper_opt_algo": "asha",
-        "param_config_mode": "checkpoint_avg_peaks",
-        "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
-        "hyper_opt_enable": False,
-    },
-    "finetune_ray_ib_sched_last": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "enable_finetune": True,
-        "base_agent": "ray_ib_sched",
-        "base_scenario": "mult_slice",
-        "load_method": "last",  # Could be "best", "last" or a int number
-        "enable_masks": True,
-        "debug_mode": False,
-        "hyper_opt_algo": "asha",
-        "param_config_mode": "checkpoint_avg_peaks",
-        "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
-        "hyper_opt_enable": False,
-    },
-    "finetune_ray_ib_sched_stochastic": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "enable_finetune": True,
-        "base_agent": "ray_ib_sched",
-        "base_scenario": "mult_slice",
-        "load_method": "best",  # Could be "best", "last" or a int number
-        "stochastic_policy": True,
-        "enable_masks": True,
-        "debug_mode": False,
-        "hyper_opt_algo": "asha",
-        "param_config_mode": "checkpoint_avg_peaks",
-        "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
-        "hyper_opt_enable": False,
-    },
-    "finetune_ray_ib_sched_stochastic_last": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "enable_finetune": True,
-        "base_agent": "ray_ib_sched",
-        "base_scenario": "mult_slice",
-        "load_method": "last",  # Could be "best", "last" or a int number
-        "stochastic_policy": True,
-        "enable_masks": True,
-        "debug_mode": False,
-        "hyper_opt_algo": "asha",
-        "param_config_mode": "checkpoint_avg_peaks",
-        "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
-        "hyper_opt_enable": False,
     },
     "scratch_ray_ib_sched": {
         "class": IBSched,
@@ -169,11 +114,6 @@ agents = {
         "load_method": "best",
         "enable_masks": True,
         "debug_mode": False,
-        "hyper_opt_algo": "asha",
-        "param_config_mode": "checkpoint_avg_peaks",
-        "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
-        "hyper_opt_enable": False,
     },
     "base_ray_ib_sched": {
         "class": IBSched,
@@ -190,7 +130,7 @@ env_config_scenarios = {
     "mult_slice_seq": {
         "seed": 10,
         "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannelSeq,
+        "channel_class": QuadrigaChannelSeq,
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
@@ -206,59 +146,65 @@ env_config_scenarios = {
         "eval_initial_env_episode": None,
         "save_hist": False,
         "agents": [
-            agent for agent in list(agents.keys()) if "finetune" not in agent
-        ],  # All agents besides fine-tuned ones
+            "ray_ib_sched",
+            "sb3_sched",
+            "sched_twc",
+            "sched_coloran",
+            "mapf",
+            "marr",
+        ],
     },
     "mult_slice": {
         "seed": 10,
         "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannel,
+        "channel_class": QuadrigaChannel,
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
         "training_epochs": 10,
         "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 60,
-        "initial_testing_episode": 80,
+        "max_training_episodes": 160,
+        "initial_testing_episode": 180,
         "test_episodes": 20,
         "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 60,
+        "eval_initial_env_episode": 160,
         "save_hist": False,
-        # "agents": [
-        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        # ],  # All agents besides fine-tuned ones
-        "agents": ["marr"],
+        "agents": [
+            "ray_ib_sched",
+            "sb3_sched",
+            "sched_twc",
+            "sched_coloran",
+            "mapf",
+            "marr",
+        ],
     },
     "hyperparam_opt_mult_slice": {
         "seed": 10,
         "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannel,
+        "channel_class": QuadrigaChannel,
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
         "training_epochs": 10,
         "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 60,
-        "initial_testing_episode": 80,
+        "max_training_episodes": 160,
+        "initial_testing_episode": 180,
         "test_episodes": 20,
         "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 60,
+        "eval_initial_env_episode": 160,
         "save_hist": False,
-        # "agents": [
-        #     agent for agent in list(agents.keys()) if ("finetune" not in agent)
-        # ],  # All agents besides fine-tuned ones
         "agents": ["ray_ib_sched_hyper_asha"],
     },
     "finetune_mult_slice_seq": {
         "seed": 10,
         "seed_test": 15,
-        "channel_class": MimicQuadriga,  # QuadrigaChannelSeq,
+        "channel_class": QuadrigaChannelSeq,
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
@@ -274,14 +220,14 @@ env_config_scenarios = {
         "eval_initial_env_episode": 60,
         "save_hist": False,
         "agents": [
-            # "finetune_ray_ib_sched",
-            # "finetune_ray_ib_sched_stochastic",
-            # "scratch_ray_ib_sched",
-            # "base_ray_ib_sched",
-            "finetune_ray_ib_sched_stochastic_last",
-            "finetune_ray_ib_sched_last",
+            "base_ray_ib_sched",
+            "finetune_ray_ib_sched",
+            "scratch_ray_ib_sched",
+            "finetune_sb3_sched",
+            "finetune_sched_twc",
+            "scratch_ray_ib_sched",
         ],
-        "number_scenarios": 2,
+        "number_scenarios": 1,
     },
 }
 

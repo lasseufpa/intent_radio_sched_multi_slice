@@ -3,7 +3,10 @@ from typing import List, Optional, Union
 
 import gymnasium as gym
 import numpy as np
-from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
+from stable_baselines3.common.callbacks import (
+    BaseCallback,
+    EvalCallback,
+)
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv
 
