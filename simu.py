@@ -31,7 +31,7 @@ agents = {
         "class": IBSchedSB3,
         "rl": True,
         "train": True,
-        "load_method": "last",
+        "load_method": "best",
     },
     "ray_ib_sched": {
         "class": IBSched,
@@ -68,7 +68,7 @@ agents = {
         "class": SchedColORAN,
         "rl": True,
         "train": True,
-        "load_method": "last",
+        "load_method": "best",
     },
     "mapf": {"class": MAPF, "rl": False, "train": False},
     "marr": {"class": MARR, "rl": False, "train": False},
@@ -79,7 +79,7 @@ agents = {
         "enable_finetune": True,
         "base_agent": "sb3_sched",
         "base_scenario": "mult_slice",
-        "load_method": 50,  # Could be "best", "last" or a int number
+        "load_method": "best",  # Could be "best", "last" or a int number
     },
     "finetune_sched_twc": {
         "class": SchedTWC,
@@ -88,13 +88,13 @@ agents = {
         "enable_finetune": True,
         "base_agent": "sched_twc",
         "base_scenario": "mult_slice",
-        "load_method": "last",  # Could be "best", "last" or a int number
+        "load_method": "best",  # Could be "best", "last" or a int number
     },
     "scratch_sb3_sched": {
         "class": IBSchedSB3,
         "rl": True,
         "train": True,
-        "load_method": 50,
+        "load_method": "best",
     },
     "finetune_ray_ib_sched": {
         "class": IBSched,
@@ -135,15 +135,15 @@ env_config_scenarios = {
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
         "training_epochs": 10,
-        "enable_evaluation": False,
+        "enable_evaluation": True,
         "initial_training_episode": 0,
-        "max_training_episodes": 70,
-        "initial_testing_episode": 70,
-        "test_episodes": 30,
-        "episode_evaluation_freq": None,
-        "number_evaluation_episodes": None,
+        "max_training_episodes": 60,
+        "initial_testing_episode": 80,
+        "test_episodes": 20,
+        "episode_evaluation_freq": 10,
+        "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": None,
+        "eval_initial_env_episode": 60,
         "save_hist": False,
         "agents": [
             "ray_ib_sched",
