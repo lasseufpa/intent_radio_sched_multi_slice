@@ -21,7 +21,7 @@ from sixg_radio_mgmt import MARLCommEnv
 from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
-    "hyperparam_opt_mult_slice": MultSliceAssociation,
+    # "hyperparam_opt_mult_slice": MultSliceAssociation,
     "mult_slice_seq": MultSliceAssociationSeq,
     "mult_slice": MultSliceAssociation,
     "finetune_mult_slice_seq": MultSliceAssociationSeq,
@@ -42,9 +42,23 @@ agents = {
         "debug_mode": False,
         "stochastic_policy": False,
         "hyper_opt_algo": "asha",
-        "param_config_mode": "checkpoint_avg_peaks",
+        "param_config_mode": "pre_computed",
         "param_config_scenario": "hyperparam_opt_mult_slice",
         "param_config_agent": "ray_ib_sched_hyper_asha",
+    },
+    "ray_ib_sched_non_shared": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+        "stochastic_policy": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "pre_computed",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "shared_policies": False,
     },
     "ray_ib_sched_hyper_asha": {
         "class": IBSched,
@@ -96,6 +110,15 @@ agents = {
         "train": True,
         "load_method": "best",
     },
+    "finetune_sched_colran": {
+        "class": SchedColORAN,
+        "rl": True,
+        "train": True,
+        "enable_finetune": True,
+        "base_agent": "sched_coloran",
+        "base_scenario": "mult_slice",
+        "load_method": "best",  # Could be "best", "last" or a int number
+    },
     "finetune_ray_ib_sched": {
         "class": IBSched,
         "rl": True,
@@ -125,6 +148,37 @@ agents = {
         "base_agent": "ray_ib_sched",
         "base_scenario": "mult_slice",
     },
+    "base_ray_ib_sched_non_shared": {
+        "class": IBSched,
+        "rl": True,
+        "train": False,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+        "base_agent": "ray_ib_sched_non_shared",
+        "base_scenario": "mult_slice",
+        "shared_policies": False,
+    },
+    "scratch_ray_ib_sched_non_shared": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+        "shared_policies": False,
+    },
+    "finetune_ray_ib_sched_non_shared": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "enable_finetune": True,
+        "base_agent": "ray_ib_sched_non_shared",
+        "base_scenario": "mult_slice",
+        "load_method": "best",  # Could be "best", "last" or a int number
+        "enable_masks": True,
+        "debug_mode": False,
+    },
 }
 env_config_scenarios = {
     "mult_slice_seq": {
@@ -147,6 +201,7 @@ env_config_scenarios = {
         "save_hist": False,
         "agents": [
             "ray_ib_sched",
+            "ray_ib_sched_non_shared",
             "sb3_sched",
             "sched_twc",
             "sched_coloran",
@@ -174,6 +229,7 @@ env_config_scenarios = {
         "save_hist": False,
         "agents": [
             "ray_ib_sched",
+            "ray_ib_sched_non_shared",
             "sb3_sched",
             "sched_twc",
             "sched_coloran",
@@ -223,11 +279,16 @@ env_config_scenarios = {
             "base_ray_ib_sched",
             "finetune_ray_ib_sched",
             "scratch_ray_ib_sched",
+            "base_ray_ib_sched_non_shared",
+            "finetune_ray_ib_sched_non_shared",
+            "scratch_ray_ib_sched_non_shared",
             "finetune_sb3_sched",
             "finetune_sched_twc",
-            "scratch_ray_ib_sched",
+            "finetune_sched_colran",
+            "mapf",
+            "marr",
         ],
-        "number_scenarios": 1,
+        "number_scenarios": 10,
     },
 }
 
@@ -349,6 +410,9 @@ for scenario in scenarios.keys():
                 hyper_opt_enable = agents[agent_name].get(
                     "hyper_opt_enable", False
                 )
+                shared_policies = agents[agent_name].get(
+                    "shared_policies", True
+                )
                 agent = RayAgent(
                     env_creator=env_creator,
                     env_config=env_config,
@@ -361,6 +425,7 @@ for scenario in scenarios.keys():
                     stochastic_policy=stochastic_policy,
                     hyper_opt_algo=hyper_opt_algo,
                     hyper_opt_enable=hyper_opt_enable,
+                    shared_policies=shared_policies,
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes

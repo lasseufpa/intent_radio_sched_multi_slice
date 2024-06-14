@@ -33,6 +33,7 @@ class RayAgent:
         stochastic_policy: bool = False,
         hyper_opt_algo: Optional[str] = None,
         hyper_opt_enable: bool = False,
+        shared_policies: bool = True,
     ):
         ray.init(local_mode=debug_mode)
         register_env("marl_comm_env", lambda config: env_creator(config, True))
@@ -51,6 +52,8 @@ class RayAgent:
         self.min_eps_iteration_checkpoint = 2
         self.hyper_opt_algo = hyper_opt_algo
         self.hyper_opt_enable = hyper_opt_enable
+        self.shared_policies = shared_policies
+        self.maximum_number_slices = 5
 
         # Hyperparameter optimizer configuration
         if self.hyper_opt_algo == "pb2":
@@ -284,20 +287,16 @@ class RayAgent:
                 env_config=env_config,
                 is_atari=False,
                 disable_env_checking=True,
-                # clip_rewards=False,
-                # normalize_actions=True,
-                # clip_actions=False,
             )
             .multi_agent(
-                policies={
-                    "inter_slice_sched": (
-                        self.action_mask_policy()
-                        if self.enable_masks
-                        else PolicySpec()
-                    ),
-                    "intra_slice_sched": PolicySpec(),
-                },
-                policy_mapping_fn=self.policy_mapping_fn,
+                policies=self.generate_policies(
+                    self.shared_policies, self.maximum_number_slices
+                ),
+                policy_mapping_fn=(
+                    self.policy_mapping_fn_shared
+                    if self.shared_policies
+                    else self.policy_mapping_fn_non_shared
+                ),
                 count_steps_by="env_steps",
             )
             .framework("torch")
@@ -410,10 +409,47 @@ class RayAgent:
         )
         return PolicySpec(config=config)
 
-    def policy_mapping_fn(self, agent_id, episode=None, worker=None, **kwargs):
+    def generate_policies(
+        self, shared_policies: bool, max_number_slices: int
+    ) -> Dict[str, PolicySpec]:
+        if shared_policies:
+            return {
+                "inter_slice_sched": (
+                    self.action_mask_policy()
+                    if self.enable_masks
+                    else PolicySpec()
+                ),
+                "intra_slice_sched": PolicySpec(),
+            }
+        else:
+            policies = {
+                "inter_slice_sched": (
+                    self.action_mask_policy()
+                    if self.enable_masks
+                    else PolicySpec()
+                ),
+            }
+            for i in range(max_number_slices):
+                policies[f"intra_slice_sched_{i}"] = PolicySpec()
+            return policies
+
+    def policy_mapping_fn_shared(
+        self, agent_id, episode=None, worker=None, **kwargs
+    ):
         agent_idx = int(agent_id.partition("_")[2])
 
         return "inter_slice_sched" if agent_idx == 0 else "intra_slice_sched"
+
+    def policy_mapping_fn_non_shared(
+        self, agent_id, episode=None, worker=None, **kwargs
+    ):
+        agent_idx = int(agent_id.partition("_")[2])
+
+        return (
+            "inter_slice_sched"
+            if agent_idx == 0
+            else f"intra_slice_sched_{agent_idx-1}"
+        )
 
     def load(
         self, agent_name, scenario, method="last", finetune=False
@@ -494,7 +530,11 @@ class RayAgent:
             self.algo, Algorithm
         ), "Algorithm must be an instance of Algorithm."
         for agent_id, agent_obs in obs.items():
-            policy_id = self.policy_mapping_fn(agent_id)
+            policy_id = (
+                self.policy_mapping_fn_shared(agent_id)
+                if self.shared_policies
+                else self.policy_mapping_fn_non_shared(agent_id)
+            )
             action[agent_id] = self.algo.compute_single_action(
                 agent_obs,
                 policy_id=policy_id,
