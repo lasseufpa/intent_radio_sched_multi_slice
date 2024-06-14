@@ -46,7 +46,7 @@ class QuadrigaChannel(Channel):
             episode_number, self.current_episode_number
         )
         if condition:
-            self.current_episode_number = episode_to_use
+            self.current_episode_number = episode_number
             if self.file is not None:
                 self.file.close()
             self.file = h5py.File(

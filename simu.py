@@ -232,7 +232,13 @@ env_config_scenarios = {
 }
 
 
-def env_creator(env_config, only_env=False):
+def env_creator(env_config, only_env=True):
+    initial_episode_number = env_config.get(
+        "initial_episode_number", env_config["initial_training_episode"]
+    )
+    max_episode_number = env_config.get(
+        "max_episode_number", env_config["max_training_episodes"]
+    )
     marl_comm_env = MARLCommEnv(
         env_config["channel_class"],
         env_config["traffic_class"],
@@ -242,13 +248,11 @@ def env_creator(env_config, only_env=False):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
-        initial_episode_number=env_config["initial_training_episode"],
+        initial_episode_number=initial_episode_number,
         simu_name=env_config["scenario"],
         save_hist=env_config["save_hist"],
+        max_episode_number=max_episode_number,
     )
-    marl_comm_env.comm_env.max_number_episodes = env_config[
-        "max_training_episodes"
-    ]
     eval_env = MARLCommEnv(
         env_config["channel_class"],
         env_config["traffic_class"],
