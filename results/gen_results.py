@@ -1375,112 +1375,66 @@ def scenario_diff_train_test(
     plt.close()
 
 
-scenario_names = [
-    "mult_slice"  # "finetune_mult_slice_seq"
-]  # ["finetune_mult_slice_seq"]  # ["mult_slice_seq"]
-agent_names = [
-    # "random",
-    # "ib_sched",
-    # "ib_sched_mask",
-    # "sched_twc",
-    # "mapf",
-    # "finetune_sb3_sched",
-    "marr",
-    "ray_ib_sched",
-    "old_ray_ib_sched",
-    "finetune_ray_ib_sched",
-    "scratch_ray_ib_sched",
-    # "sched_coloran",
-    # "scratch_sb3_sched_sort",
-    # "ib_sched_old",
-    # "ib_sched_deepmind",
-    # "ib_sched_mask",
-    # "ib_sched_mask_deepmind",
-    # "ib_sched_lstm",
-    # "sched_twc",
-    # "ray_ib_sched_intra_rr",
-    # "ray_ib_sched_obs_filter",
-    # "base_sb3_sched",
-    # "finetune_sched_twc",
-    # "finetune_sb3_sched",
-    # "scratch_sb3_sched",
-    # "scratch_sb3_ppo_ib_sched",
-    # "sb3_sched",
-    # "base_shuffle_sb3_sched",
-]
-episodes = np.arange(80, 100, dtype=int)
-# episodes = np.array(
-#     [
-#         np.arange(80, 100, dtype=int),
-#         np.arange(180, 200, dtype=int),
-#         np.arange(280, 300, dtype=int),
-#     ],
-# ).flatten()
-slices = np.arange(5)
+scenarios = ["mult_slice_seq", "mult_slice", "finetune_mult_slice_seq"]
 
-# Check if agents are compared in episodes with the same characteristics
-if fair_comparison_check(agent_names, episodes, scenario_names):
-    print("Agents are compared in episodes with the same characteristics")
+for scenario in scenarios:
+    if scenario == "mult_slice_seq":
+        # mult_slice_seq scenario results
+        scenario_names = ["mult_slice_seq"]
+        agent_names = [
+            "ray_ib_sched",
+            "ray_ib_sched_non_shared",
+            "sb3_sched",
+            "sched_twc",
+            "sched_coloran",
+            "mapf",
+            "marr",
+        ]
+        episodes = np.arange(80, 100, dtype=int)
+        slices = np.arange(5)
 
-# One graph per agent
-metrics = [
-    # "agent_action",
-    "sched_decision",
-    # "intent_slice_metric",
-    # "observation_intent",
-    # "observation_slice_traffic",
-    # "observation_priority",
-    # "observation_spectral_eff",
-    # "observation_buffer_occ",
-    # "observation_buffer_lat",
-    "basestation_slice_assoc",
-    "basestation_ue_assoc",
-    "reward",
-    # "total_network_throughput",
-    # "total_network_eff_throughput",
-    "total_network_requested_throughput",
-    # "violations_per_slice_type",
-    # "violations_per_slice_type_metric",
-    # "throughput_per_rb",
-    "ues_spectral_efficiencies",
-    "rbs_needed_slice",
-    "rbs_needed_total",
-    # "reward_cumsum",
-]
-# for agent in agent_names:
-#     gen_results(scenario_names, [agent], episodes, metrics, slices)
+        # Check if agents are compared in episodes with the same characteristics
+        if fair_comparison_check(agent_names, episodes, scenario_names):
+            print(
+                "Agents are compared in episodes with the same characteristics"
+            )
 
-# One graph for all agents
-metrics = [
-    # "reward",
-    # "reward_comparison",
-    "reward_cumsum",
-    # "violations",
-    "violations_cumsum",
-    # "sched_decision",
-    # "basestation_slice_assoc",
-    # "distance_fulfill",
-    "distance_fulfill_cumsum",
-    # "intent_slice_metric",
-    # "sched_decision_comparison",
-]
-# gen_results(scenario_names, agent_names, episodes, metrics, slices)
+        # One graph for all agents considering all episodes (one graph for all episodes)
+        metrics = [
+            "reward_per_episode_cumsum",
+            "distance_fulfill_cumsum",
+            "violations_per_episode_cumsum",
+        ]
+        gen_results_total(
+            scenario_names, agent_names, episodes, metrics, slices
+        )
+    elif scenario == "mult_slice":
+        # mult_slice scenario results
+        scenario_names = ["mult_slice"]
+        agent_names = [
+            "ray_ib_sched",
+            "ray_ib_sched_non_shared",
+            "sb3_sched",
+            "sched_twc",
+            "sched_coloran",
+            "mapf",
+            "marr",
+        ]
+        episodes = np.arange(180, 200, dtype=int)
+        slices = np.arange(5)
 
-# One graph for all agents considering all episodes (one graph for all episodes)
-metrics = [
-    "reward_per_episode_cumsum",
-    #    "reward_per_episode",
-    #    "violations_per_episode",
-    "distance_fulfill_cumsum",
-    "violations_per_episode_cumsum",
-]
-gen_results_total(scenario_names, agent_names, episodes, metrics, slices)
+        # Check if agents are compared in episodes with the same characteristics
+        if fair_comparison_check(agent_names, episodes, scenario_names):
+            print(
+                "Agents are compared in episodes with the same characteristics"
+            )
 
-plot_scenario_analysis(["mult_slice"], np.arange(0, 100), np.arange(5))
-plot_scenario_analysis(["mult_slice"], np.arange(0, 80), np.arange(5))
-plot_scenario_analysis(["mult_slice"], np.arange(80, 100), np.arange(5))
-plot_scenario_analysis(["mult_slice"], np.arange(0, 80), np.arange(5), True)
-
-scenario_diff_train_test(
-    "mult_slice", np.arange(80), np.arange(80, 100), np.arange(5)
-)
+        # One graph for all agents considering all episodes (one graph for all episodes)
+        metrics = [
+            "reward_per_episode_cumsum",
+            "distance_fulfill_cumsum",
+            "violations_per_episode_cumsum",
+        ]
+        gen_results_total(
+            scenario_names, agent_names, episodes, metrics, slices
+        )
