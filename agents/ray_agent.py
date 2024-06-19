@@ -219,7 +219,7 @@ class RayAgent:
                     custom_explore_fn=self.explore,
                 )
                 tune_config = tune.TuneConfig(
-                    metric="episode_reward_mean",
+                    metric="evaluation/policy_reward_mean/inter_slice_sched",
                     mode="max",
                     scheduler=pb2,
                     num_samples=self.num_samples,
@@ -234,7 +234,7 @@ class RayAgent:
                     stop_last_trials=True,
                 )
                 tune_config = tune.TuneConfig(
-                    metric="evaluation/episode_reward_mean",
+                    metric="evaluation/policy_reward_mean/inter_slice_sched",
                     mode="max",
                     scheduler=asha,
                     num_samples=self.num_samples,
@@ -463,7 +463,9 @@ class RayAgent:
                 checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
             elif method == "best":
                 checkpoint = analysis.get_best_checkpoint(
-                    analysis.trials[0], "evaluation/episode_reward_mean", "max"
+                    analysis.trials[0],
+                    "evaluation/policy_reward_mean/inter_slice_sched",
+                    "max",
                 )
             elif isinstance(method, int):  # TODO check if correct
                 raise NotImplementedError(
@@ -479,7 +481,7 @@ class RayAgent:
             self.algo = Algorithm.from_checkpoint(checkpoint)
 
     def load_config(self, mode, agent_name, scenario) -> dict:
-        metric = "evaluation/episode_reward_mean"
+        metric = "evaluation/policy_reward_mean/inter_slice_sched"
         assert isinstance(
             self.initial_hyperparam, dict
         ), "Initial hyperparam is not a dictionary"
@@ -593,7 +595,9 @@ class UpdatePolicyCallback(DefaultCallbacks):
             checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
         elif method == "best":
             checkpoint = analysis.get_best_checkpoint(
-                analysis.trials[0], "evaluation/episode_reward_mean", "max"
+                analysis.trials[0],
+                "evaluation/policy_reward_mean/inter_slice_sched",
+                "max",
             )
         elif isinstance(method, int):
             raise NotImplementedError(
