@@ -23,10 +23,55 @@ from traffics.mult_slice import MultSliceTraffic
 scenarios = {
     # "hyperparam_opt_mult_slice": MultSliceAssociation,
     "mult_slice_seq": MultSliceAssociationSeq,
-    "mult_slice": MultSliceAssociation,
-    "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    # "mult_slice": MultSliceAssociation,
+    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
+    "sb3_sched_seq": {
+        "class": IBSchedSB3,
+        "rl": True,
+        "train": True,
+        "load_method": "best_train",
+    },
+    "ray_ib_sched_seq": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best_train",
+        "enable_masks": True,
+        "debug_mode": False,
+        "stochastic_policy": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "pre_computed",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+    },
+    "ray_ib_sched_non_shared_seq": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best_train",
+        "enable_masks": True,
+        "debug_mode": False,
+        "stochastic_policy": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "pre_computed",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "shared_policies": False,
+    },
+    "sched_twc_seq": {
+        "class": SchedTWC,
+        "rl": True,
+        "train": True,
+        "load_method": "best_train",
+    },
+    "sched_coloran_seq": {
+        "class": SchedColORAN,
+        "rl": True,
+        "train": True,
+        "load_method": "best_train",
+    },
     "sb3_sched": {
         "class": IBSchedSB3,
         "rl": True,
@@ -60,18 +105,6 @@ agents = {
         "param_config_agent": "ray_ib_sched_hyper_asha",
         "shared_policies": False,
     },
-    "ray_ib_sched_hyper_asha": {
-        "class": IBSched,
-        "rl": True,
-        "train": True,
-        "hyper_opt_enable": True,
-        "hyper_opt_algo": "asha",
-        "load_method": "best",
-        "enable_masks": True,
-        "debug_mode": False,
-        "test": False,
-        "restore": True,
-    },
     "sched_twc": {
         "class": SchedTWC,
         "rl": True,
@@ -86,6 +119,18 @@ agents = {
     },
     "mapf": {"class": MAPF, "rl": False, "train": False},
     "marr": {"class": MARR, "rl": False, "train": False},
+    "ray_ib_sched_hyper_asha": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "hyper_opt_enable": True,
+        "hyper_opt_algo": "asha",
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+        "test": False,
+        "restore": True,
+    },
     "finetune_sb3_sched": {
         "class": IBSchedSB3,
         "rl": True,
@@ -189,25 +234,26 @@ env_config_scenarios = {
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
         "training_epochs": 10,
-        "enable_evaluation": True,
+        "enable_evaluation": False,
         "initial_training_episode": 0,
-        "max_training_episodes": 60,
+        "max_training_episodes": 80,
         "initial_testing_episode": 80,
         "test_episodes": 20,
-        "episode_evaluation_freq": 10,
-        "number_evaluation_episodes": 20,
+        "episode_evaluation_freq": 0,
+        "number_evaluation_episodes": 0,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 60,
+        "eval_initial_env_episode": 0,
         "save_hist": False,
         "agents": [
-            "ray_ib_sched",
-            "ray_ib_sched_non_shared",
-            "sb3_sched",
-            "sched_twc",
-            "sched_coloran",
+            "ray_ib_sched_seq",
+            "ray_ib_sched_non_shared_seq",
+            "sb3_sched_seq",
+            "sched_twc_seq",
+            "sched_coloran_seq",
             "mapf",
             "marr",
         ],
+        "number_scenarios": 10,
     },
     "mult_slice": {
         "seed": 10,
@@ -508,7 +554,7 @@ for scenario in scenarios.keys():
             ray.shutdown()
 
             # Updating values for next scenario
-            if "finetune" in scenario:
+            if "number_scenarios" in env_config.keys():
                 scenario_episodes = (
                     (
                         env_config["max_training_episodes"]

@@ -52,7 +52,7 @@ class IBSched(Agent):
         self.intent_overfulfillment_rate = 0.2
         self.var_obs_inter_slice = 10
         self.var_obs_intra_ue = 2
-        self.rbs_per_rbg = 9  # 135/rbs_per_rbg RBGs
+        self.rbs_per_rbg = 5  # 135/rbs_per_rbg RBGs
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")

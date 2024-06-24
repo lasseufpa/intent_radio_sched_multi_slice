@@ -467,6 +467,12 @@ class RayAgent:
                     "evaluation/policy_reward_mean/inter_slice_sched",
                     "max",
                 )
+            elif method == "best_train":
+                checkpoint = analysis.get_best_checkpoint(
+                    analysis.trials[0],
+                    "policy_reward_mean/inter_slice_sched",
+                    "max",
+                )
             elif isinstance(method, int):  # TODO check if correct
                 raise NotImplementedError(
                     "Checkpoint by iteration not implemented"
