@@ -53,6 +53,7 @@ class IBSched(Agent):
         self.var_obs_inter_slice = 10
         self.var_obs_intra_ue = 2
         self.rbs_per_rbg = 5  # 135/rbs_per_rbg RBGs
+        self.sorted_slices = np.array([])
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")
@@ -77,13 +78,14 @@ class IBSched(Agent):
             ][0].astype(np.int8),
         }
 
-        sorted_slices = self.sort_slices(
+        self.sorted_slices = self.sort_slices(
             self.last_unformatted_obs[0]["slice_req"],
             self.last_unformatted_obs[0]["slice_ue_assoc"],
+            self.max_number_slices,
         )
 
         # intra-slice observations
-        for agent_idx in sorted_slices + 1:
+        for agent_idx in self.sorted_slices + 1:
             assert isinstance(
                 self.env, MARLCommEnv
             ), "Environment must be MARLCommEnv"
@@ -199,6 +201,12 @@ class IBSched(Agent):
         return formatted_obs_space
 
     def calculate_reward(self, obs_space: dict) -> dict:
+        obs_space["player_0"] = self.unsort_slices(
+            obs_space["player_0"],
+            self.sorted_slices,
+            self.max_number_slices,
+            10,
+        )
         return calculate_reward_no_mask(
             obs_space,
             self.last_formatted_obs,
@@ -230,6 +238,7 @@ class IBSched(Agent):
             != 0
         ):
             action = deepcopy(action_ori)
+            action["player_0"] = action["player_0"][self.sorted_slices]
             action["player_0"][
                 np.where(
                     self.last_unformatted_obs[0]["basestation_slice_assoc"][
@@ -334,7 +343,10 @@ class IBSched(Agent):
         return allocation_rbs
 
     def sort_slices(
-        self, slice_req: dict, slice_ue_assoc: np.ndarray
+        self,
+        slice_req: dict,
+        slice_ue_assoc: np.ndarray,
+        max_number_slices: int,
     ) -> np.ndarray:
         ues_per_slice = np.sum(slice_ue_assoc, axis=1)
         slice_req_traffic = np.array(
@@ -344,12 +356,34 @@ class IBSched(Agent):
                     if slice_req[f"slice_{idx}"] != {}
                     else 0.0
                 )
-                for idx in np.arange(self.max_number_slices)
+                for idx in np.arange(max_number_slices)
             ]
         )
         total_slice_traffic = ues_per_slice * slice_req_traffic
 
         return np.argsort(total_slice_traffic)
+
+    def unsort_slices(
+        self,
+        obs_space: np.ndarray,
+        sorted_slices: np.ndarray,
+        max_number_slices: int,
+        var_obs_inter_slice: int,
+    ) -> np.ndarray:
+        unsorted_obs_space = np.ones_like(obs_space) * -100
+        for idx, sorted_idx in enumerate(sorted_slices):
+            unsorted_obs_space[
+                sorted_idx
+                * var_obs_inter_slice : (sorted_idx + 1)
+                * var_obs_inter_slice
+            ] = obs_space[
+                idx * var_obs_inter_slice : (idx + 1) * var_obs_inter_slice
+            ]
+        assert (  # TODO Remove this check
+            np.sum(unsorted_obs_space == -100) == 0
+        ), "Unsorted obs_space has missing values"
+
+        return unsorted_obs_space
 
     def get_action_space(self) -> spaces.Dict:
         action_space = spaces.Dict(
