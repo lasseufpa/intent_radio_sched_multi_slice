@@ -53,7 +53,7 @@ class IBSched(Agent):
         self.var_obs_inter_slice = 10
         self.var_obs_intra_ue = 2
         self.rbs_per_rbg = 5  # 135/rbs_per_rbg RBGs
-        self.sorted_slices = np.array([])
+        self.sorted_slices = np.arange(self.max_number_slices)
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
         raise NotImplementedError("IBSched does not implement step()")
@@ -201,15 +201,18 @@ class IBSched(Agent):
         return formatted_obs_space
 
     def calculate_reward(self, obs_space: dict) -> dict:
-        obs_space["player_0"] = self.unsort_slices(
-            obs_space["player_0"],
+        self.tmp_last_formatted_obs = deepcopy(self.last_formatted_obs)
+        self.tmp_last_formatted_obs["player_0"][
+            "observations"
+        ] = self.unsort_slices(
+            self.tmp_last_formatted_obs["player_0"]["observations"],
             self.sorted_slices,
             self.max_number_slices,
             10,
         )
         return calculate_reward_no_mask(
             obs_space,
-            self.last_formatted_obs,
+            self.tmp_last_formatted_obs,
             self.last_unformatted_obs,
             self.var_obs_inter_slice,
         )

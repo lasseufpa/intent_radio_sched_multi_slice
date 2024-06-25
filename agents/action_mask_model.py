@@ -44,12 +44,17 @@ class TorchActionMaskModel(TorchModelV2, nn.Module):
 
     def forward(self, input_dict, state, seq_lens):
         action_mask = input_dict["obs"]["action_mask"]  # type: ignore
+        action_mask_sorted = torch.zeros_like(action_mask)
+        active_slices = int(torch.sum(action_mask[0]).item())
+        if active_slices > 0:
+            action_mask_sorted[:, -active_slices:] = 1
+
         observations = input_dict["obs"]["observations"]  # type: ignore
 
         # Compute the unmasked logits.
         logits, _ = self.internal_model({"obs": observations})
 
-        expanded_logits = torch.cat((logits, action_mask), 1)
+        expanded_logits = torch.cat((logits, action_mask_sorted), 1)
 
         # Return expanded logits.
         return expanded_logits, state
