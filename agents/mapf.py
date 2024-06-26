@@ -35,6 +35,7 @@ class MAPF(Agent):
             max_number_slices,
             max_number_basestations,
             num_available_rbs,
+            enable_sort_slices=False,
         )
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:

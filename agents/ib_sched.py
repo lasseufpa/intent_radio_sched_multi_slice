@@ -34,6 +34,7 @@ class IBSched(Agent):
         number_evaluation_episodes: Optional[int] = None,
         checkpoint_episode_freq: Optional[int] = None,
         eval_initial_env_episode: Optional[int] = None,
+        enable_sort_slices: bool = True,
     ) -> None:
         super().__init__(
             env,
@@ -53,6 +54,7 @@ class IBSched(Agent):
         self.var_obs_inter_slice = 10
         self.var_obs_intra_ue = 2
         self.rbs_per_rbg = 5  # 135/rbs_per_rbg RBGs
+        self.enable_sort_slices = enable_sort_slices
         self.sorted_slices = np.arange(self.max_number_slices)
 
     def step(self, obs_space: Optional[Union[np.ndarray, dict]]) -> np.ndarray:
@@ -78,11 +80,12 @@ class IBSched(Agent):
             ][0].astype(np.int8),
         }
 
-        self.sorted_slices = self.sort_slices(
-            self.last_unformatted_obs[0]["slice_req"],
-            self.last_unformatted_obs[0]["slice_ue_assoc"],
-            self.max_number_slices,
-        )
+        if self.enable_sort_slices:
+            self.sorted_slices = self.sort_slices(
+                self.last_unformatted_obs[0]["slice_req"],
+                self.last_unformatted_obs[0]["slice_ue_assoc"],
+                self.max_number_slices,
+            )
 
         # intra-slice observations
         for agent_idx in self.sorted_slices + 1:
