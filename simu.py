@@ -378,7 +378,6 @@ def env_creator(env_config, only_env=True):
 for scenario in scenarios.keys():
     for agent_name in env_config_scenarios[scenario]["agents"]:
         env_config = env_config_scenarios[scenario].copy()
-        env_config["agent"] = agent_name
         env_config["scenario"] = scenario
         env_config["agent_class"] = agents[agent_name]["class"]
         env_config["association_class"] = scenarios[scenario]
@@ -392,6 +391,7 @@ for scenario in scenarios.keys():
 
         number_scenarios = env_config.get("number_scenarios", 1)
         for scenario_number in range(number_scenarios):
+            env_config["agent"] = agent_name + f"_{str(scenario_number)}"
             marl_comm_env, agent = env_creator(env_config, False)  # type: ignore
             if "ray" in agent_name:
                 param_config_mode = agents[agent_name].get(
@@ -462,7 +462,7 @@ for scenario in scenarios.keys():
                 agent_load = (
                     agents[agent_name]["base_agent"]
                     if "base" in agent_name
-                    else agent_name
+                    else env_config["agent"]
                 )
                 scenario_load = (
                     agents[agent_name]["base_scenario"]
