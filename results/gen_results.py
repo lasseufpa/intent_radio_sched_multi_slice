@@ -6,8 +6,6 @@ from typing import Tuple
 import matplotlib.figure as matfig
 import matplotlib.pyplot as plt
 import numpy as np
-from cv2 import line
-from matplotlib import lines
 
 # Import intent_drift_calc function
 sys.path.append(os.path.abspath("agents/"))
@@ -1373,6 +1371,21 @@ def scenario_diff_train_test(
         dpi=1000,
     )
     plt.close()
+
+
+def print_scenarios(scenario_numbers: np.ndarray):
+    for scenario_number in scenario_numbers:
+        scenario = np.load(
+            f"associations/data/mult_slice/ep_{scenario_number}.npz",
+            allow_pickle=True,
+        )
+        print(f"Association {scenario_number}")
+        for idx, slice in enumerate(scenario["hist_slice_req"][0]):
+            name = ""
+            if "name" in scenario["hist_slice_req"][0][slice].keys():
+                name = scenario["hist_slice_req"][0][slice]["name"]
+            print(f"Slice {idx}: {name}")
+        print("\n")
 
 
 scenarios = ["mult_slice_seq", "mult_slice", "finetune_mult_slice_seq"]
