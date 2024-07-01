@@ -1,4 +1,5 @@
 from pathlib import Path
+from random import choice
 from typing import Callable, Dict, Optional
 
 import numpy as np
@@ -11,7 +12,6 @@ from ray.rllib.models import ModelCatalog
 from ray.rllib.policy.policy import Policy, PolicySpec
 from ray.tune.registry import register_env
 from ray.tune.schedulers.async_hyperband import AsyncHyperBandScheduler
-from ray.tune.schedulers.pb2 import PB2
 
 from agents.action_mask_model import TorchActionMaskModel
 from agents.masked_action_distribution import TorchDiagGaussian
@@ -54,44 +54,16 @@ class RayAgent:
         self.hyper_opt_enable = hyper_opt_enable
         self.shared_policies = shared_policies
         self.maximum_number_slices = 5
+        self.net_arch = {
+            "small": [64, 64],
+            "medium": [256, 256],
+            "big": [400, 300],
+            "large": [256, 256, 256],
+            "verybig": [512, 512, 512],
+        }
 
         # Hyperparameter optimizer configuration
-        if self.hyper_opt_algo == "pb2":
-            self.hyperparam_bounds = {
-                # hyperparameter bounds based on SB-Zoo https://github.com/DLR-RM/rl-baselines3-zoo/blob/master/rl_zoo3/hyperparams_opt.py
-                "lr": [0.0001, 0.1],
-                "sgd_minibatch_size": [8, 512],
-                "train_batch_size": [128, 2048],
-                "gamma": [0.5, 0.9999],
-                "num_sgd_iter": [1, 20],
-            }
-            self.initial_hyperparam = {
-                "lr": tune.uniform(
-                    self.hyperparam_bounds["lr"][0],
-                    self.hyperparam_bounds["lr"][1],
-                ),
-                "sgd_minibatch_size": tune.randint(
-                    self.hyperparam_bounds["sgd_minibatch_size"][0],
-                    self.hyperparam_bounds["sgd_minibatch_size"][1],
-                ),
-                "train_batch_size": tune.sample_from(
-                    lambda config: np.random.randint(
-                        config["sgd_minibatch_size"],  # type: ignore
-                        self.hyperparam_bounds["train_batch_size"][1],
-                    )
-                ),
-                "gamma": tune.uniform(
-                    self.hyperparam_bounds["gamma"][0],
-                    self.hyperparam_bounds["gamma"][1],
-                ),
-                "num_sgd_iter": tune.randint(
-                    self.hyperparam_bounds["num_sgd_iter"][0],
-                    self.hyperparam_bounds["num_sgd_iter"][1],
-                ),
-            }
-            self.pertubation_interval = 2
-            self.num_samples = 50
-        elif self.hyper_opt_algo == "asha":
+        if self.hyper_opt_algo == "asha":
             self.num_samples = 100
             self.max_t = 300
             self.time_attr = "episodes_total"
@@ -150,6 +122,17 @@ class RayAgent:
                 ),
                 "num_sgd_iter": tune.choice([1, 5, 10, 20]),
                 "lambda": tune.choice([0.8, 0.9, 0.92, 0.95, 0.98, 0.99, 1.0]),
+                "net_arch": tune.sample_from(
+                    lambda config: choice(
+                        [
+                            self.net_arch["small"],
+                            self.net_arch["medium"],
+                            self.net_arch["big"],
+                            self.net_arch["large"],
+                            self.net_arch["verybig"],
+                        ]
+                    ),
+                ),
             }
         elif self.hyper_opt_algo is None:
             self.initial_hyperparam = None
@@ -165,6 +148,7 @@ class RayAgent:
                 "num_sgd_iter": 10,
                 "gamma": 0.99,
                 "lambda": 0.95,
+                "net_arch": self.net_arch["small"],
             }
         elif param_config_mode in [
             "checkpoint",
@@ -183,6 +167,7 @@ class RayAgent:
                 "gamma": 0.98,
                 "num_sgd_iter": 5,
                 "lambda": 0.95,
+                "net_arch": self.net_arch["small"],
             }
         else:
             raise ValueError(
@@ -211,20 +196,7 @@ class RayAgent:
 
         # Whether to use a hyperparameter opt algo
         if self.hyper_opt_enable:
-            if self.hyper_opt_algo == "pb2":
-                pb2 = PB2(
-                    time_attr="training_iteration",
-                    perturbation_interval=self.pertubation_interval,
-                    hyperparam_bounds=self.hyperparam_bounds,
-                    custom_explore_fn=self.explore,
-                )
-                tune_config = tune.TuneConfig(
-                    metric="evaluation/policy_reward_mean/inter_slice_sched",
-                    mode="max",
-                    scheduler=pb2,
-                    num_samples=self.num_samples,
-                )
-            elif self.hyper_opt_algo == "asha":
+            if self.hyper_opt_algo == "asha":
                 asha = AsyncHyperBandScheduler(
                     time_attr=self.time_attr,
                     grace_period=self.grace_period,
@@ -342,6 +314,14 @@ class RayAgent:
                     or self.initial_hyperparam is None
                     else self.initial_hyperparam["lambda"]
                 ),
+                model=(
+                    {
+                        "fcnet_hiddens": self.param_config["net_arch"],
+                    }
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else {"fcnet_hiddens": self.initial_hyperparam["net_arch"]}
+                ),
                 clip_param=0.2,  # type: ignore SB3 clip_range,
                 vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
                 use_gae=True,  # type: ignore SB3 normalize_advantage
@@ -393,10 +373,6 @@ class RayAgent:
                 },
                 always_attach_evaluation_results=True,
             )
-        algo_config["model"]["fcnet_hiddens"] = [
-            64,
-            64,
-        ]  # Set neural network size
 
         return algo_config
 
@@ -491,7 +467,8 @@ class RayAgent:
         assert isinstance(
             self.initial_hyperparam, dict
         ), "Initial hyperparam is not a dictionary"
-        hyperparameters = self.initial_hyperparam.keys()
+        hyperparameters = list(self.initial_hyperparam.keys())
+        hyperparameters.remove("net_arch")
         analysis = tune.ExperimentAnalysis(
             f"{self.read_checkpoint}/{scenario}/{agent_name}/"
         )
@@ -519,7 +496,7 @@ class RayAgent:
                     trial_df = (
                         trial_dfs[trial_name][metric].dropna().to_numpy()
                     )
-                    if trial_df.shape[0] >= 10:
+                    if trial_df.shape[0] >= peaks_number:
                         trial_df = np.sort(np.unique(trial_df))[-peaks_number:]
                         trials_avg[trial_name] = np.mean(trial_df)
             best_trial_name = max(trials_avg, key=lambda key: trials_avg[key])
@@ -528,6 +505,7 @@ class RayAgent:
             raise ValueError(f"Invalid mode {mode} for load_config")
         assert isinstance(config, dict), "Config is not a dictionary"
         selected_config = {key: config[key] for key in hyperparameters}
+        selected_config["net_arch"] = config["model"]["fcnet_hiddens"]
 
         return selected_config
 

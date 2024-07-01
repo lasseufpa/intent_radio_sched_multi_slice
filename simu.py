@@ -44,7 +44,7 @@ agents = {
         "hyper_opt_algo": "asha",
         "param_config_mode": "pre_computed",
         "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "param_config_agent": "ray_ib_sched_hyper_asha_0",
     },
     "ray_ib_sched_non_shared": {
         "class": IBSched,
