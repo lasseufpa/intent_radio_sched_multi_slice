@@ -199,6 +199,8 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 60,
         "save_hist": False,
+        "enable_random_episodes": True,
+        "number_rollout_workers": 10,
         "agents": [
             "ray_ib_sched",
             "ray_ib_sched_non_shared",
@@ -228,6 +230,8 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 160,
         "save_hist": False,
+        "enable_random_episodes": True,
+        "number_rollout_workers": 10,
         "agents": [
             "ray_ib_sched",
             "ray_ib_sched_non_shared",
@@ -256,6 +260,8 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 160,
         "save_hist": False,
+        "enable_random_episodes": True,
+        "number_rollout_workers": 0,
         "agents": ["ray_ib_sched_hyper_asha"],
     },
     "finetune_mult_slice_seq": {
@@ -276,6 +282,8 @@ env_config_scenarios = {
         "checkpoint_episode_freq": 10,
         "eval_initial_env_episode": 60,
         "save_hist": False,
+        "enable_random_episodes": True,
+        "number_rollout_workers": 10,
         "agents": [
             "base_ray_ib_sched",
             "finetune_ray_ib_sched",
@@ -314,6 +322,7 @@ def env_creator(env_config, only_env=True):
         simu_name=env_config["scenario"],
         save_hist=env_config["save_hist"],
         max_episode_number=max_episode_number,
+        enable_random_episodes=env_config["enable_random_episodes"],
     )
     eval_env = MARLCommEnv(
         env_config["channel_class"],
@@ -326,6 +335,7 @@ def env_creator(env_config, only_env=True):
         root_path=env_config["root_path"],
         simu_name=env_config["scenario"],
         save_hist=env_config["save_hist"],
+        enable_random_episodes=env_config["enable_random_episodes"],
     )
     if env_config["rl"]:
         agent = env_config["agent_class"](
@@ -427,6 +437,9 @@ for scenario in scenarios.keys():
                     hyper_opt_algo=hyper_opt_algo,
                     hyper_opt_enable=hyper_opt_enable,
                     shared_policies=shared_policies,
+                    number_rollout_workers=env_config[
+                        "number_rollout_workers"
+                    ],
                 )
             number_episodes = (
                 marl_comm_env.comm_env.max_number_episodes

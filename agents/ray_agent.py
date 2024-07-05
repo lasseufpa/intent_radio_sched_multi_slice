@@ -34,6 +34,7 @@ class RayAgent:
         hyper_opt_algo: Optional[str] = None,
         hyper_opt_enable: bool = False,
         shared_policies: bool = True,
+        number_rollout_workers: int = 0,
     ):
         ray.init(local_mode=debug_mode)
         register_env("marl_comm_env", lambda config: env_creator(config, True))
@@ -49,6 +50,7 @@ class RayAgent:
         self.read_checkpoint = str(Path("./ray_results/").resolve())
         self.algo = None
         self.steps_per_episode = 1000
+        self.number_rollout_workers = number_rollout_workers
         self.min_eps_iteration_checkpoint = 2
         self.hyper_opt_algo = hyper_opt_algo
         self.hyper_opt_enable = hyper_opt_enable
@@ -273,7 +275,7 @@ class RayAgent:
             )
             .framework("torch")
             .rollouts(
-                num_rollout_workers=0,
+                num_rollout_workers=self.number_rollout_workers,
                 enable_connectors=False,
                 num_envs_per_worker=1,
             )
@@ -343,8 +345,6 @@ class RayAgent:
         if not ("hyperparam" in self.env_config["scenario"]):
             # Uses the GPU in case not doing hyperparameter optimization
             algo_config.resources(
-                num_gpus=1,
-                num_gpus_per_worker=1,
                 num_gpus_per_learner_worker=1,
             )
 
