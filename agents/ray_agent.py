@@ -208,7 +208,7 @@ class RayAgent:
                     stop_last_trials=True,
                 )
                 tune_config = tune.TuneConfig(
-                    metric="evaluation/policy_reward_mean/inter_slice_sched",
+                    metric="evaluation/episode_reward_mean",
                     mode="max",
                     scheduler=asha,
                     num_samples=self.num_samples,
