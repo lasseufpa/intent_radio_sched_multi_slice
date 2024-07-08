@@ -66,8 +66,8 @@ class RayAgent:
 
         # Hyperparameter optimizer configuration
         if self.hyper_opt_algo == "asha":
-            self.num_samples = 100
-            self.max_t = 300
+            self.num_samples = 200
+            self.max_t = 800
             self.time_attr = "episodes_total"
             self.grace_period = 50
             self.reduction_factor = 3
@@ -86,7 +86,7 @@ class RayAgent:
                 ]
             )
             self.initial_hyperparam = {
-                "lr": tune.uniform(
+                "lr": tune.loguniform(
                     1e-5,
                     0.01,
                 ),
@@ -230,6 +230,9 @@ class RayAgent:
                 f"{self.read_checkpoint}/{self.env_config['scenario']}/{self.env_config['agent']}/",
                 trainable="PPO",
                 param_space=algo_config.to_dict(),
+                restart_errored=False,
+                resume_errored=True,
+                resume_unfinished=True,
             )
         else:
             tuner = tune.Tuner(
