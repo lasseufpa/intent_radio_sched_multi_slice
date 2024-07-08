@@ -68,7 +68,7 @@ class RayAgent:
         if self.hyper_opt_algo == "asha":
             self.num_samples = 200
             self.max_t = 800
-            self.time_attr = "episodes_total"
+            self.time_attr = "env_runners/num_episodes"
             self.grace_period = 50
             self.reduction_factor = 3
             self.brackets = 1
@@ -187,7 +187,7 @@ class RayAgent:
         # it is just a placeholder to keep the same interface as SB3
         algo_config = self.gen_config(self.env_config)
         stop = {
-            "episodes_total": int(
+            "env_runners/num_episodes": int(
                 (
                     self.env_config["max_training_episodes"]
                     - self.env_config["initial_training_episode"]
@@ -208,7 +208,7 @@ class RayAgent:
                     stop_last_trials=True,
                 )
                 tune_config = tune.TuneConfig(
-                    metric="evaluation/episode_reward_mean",
+                    metric="evaluation/env_runners/policy_reward_mean/inter_slice_sched",
                     mode="max",
                     scheduler=asha,
                     num_samples=self.num_samples,
@@ -263,7 +263,6 @@ class RayAgent:
                 env="marl_comm_env",
                 env_config=env_config,
                 is_atari=False,
-                disable_env_checking=True,
             )
             .multi_agent(
                 policies=self.generate_policies(
@@ -277,10 +276,10 @@ class RayAgent:
                 count_steps_by="env_steps",
             )
             .framework("torch")
-            .rollouts(
-                num_rollout_workers=self.number_rollout_workers,
+            .env_runners(
+                num_envs_per_env_runner=1,
+                num_env_runners=self.number_rollout_workers,
                 enable_connectors=False,
-                num_envs_per_worker=1,
             )
             .training(
                 lr=(
@@ -335,21 +334,12 @@ class RayAgent:
                 grad_clip=0.5,  # SB3 max_grad_norm TODO
                 # kl_target=0.00001,  # SB3 target_kl
             )
-            .experimental(
-                _enable_new_api_stack=False
-            )  # TODO Remove after migrating from ModelV2 to RL Module
             .debugging(
                 seed=env_config["seed"],
             )
             .reporting(metrics_num_episodes_for_smoothing=1)
             .callbacks(UpdatePolicyCallback)
         )
-
-        if not ("hyperparam" in self.env_config["scenario"]):
-            # Uses the GPU in case not doing hyperparameter optimization
-            algo_config.resources(
-                num_gpus_per_learner_worker=1,
-            )
 
         if self.env_config["enable_evaluation"]:
             algo_config.evaluation(
@@ -443,13 +433,13 @@ class RayAgent:
             elif method == "best":
                 checkpoint = analysis.get_best_checkpoint(
                     analysis.trials[0],
-                    "evaluation/policy_reward_mean/inter_slice_sched",
+                    "evaluation/env_runners/policy_reward_mean/inter_slice_sched",
                     "max",
                 )
             elif method == "best_train":
                 checkpoint = analysis.get_best_checkpoint(
                     analysis.trials[0],
-                    "policy_reward_mean/inter_slice_sched",
+                    "env_runners/policy_reward_mean/inter_slice_sched",
                     "max",
                 )
             elif isinstance(method, int):  # TODO check if correct
@@ -466,7 +456,7 @@ class RayAgent:
             self.algo = Algorithm.from_checkpoint(checkpoint)
 
     def load_config(self, mode, agent_name, scenario) -> dict:
-        metric = "evaluation/policy_reward_mean/inter_slice_sched"
+        metric = "evaluation/env_runners/policy_reward_mean/inter_slice_sched"
         assert isinstance(
             self.initial_hyperparam, dict
         ), "Initial hyperparam is not a dictionary"
@@ -583,7 +573,7 @@ class UpdatePolicyCallback(DefaultCallbacks):
         elif method == "best":
             checkpoint = analysis.get_best_checkpoint(
                 analysis.trials[0],
-                "evaluation/policy_reward_mean/inter_slice_sched",
+                "evaluation/env_runners/policy_reward_mean/inter_slice_sched",
                 "max",
             )
         elif isinstance(method, int):
