@@ -124,6 +124,15 @@ class RayAgent:
                 ),
                 "num_sgd_iter": tune.choice([1, 5, 10, 20]),
                 "lambda": tune.choice([0.8, 0.9, 0.92, 0.95, 0.98, 0.99, 1.0]),
+                "clip_param": tune.choice([0.1, 0.2, 0.3, 0.4]),
+                "entropy_coeff": tune.loguniform(1e-8, 0.1),
+                "vf_loss_coeff": tune.uniform(0, 1),
+                "grad_clip": tune.choice(
+                    [0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 5]
+                ),
+                "kl_target": tune.choice(
+                    [0.1, 0.05, 0.03, 0.02, 0.01, 0.005, 0.001]
+                ),
                 "net_arch": tune.sample_from(
                     lambda config: choice(
                         [
@@ -151,6 +160,11 @@ class RayAgent:
                 "gamma": 0.99,
                 "lambda": 0.95,
                 "net_arch": self.net_arch["small"],
+                "clip_param": 0.2,
+                "entropy_coeff": 0.01,
+                "vf_loss_coeff": 0.5,
+                "grad_clip": 0.5,
+                "kl_target": 0.01,
             }
         elif param_config_mode in [
             "checkpoint",
@@ -170,6 +184,11 @@ class RayAgent:
                 "num_sgd_iter": 5,
                 "lambda": 0.95,
                 "net_arch": self.net_arch["small"],
+                "clip_param": 0.2,
+                "entropy_coeff": 0.01,
+                "vf_loss_coeff": 0.5,
+                "grad_clip": 0.5,
+                "kl_target": 0.01,
             }
         else:
             raise ValueError(
@@ -326,13 +345,38 @@ class RayAgent:
                     or self.initial_hyperparam is None
                     else {"fcnet_hiddens": self.initial_hyperparam["net_arch"]}
                 ),
-                clip_param=0.2,  # type: ignore SB3 clip_range,
+                clip_param=(  # type: ignore SB3 equivalent to clip_range
+                    self.param_config["clip_param"]
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else self.initial_hyperparam["clip_param"]
+                ),
+                entropy_coeff=(  # type: ignore SB3 ent_coef
+                    self.param_config["entropy_coeff"]
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else self.initial_hyperparam["entropy_coeff"]
+                ),
+                vf_loss_coeff=(  # type: ignore SB3 vf_coef
+                    self.param_config["vf_loss_coeff"]
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else self.initial_hyperparam["vf_loss_coeff"]
+                ),
+                grad_clip=(  # type: ignore SB3 max_grad_norm
+                    self.param_config["grad_clip"]
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else self.initial_hyperparam["grad_clip"]
+                ),
+                kl_target=(  # type: ignore SB3 target_kl
+                    self.param_config["kl_target"]
+                    if not self.hyper_opt_enable
+                    or self.initial_hyperparam is None
+                    else self.initial_hyperparam["kl_target"]
+                ),
                 vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
                 use_gae=True,  # type: ignore SB3 normalize_advantage
-                entropy_coeff=0.01,  # type: ignore SB3 ent_coef
-                vf_loss_coeff=0.5,  # type: ignore SB3 vf_coef
-                grad_clip=0.5,  # SB3 max_grad_norm TODO
-                # kl_target=0.00001,  # SB3 target_kl
             )
             .debugging(
                 seed=env_config["seed"],
