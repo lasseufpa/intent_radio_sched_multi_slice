@@ -469,7 +469,7 @@ for scenario in scenarios.keys():
                     print(f"Training {agent_name} on {scenario} scenario")
                     agent.train(total_time_steps)
 
-            enable_test = env_config.get("test", True)
+            enable_test = agents[agent_name].get("test", True)
             if enable_test:
                 # Testing
                 agent_load = (

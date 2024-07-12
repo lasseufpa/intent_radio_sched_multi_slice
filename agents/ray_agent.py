@@ -66,10 +66,10 @@ class RayAgent:
 
         # Hyperparameter optimizer configuration
         if self.hyper_opt_algo == "asha":
-            self.num_samples = 200
-            self.max_t = 800
-            self.time_attr = "env_runners/num_episodes"
-            self.grace_period = 50
+            self.num_samples = 500
+            self.max_t = 320 * self.steps_per_episode
+            self.time_attr = "timesteps_total"
+            self.grace_period = 50 * self.steps_per_episode
             self.reduction_factor = 3
             self.brackets = 1
             train_batch_size_options = np.array(
@@ -87,8 +87,8 @@ class RayAgent:
             )
             self.initial_hyperparam = {
                 "lr": tune.loguniform(
-                    1e-5,
-                    0.01,
+                    5e-6,
+                    1e-4,
                 ),
                 "sgd_minibatch_size": tune.choice(
                     [8, 16, 32, 64, 128, 256, 512]
@@ -206,12 +206,13 @@ class RayAgent:
         # it is just a placeholder to keep the same interface as SB3
         algo_config = self.gen_config(self.env_config)
         stop = {
-            "env_runners/num_episodes": int(
+            "timesteps_total": int(
                 (
                     self.env_config["max_training_episodes"]
                     - self.env_config["initial_training_episode"]
                 )
                 * self.env_config["training_epochs"]
+                * self.steps_per_episode
             ),
         }
 
