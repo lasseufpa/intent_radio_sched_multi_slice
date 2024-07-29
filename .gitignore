@@ -4,6 +4,12 @@
 *.zip
 *.tar.gz
 
+# CSV files
+*.csv
+
+# Avoid log files
+*.log
+
 # Vs code files
 .vscode
 
