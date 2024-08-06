@@ -1,3 +1,5 @@
+import os
+import re
 from pathlib import Path
 from random import choice
 from typing import Callable, Dict, Optional
@@ -177,18 +179,18 @@ class RayAgent:
         elif param_config_mode == "pre_computed":
             # Computed using hyperparam_opt_mult_slice scenario
             self.param_config = {
-                "lr": 0.0066760717960586274,
-                "sgd_minibatch_size": 32,
-                "train_batch_size": 128,
-                "gamma": 0.98,
-                "num_sgd_iter": 5,
+                "lr": 6.1494053683206764e-06,
+                "sgd_minibatch_size": 16,
+                "train_batch_size": 64,
+                "gamma": 0.6,
+                "num_sgd_iter": 10,
                 "lambda": 0.95,
-                "net_arch": self.net_arch["small"],
+                "net_arch": self.net_arch["verybig"],
                 "clip_param": 0.2,
-                "entropy_coeff": 0.01,
-                "vf_loss_coeff": 0.5,
+                "entropy_coeff": 0.014410343410248648,
+                "vf_loss_coeff": 0.42179598812262487,
                 "grad_clip": 0.5,
-                "kl_target": 0.01,
+                "kl_target": 0.005,
             }
         else:
             raise ValueError(
@@ -469,23 +471,63 @@ class RayAgent:
         self, agent_name, scenario, method="last", finetune=False
     ) -> None:
         if not finetune:
-            analysis = tune.ExperimentAnalysis(
-                f"{self.read_checkpoint}/{scenario}/{agent_name}/"
-            )
-            assert analysis.trials is not None, "Analysis trial is None"
             if method == "last":
+                analysis = tune.ExperimentAnalysis(
+                    f"{self.read_checkpoint}/{scenario}/{agent_name}/"
+                )
+                assert analysis.trials is not None, "Analysis trial is None"
                 checkpoint = analysis.get_last_checkpoint(analysis.trials[0])
             elif method == "best":
+                analysis = tune.ExperimentAnalysis(
+                    f"{self.read_checkpoint}/{scenario}/{agent_name}/"
+                )
+                assert analysis.trials is not None, "Analysis trial is None"
                 checkpoint = analysis.get_best_checkpoint(
                     analysis.trials[0],
                     "evaluation/env_runners/policy_reward_mean/inter_slice_sched",
                     "max",
                 )
             elif method == "best_train":
+                analysis = tune.ExperimentAnalysis(
+                    f"{self.read_checkpoint}/{scenario}/{agent_name}/"
+                )
+                assert analysis.trials is not None, "Analysis trial is None"
                 checkpoint = analysis.get_best_checkpoint(
                     analysis.trials[0],
                     "env_runners/policy_reward_mean/inter_slice_sched",
                     "max",
+                )
+            elif method[0:6] == "trial_":
+                directory = f"{self.read_checkpoint}/{scenario}/{agent_name}/"
+                trial_number = method.split("_")[1]
+                checkpoint_number = method.split("_")[3]
+                folder_pattern = re.compile(rf".*{re.escape(trial_number)}.*")
+                folders = os.listdir(directory)
+                matching_folders = [
+                    folder
+                    for folder in folders
+                    if os.path.isdir(os.path.join(directory, folder))
+                    and folder_pattern.match(folder)
+                ]
+                checkpoint_pattern = re.compile(
+                    rf".*{re.escape(checkpoint_number)}.*"
+                )
+                checkpoint_folders = os.listdir(
+                    directory + matching_folders[0]
+                )
+                checkpoint_matching_folders = [
+                    folder
+                    for folder in checkpoint_folders
+                    if os.path.isdir(
+                        os.path.join(directory + matching_folders[0], folder)
+                    )
+                    and checkpoint_pattern.match(folder)
+                ]
+                checkpoint = (
+                    directory
+                    + matching_folders[0]
+                    + "/"
+                    + checkpoint_matching_folders[0]
                 )
             elif isinstance(method, int):  # TODO check if correct
                 raise NotImplementedError(

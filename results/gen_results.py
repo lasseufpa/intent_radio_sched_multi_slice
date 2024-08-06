@@ -1425,13 +1425,15 @@ for scenario in scenarios:
         # mult_slice scenario results
         scenario_names = ["mult_slice"]
         agent_names = [
-            "ray_ib_sched",
-            "ray_ib_sched_non_shared",
-            "sb3_sched",
+            "ray_ib_sched_0",
+            "ray_ib_sched_default_0",
+            "hyper_opt_ray_ib_sched_0",
+            "ray_ib_sched_non_shared_0",
+            "sb3_sched_0",
             "sched_twc",
-            "sched_coloran",
-            "mapf",
-            "marr",
+            "sched_coloran_0",
+            "mapf_0",
+            "marr_0",
         ]
         episodes = np.arange(180, 200, dtype=int)
         slices = np.arange(5)
@@ -1444,7 +1446,7 @@ for scenario in scenarios:
 
         # One graph for all agents considering all episodes (one graph for all episodes)
         metrics = [
-            "reward_per_episode_cumsum",
+            # "reward_per_episode_cumsum",
             "distance_fulfill_cumsum",
             "violations_per_episode_cumsum",
         ]

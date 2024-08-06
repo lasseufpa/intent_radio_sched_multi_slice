@@ -107,11 +107,12 @@ file_names = top_10_avg_reward["file"].values
 w, h = matfig.figaspect(0.6)
 plt.figure(figsize=(w, h))
 for file in file_names:
+    trial_number = get_substring_between(file, "_", "_clip_param")
     reward_inter_file = reward_inter[reward_inter["file"] == file]
     plt.plot(
         reward_inter_file["step"],
         reward_inter_file["value"],
-        label=f"Trial {get_substring_between(file, '_', '_clip_param')}",
+        label=f"Trial {trial_number}",
     )
 plt.plot()
 plt.grid()

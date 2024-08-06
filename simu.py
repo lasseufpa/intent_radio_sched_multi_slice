@@ -46,6 +46,30 @@ agents = {
         "param_config_scenario": "hyperparam_opt_mult_slice",
         "param_config_agent": "ray_ib_sched_hyper_asha_0",
     },
+    "ray_ib_sched_default": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+        "stochastic_policy": False,
+        "hyper_opt_algo": "asha",
+        "param_config_mode": "default",
+        "param_config_scenario": "hyperparam_opt_mult_slice",
+        "param_config_agent": "ray_ib_sched_hyper_asha_0",
+    },
+    "hyper_opt_ray_ib_sched": {
+        "class": IBSched,
+        "rl": True,
+        "train": False,
+        "load_method": "trial_291_check_250",
+        "enable_masks": True,
+        "debug_mode": True,
+        "enable_base_agent": True,
+        "base_agent": "ray_ib_sched_hyper_asha_0",
+        "base_scenario": "hyperparam_opt_mult_slice",
+    },
     "ray_ib_sched_non_shared": {
         "class": IBSched,
         "rl": True,
@@ -55,9 +79,9 @@ agents = {
         "debug_mode": False,
         "stochastic_policy": False,
         "hyper_opt_algo": "asha",
-        "param_config_mode": "pre_computed",
+        "param_config_mode": "default",
         "param_config_scenario": "hyperparam_opt_mult_slice",
-        "param_config_agent": "ray_ib_sched_hyper_asha",
+        "param_config_agent": "ray_ib_sched_hyper_asha_0",
         "shared_policies": False,
     },
     "sched_twc": {
@@ -145,6 +169,7 @@ agents = {
         "load_method": "best",
         "enable_masks": True,
         "debug_mode": False,
+        "enable_base_agent": True,
         "base_agent": "ray_ib_sched",
         "base_scenario": "mult_slice",
     },
@@ -155,6 +180,7 @@ agents = {
         "load_method": "best",
         "enable_masks": True,
         "debug_mode": False,
+        "enable_base_agent": True,
         "base_agent": "ray_ib_sched_non_shared",
         "base_scenario": "mult_slice",
         "shared_policies": False,
@@ -219,7 +245,7 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 10,
+        "training_epochs": 5,
         "enable_evaluation": True,
         "initial_training_episode": 0,
         "max_training_episodes": 160,
@@ -231,9 +257,11 @@ env_config_scenarios = {
         "eval_initial_env_episode": 160,
         "save_hist": False,
         "enable_random_episodes": True,
-        "number_rollout_workers": 10,
+        "number_rollout_workers": 0,
         "agents": [
             "ray_ib_sched",
+            "ray_ib_sched_default",
+            "mult_slice_ray_ib_sched",
             "ray_ib_sched_non_shared",
             "sb3_sched",
             "sched_twc",
@@ -333,9 +361,12 @@ def env_creator(env_config, only_env=True):
         env_config["agent"],
         env_config["seed"],
         root_path=env_config["root_path"],
+        initial_episode_number=max_episode_number,
         simu_name=env_config["scenario"],
         save_hist=env_config["save_hist"],
-        enable_random_episodes=env_config["enable_random_episodes"],
+        max_episode_number=max_episode_number
+        + env_config["number_evaluation_episodes"],
+        enable_random_episodes=False,
     )
     if env_config["rl"]:
         agent = env_config["agent_class"](
@@ -470,16 +501,19 @@ for scenario in scenarios.keys():
                     agent.train(total_time_steps)
 
             enable_test = agents[agent_name].get("test", True)
+            enable_base_agent = agents[agent_name].get(
+                "enable_base_agent", False
+            )
             if enable_test:
                 # Testing
                 agent_load = (
                     agents[agent_name]["base_agent"]
-                    if "base" in agent_name
+                    if enable_base_agent
                     else env_config["agent"]
                 )
                 scenario_load = (
                     agents[agent_name]["base_scenario"]
-                    if "base" in agent_name
+                    if enable_base_agent
                     else scenario
                 )
                 if agents[agent_name]["rl"]:
@@ -499,6 +533,7 @@ for scenario in scenarios.keys():
                 marl_comm_env.comm_env.save_hist = (
                     True  # Save metrics for test
                 )
+                marl_comm_env.comm_env.enable_random_episodes = False
                 obs, _ = marl_comm_env.reset(
                     seed=env_config["seed_test"],
                     options={
