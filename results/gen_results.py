@@ -1066,6 +1066,39 @@ def get_metric_episodes(
                 )
                 y_values = np.append(y_values, np.sum(violations))
                 y2_values = np.append(y2_values, np.sum(violations_pri))
+            case (
+                "normalized_violations_per_episode"
+                | "normalized_violations_per_episode_cumsum"
+            ):
+                violations, _, _, _ = calc_slice_violations(data_metrics)
+                active_slices_episode = (
+                    np.sum(data_metrics["basestation_slice_assoc"][0])
+                    * violations.shape[0]
+                )
+                y_values = np.append(
+                    y_values, np.sum(violations) / active_slices_episode
+                )
+                active_slices_episode_pri = (
+                    np.sum(
+                        [
+                            data_metrics["slice_req"][0][slice]["priority"]
+                            for slice in data_metrics["slice_req"][0]
+                            if data_metrics["slice_req"][0][slice] != {}
+                        ]
+                    )
+                    * violations.shape[0]
+                )
+                violations_pri, _, _, _ = calc_slice_violations(
+                    data_metrics, priority=True
+                )
+                y2_values = np.append(
+                    y2_values,
+                    (
+                        np.sum(violations_pri) / active_slices_episode_pri
+                        if active_slices_episode_pri > 0
+                        else 0
+                    ),
+                )
             case "distance_fulfill" | "distance_fulfill_cumsum":
                 distance = calc_intent_distance(data_metrics)
                 y_values = np.append(y_values, np.sum(distance))
@@ -1121,7 +1154,10 @@ def plot_total_agent(
         case "reward_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "Reward (inter-slice agent)"
-        case "violations_per_episode_cumsum":
+        case (
+            "violations_per_episode_cumsum"
+            | "normalized_violations_per_episode_cumsum"
+        ):
             plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
             plt.plot(
                 x_values,
@@ -1131,7 +1167,7 @@ def plot_total_agent(
                 linestyle="--",
             )
             ylabel = "Cumulative # Violations"
-        case "violations_per_episode":
+        case "violations_per_episode" | "normalized_violations_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "# Violations"
         case "distance_fulfill" | "normalized_distance_fulfill":
@@ -1197,24 +1233,225 @@ def get_metric_values_multslice_seq(
     return (x_values, y_values, y2_values)
 
 
-def plot_total_multislice_seq(metric, scenario, agents, num_agent_scenarios):
+def plot_rbs_needed_network_scenarios(
+    scenario, agent, slices, number_network_scenarios
+):
+    scenario_results = {
+        f"{scenario}": {} for scenario in range(number_network_scenarios)
+    }
+    for number_scenario in range(number_network_scenarios):
+        global_dict = {}
+        episode = 80 + (100 * number_scenario)
+        data = np.load(
+            f"hist/{scenario}/{agent}_{number_scenario}/ep_{episode}.npz",
+            allow_pickle=True,
+        )
+        data_metrics = {
+            "pkt_incoming": data["pkt_incoming"],
+            "pkt_throughputs": data["pkt_throughputs"],
+            "pkt_effective_thr": data["pkt_effective_thr"],
+            "buffer_occupancies": data["buffer_occupancies"],
+            "buffer_latencies": data["buffer_latencies"],
+            "dropped_pkts": data["dropped_pkts"],
+            "mobility": data["mobility"],
+            "spectral_efficiencies": data["spectral_efficiencies"],
+            "basestation_ue_assoc": data["basestation_ue_assoc"],
+            "basestation_slice_assoc": data["basestation_slice_assoc"],
+            "slice_ue_assoc": data["slice_ue_assoc"],
+            "sched_decision": data["sched_decision"],
+            "reward": data["reward"],
+            "slice_req": data["slice_req"],
+            "obs": data["obs"],
+            "agent_action": data["agent_action"],
+        }
+        for slice in slices:
+            slice_ues = data_metrics["slice_ue_assoc"][:, slice, :]
+            den = np.sum(slice_ues, axis=1)
+            avg_num = np.sum(
+                np.mean(
+                    np.squeeze(data_metrics["spectral_efficiencies"]),
+                    axis=2,
+                )
+                * slice_ues,
+                axis=1,
+            )
+            std_spec_eff = np.std(
+                np.squeeze(data_metrics["spectral_efficiencies"]),
+                axis=2,
+            )
+            min_num = np.sum(
+                (
+                    np.mean(
+                        np.squeeze(data_metrics["spectral_efficiencies"]),
+                        axis=2,
+                    )
+                    - std_spec_eff
+                )
+                * slice_ues,
+                axis=1,
+            )
+            max_num = np.sum(
+                (
+                    np.mean(
+                        np.squeeze(data_metrics["spectral_efficiencies"]),
+                        axis=2,
+                    )
+                    + std_spec_eff
+                )
+                * slice_ues,
+                axis=1,
+            )
+            avg_spectral_eff = np.zeros_like(avg_num)
+            min_spectral_eff = np.zeros_like(avg_num)
+            max_spectral_eff = np.zeros_like(avg_num)
+            avg_spectral_eff = np.divide(
+                avg_num,
+                den,
+                where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+                out=avg_spectral_eff,
+            )
+            min_spectral_eff = np.divide(
+                min_num,
+                den,
+                where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+                out=min_spectral_eff,
+            )
+            max_spectral_eff = np.divide(
+                max_num,
+                den,
+                where=np.logical_not(np.isclose(den, np.zeros_like(den))),
+                out=max_spectral_eff,
+            )
+            requested_thr = np.array(
+                [
+                    (
+                        data_metrics["slice_req"][step][f"slice_{slice}"][
+                            "ues"
+                        ]["traffic"]
+                        if "ues"
+                        in data_metrics["slice_req"][step][f"slice_{slice}"]
+                        else 0
+                    )
+                    for step in np.arange(data_metrics["slice_req"].shape[0])
+                ]
+            )
+            avg_needed_rbs = np.zeros(requested_thr.shape[0])
+            min_needed_rbs = np.zeros(requested_thr.shape[0])
+            max_needed_rbs = np.zeros(requested_thr.shape[0])
+            avg_needed_rbs = np.divide(
+                requested_thr * np.sum(slice_ues, axis=1),
+                ((100 / 135) * avg_spectral_eff),
+                where=avg_spectral_eff > 0,
+                out=avg_needed_rbs,
+            )
+            min_needed_rbs = np.divide(
+                requested_thr * np.sum(slice_ues, axis=1),
+                ((100 / 135) * max_spectral_eff),
+                where=max_spectral_eff > 0,
+                out=min_needed_rbs,
+            )
+            max_needed_rbs = np.divide(
+                requested_thr * np.sum(slice_ues, axis=1),
+                ((100 / 135) * min_spectral_eff),
+                where=min_spectral_eff > 0,
+                out=max_needed_rbs,
+            )
+            max_needed_rbs[max_needed_rbs > 135] = 135
+            if slice == 0:
+                global_dict["avg_needed_rbs"] = avg_needed_rbs
+                global_dict["min_needed_rbs"] = min_needed_rbs
+                global_dict["max_needed_rbs"] = max_needed_rbs
+            else:
+                global_dict["avg_needed_rbs"] = (
+                    global_dict["avg_needed_rbs"] + avg_needed_rbs
+                )
+                global_dict["min_needed_rbs"] = (
+                    global_dict["min_needed_rbs"] + min_needed_rbs
+                )
+                global_dict["max_needed_rbs"] = (
+                    global_dict["max_needed_rbs"] + max_needed_rbs
+                )
+
+        if slice == slices[-1]:
+            scenario_results[f"{number_scenario}"] = global_dict
+            scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"] = (
+                np.mean(
+                    scenario_results[f"{number_scenario}"]["avg_needed_rbs"]
+                )
+            )
+    summary_results = [
+        scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"]
+        for number_scenario in range(number_network_scenarios)
+    ]
+    max_scenario = np.argmax(summary_results)
+    min_scenario = np.argmin(summary_results)
+    median_scenario = np.argsort(summary_results)[len(summary_results) // 2]
+    summary_dict = {
+        "max_scenario": {
+            "scenario_number": max_scenario,
+            "values": scenario_results[f"{max_scenario}"],
+        },
+        "min_scenario": {
+            "scenario_number": min_scenario,
+            "values": scenario_results[f"{min_scenario}"],
+        },
+        "median_scenario": {
+            "scenario_number": median_scenario,
+            "values": scenario_results[f"{median_scenario}"],
+        },
+    }
+
+    for scenario_key in summary_dict.keys():
+        plt.plot(
+            summary_dict[scenario_key]["values"]["avg_needed_rbs"],
+            label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, avg",
+            linestyle="solid",
+        )
+        plt.plot(
+            summary_dict[scenario_key]["values"]["min_needed_rbs"],
+            label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, min",
+            color=plt.gca().lines[-1].get_color(),
+            linestyle="dotted",
+        )
+        plt.plot(
+            summary_dict[scenario_key]["values"]["max_needed_rbs"],
+            label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, max",
+            color=plt.gca().lines[-1].get_color(),
+            linestyle="dashed",
+        )
+
+
+def plot_total_multislice_seq(
+    metric, scenario, agents, num_agent_scenarios, slices
+):
     xlabel = "# of episodes"
-    ylabel = (
-        "Normalized # of violations (cumulative sum)"
-        if metric == "normalized_violations_per_episode_cumsum"
-        else "Normalized distance to fulfill (cumulative sum)"
-    )
+    if metric == "normalized_violations_per_episode_cumsum":
+        ylabel = "Normalized # of violations (cumulative sum)"
+    elif metric == "normalized_distance_fulfill_cumsum":
+        ylabel = "Normalized distance to fulfill (cumulative sum)"
+    elif metric == "rbs_needed_network_scenarios":
+        ylabel = "# of RBs"
+    else:
+        raise Exception("Metric not found")
     x_values = np.array([])
     w, h = matfig.figaspect(0.6)
     plt.figure(figsize=(w, h))
-    for agent in agents:
-        x_values, y_values, y2_values = get_metric_values_multslice_seq(
-            metric,
-            scenario,
-            agent,
-            num_agent_scenarios,
+    if metric in [
+        "normalized_violations_per_episode_cumsum",
+        "normalized_distance_fulfill_cumsum",
+    ]:
+        for agent in agents:
+            x_values, y_values, y2_values = get_metric_values_multslice_seq(
+                metric,
+                scenario,
+                agent,
+                num_agent_scenarios,
+            )
+            plot_total_agent(metric, x_values, y_values, y2_values, agent)
+    elif metric == "rbs_needed_network_scenarios":
+        plot_rbs_needed_network_scenarios(
+            scenario, "marr", slices, num_agent_scenarios
         )
-        plot_total_agent(metric, x_values, y_values, y2_values, agent)
     plt.grid()
     plt.xlabel(xlabel, fontsize=14)
     plt.ylabel(ylabel, fontsize=14)
@@ -1520,12 +1757,12 @@ for scenario in scenarios:
         agent_names = [
             # "ray_ib_sched",
             "ray_ib_sched_default",
-            # f"hyper_opt_ray_ib_sched",
-            # f"ray_ib_sched_non_shared",
+            # "hyper_opt_ray_ib_sched",
+            # "ray_ib_sched_non_shared",
             "sb3_sched",
             "sb3_pf_sched",
-            # f"sched_twc",
-            # f"sched_coloran",
+            # "sched_twc",
+            # "sched_coloran",
             "mapf",
             "marr",
         ]
@@ -1552,11 +1789,13 @@ for scenario in scenarios:
         # One graph for all agents considering all episodes (one graph for all episodes)
         metrics = [
             "normalized_distance_fulfill_cumsum",
-            "violations_per_episode_cumsum",
+            "normalized_violations_per_episode_cumsum",
+            "rbs_needed_network_scenarios",
         ]
+        slices = np.arange(5)
         for metric in metrics:
             plot_total_multislice_seq(
-                metric, scenario, agent_names, scenario_numbers
+                metric, scenario, agent_names, scenario_numbers, slices
             )
     elif scenario == "mult_slice":
         # mult_slice scenario results
