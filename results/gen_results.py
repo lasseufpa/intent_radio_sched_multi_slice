@@ -1019,10 +1019,9 @@ def calc_intent_distance(data_metrics, priority=False) -> np.ndarray:
     return distance_slice
 
 
-def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
-    xlabel = "Episode number"
-    ylabel = ""
-    x_values = np.arange(episodes.shape[0], dtype=int)
+def get_metric_episodes(
+    metric, scenario, agent, episodes
+) -> Tuple[np.ndarray, np.ndarray]:
     y_values = np.array([])
     y2_values = np.array([])
     for episode in episodes:
@@ -1048,7 +1047,6 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
             "obs": data["obs"],
             "agent_action": data["agent_action"],
         }
-
         match metric:
             case "reward_per_episode" | "reward_per_episode_cumsum":
                 reward = (
@@ -1060,6 +1058,7 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
                     else data_metrics["reward"]
                 )
                 y_values = np.append(y_values, np.sum(reward))
+                y2_values = np.array([])
             case "violations_per_episode" | "violations_per_episode_cumsum":
                 violations, _, _, _ = calc_slice_violations(data_metrics)
                 violations_pri, _, _, _ = calc_slice_violations(
@@ -1074,7 +1073,47 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
                     data_metrics, priority=True
                 )
                 y2_values = np.append(y2_values, np.sum(distance_pri))
+            case (
+                "normalized_distance_fulfill"
+                | "normalized_distance_fulfill_cumsum"
+            ):
+                distance = calc_intent_distance(data_metrics)
+                active_slices_episode = (
+                    np.sum(data_metrics["basestation_slice_assoc"][0])
+                    * distance.shape[0]
+                )
+                y_values = np.append(
+                    y_values, np.sum(distance) / active_slices_episode
+                )
+                active_slices_episode_pri = (
+                    np.sum(
+                        [
+                            data_metrics["slice_req"][0][slice]["priority"]
+                            for slice in data_metrics["slice_req"][0]
+                            if data_metrics["slice_req"][0][slice] != {}
+                        ]
+                    )
+                    * distance.shape[0]
+                )
+                distance_pri = calc_intent_distance(
+                    data_metrics, priority=True
+                )
+                y2_values = np.append(
+                    y2_values,
+                    (
+                        np.sum(distance_pri) / active_slices_episode_pri
+                        if active_slices_episode_pri > 0
+                        else 0
+                    ),
+                )
+    return (y_values, y2_values)
 
+
+def plot_total_agent(
+    metric, x_values, y_values, y2_values, agent
+) -> Tuple[str, str]:
+    xlabel = "Episode number"
+    ylabel = ""
     match metric:
         case "reward_per_episode_cumsum":
             plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
@@ -1095,11 +1134,15 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
         case "violations_per_episode":
             plt.scatter(x_values, y_values, label=f"{agent}")
             ylabel = "# Violations"
-        case "distance_fulfill":
+        case "distance_fulfill" | "normalized_distance_fulfill":
             plt.scatter(x_values, y_values, label=f"{agent}")
             plt.scatter(x_values, y2_values, label=f"{agent}, prioritary")
-            ylabel = "Distance to fulfill"
-        case "distance_fulfill_cumsum":
+            ylabel = (
+                "Distance to fulfill"
+                if metric == "distance_fulfill"
+                else "Normalized distance to fulfill"
+            )
+        case "distance_fulfill_cumsum" | "normalized_distance_fulfill_cumsum":
             plt.plot(x_values, np.cumsum(y_values), label=f"{agent}")
             plt.plot(
                 x_values,
@@ -1108,9 +1151,87 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
                 color=plt.gca().lines[-1].get_color(),
                 linestyle="--",
             )
-            ylabel = "Cumulative distance to fulfill"
+            ylabel = (
+                "Cumulative distance to fulfill"
+                if metric == "distance_fulfill_cumsum"
+                else "Cumulative normalized distance to fulfill"
+            )
 
     return (xlabel, ylabel)
+
+
+def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
+    x_values = np.arange(episodes.shape[0], dtype=int)
+    y_values = np.array([])
+    y2_values = np.array([])
+
+    y_values, y2_values = get_metric_episodes(
+        metric, scenario, agent, episodes
+    )
+
+    x_label, y_label = plot_total_agent(
+        metric, x_values, y_values, y2_values, agent
+    )
+
+    return (x_label, y_label)
+
+
+def get_metric_values_multslice_seq(
+    metric, scenario, agent, num_agent_scenarios
+):
+    x_values = np.arange(20 * num_agent_scenarios, dtype=int)
+    y_values = np.array([])
+    y2_values = np.array([])
+    for num_agent_scenario in range(num_agent_scenarios):
+        episodes_to_use = np.arange(
+            80 + (100 * num_agent_scenario),
+            100 + (100 * num_agent_scenario),
+            dtype=int,
+        )
+        tmp_y_values, tmp_y2_values = get_metric_episodes(
+            metric, scenario, f"{agent}_{num_agent_scenario}", episodes_to_use
+        )
+        y_values = np.append(y_values, tmp_y_values)
+        y2_values = np.append(y2_values, tmp_y2_values)
+
+    return (x_values, y_values, y2_values)
+
+
+def plot_total_multislice_seq(metric, scenario, agents, num_agent_scenarios):
+    xlabel = "# of episodes"
+    ylabel = (
+        "Normalized # of violations (cumulative sum)"
+        if metric == "normalized_violations_per_episode_cumsum"
+        else "Normalized distance to fulfill (cumulative sum)"
+    )
+    x_values = np.array([])
+    w, h = matfig.figaspect(0.6)
+    plt.figure(figsize=(w, h))
+    for agent in agents:
+        x_values, y_values, y2_values = get_metric_values_multslice_seq(
+            metric,
+            scenario,
+            agent,
+            num_agent_scenarios,
+        )
+        plot_total_agent(metric, x_values, y_values, y2_values, agent)
+    plt.grid()
+    plt.xlabel(xlabel, fontsize=14)
+    plt.ylabel(ylabel, fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.legend(fontsize=12, bbox_to_anchor=(1.04, 1), loc="upper left")
+    os.makedirs(
+        f"./results/{scenario}/",
+        exist_ok=True,
+    )
+    plt.savefig(
+        f"./results/{scenario}/{metric}.pdf",
+        bbox_inches="tight",
+        pad_inches=0,
+        format="pdf",
+        dpi=1000,
+    )
+    plt.close()
 
 
 def gen_results_total(
@@ -1119,6 +1240,7 @@ def gen_results_total(
     episodes: np.ndarray,
     metrics: list,
     slices: np.ndarray,
+    scenario_number: int = 0,
 ):
     xlabel = ylabel = ""
     for scenario in scenario_names:
@@ -1139,7 +1261,7 @@ def gen_results_total(
                 exist_ok=True,
             )
             plt.savefig(
-                f"./results/{scenario}/{metric}.pdf",
+                f"./results/{scenario}/{metric}{scenario_number}.pdf",
                 bbox_inches="tight",
                 pad_inches=0,
                 format="pdf",
@@ -1289,13 +1411,13 @@ def plot_scenario_analysis(
                         metric_idx,
                     ]
                     y_values = y_values[y_values != 0]
-                    axs[row, col].boxplot(
+                    axs[row, col].boxplot(  # type: ignore
                         y_values,
                         positions=[slice],
                     )
-                    axs[row, col].grid()
-                    axs[row, col].set_xlabel("Slice number")
-                    axs[row, col].set_ylabel(metric_names[metric_idx])
+                    axs[row, col].grid()  # type: ignore
+                    axs[row, col].set_xlabel("Slice number")  # type: ignore
+                    axs[row, col].set_ylabel(metric_names[metric_idx])  # type: ignore
                 metric_idx += 1
         sort_str = "sorted" if sort_thr else "unsorted"
         os.makedirs(
@@ -1388,39 +1510,54 @@ def print_scenarios(scenario_numbers: np.ndarray):
         print("\n")
 
 
-scenarios = ["mult_slice_seq", "mult_slice", "finetune_mult_slice_seq"]
+# scenarios = ["mult_slice_seq", "mult_slice", "finetune_mult_slice_seq"]
+scenarios = ["mult_slice_seq"]
 
 for scenario in scenarios:
     if scenario == "mult_slice_seq":
+        scenario_numbers = 10
         # mult_slice_seq scenario results
-        scenario_names = ["mult_slice_seq"]
         agent_names = [
-            "ray_ib_sched",
-            "ray_ib_sched_non_shared",
+            # "ray_ib_sched",
+            "ray_ib_sched_default",
+            # f"hyper_opt_ray_ib_sched",
+            # f"ray_ib_sched_non_shared",
             "sb3_sched",
-            "sched_twc",
-            "sched_coloran",
+            "sb3_pf_sched",
+            # f"sched_twc",
+            # f"sched_coloran",
             "mapf",
             "marr",
         ]
-        episodes = np.arange(80, 100, dtype=int)
-        slices = np.arange(5)
 
         # Check if agents are compared in episodes with the same characteristics
-        if fair_comparison_check(agent_names, episodes, scenario_names):
-            print(
-                "Agents are compared in episodes with the same characteristics"
+        for scenario_number in range(scenario_numbers):
+            episodes = np.arange(
+                80 + (100 * scenario_number),
+                100 + (100 * scenario_number),
+                dtype=int,
             )
+            if fair_comparison_check(
+                [
+                    agent_name + f"_{scenario_number}"
+                    for agent_name in agent_names
+                ],
+                episodes,
+                [scenario],
+            ):
+                print(
+                    f"Scenario {scenario_number}: Agents are compared in episodes with the same characteristics"
+                )
 
         # One graph for all agents considering all episodes (one graph for all episodes)
         metrics = [
-            "reward_per_episode_cumsum",
-            "distance_fulfill_cumsum",
+            "normalized_distance_fulfill_cumsum",
             "violations_per_episode_cumsum",
         ]
-        gen_results_total(
-            scenario_names, agent_names, episodes, metrics, slices
-        )
+        for metric in metrics:
+            plot_total_multislice_seq(
+                metric, scenario, agent_names, scenario_numbers
+            )
     elif scenario == "mult_slice":
         # mult_slice scenario results
         scenario_names = ["mult_slice"]

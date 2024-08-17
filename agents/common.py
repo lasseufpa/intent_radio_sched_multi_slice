@@ -407,7 +407,7 @@ def calculate_reward_no_mask(
                 metrics = np.min(metrics) if metrics.shape[0] > 0 else 1
                 active_observations[element_idx] = metrics
             if np.isclose(np.sum(active_observations < 0), 0):
-                reward[agent_obs[0]] = 0  # np.mean(active_observations)
+                reward[agent_obs[0]] = np.mean(active_observations)
             elif (
                 not np.isclose(
                     np.sum((slice_priorities * active_observations) < 0), 0
