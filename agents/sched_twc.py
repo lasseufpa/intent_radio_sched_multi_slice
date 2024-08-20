@@ -27,7 +27,7 @@ class SchedTWC(Agent):
         max_number_basestations: int,
         num_available_rbs: np.ndarray,
         eval_env: Optional[MARLCommEnv] = None,
-        agent_type: str = "sac",
+        agent_type: str = "ppo",
         seed: int = np.random.randint(1000),
         agent_name: str = "sched_twc",
         episode_evaluation_freq: Optional[int] = None,

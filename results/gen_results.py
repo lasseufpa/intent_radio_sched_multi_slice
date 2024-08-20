@@ -6,6 +6,7 @@ from typing import Tuple
 import matplotlib.figure as matfig
 import matplotlib.pyplot as plt
 import numpy as np
+import tikzplotlib
 
 # Import intent_drift_calc function
 sys.path.append(os.path.abspath("agents/"))
@@ -1215,10 +1216,10 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
 def get_metric_values_multslice_seq(
     metric, scenario, agent, num_agent_scenarios
 ):
-    x_values = np.arange(20 * num_agent_scenarios, dtype=int)
+    x_values = np.arange(20 * num_agent_scenarios.shape[0], dtype=int)
     y_values = np.array([])
     y2_values = np.array([])
-    for num_agent_scenario in range(num_agent_scenarios):
+    for num_agent_scenario in num_agent_scenarios:
         episodes_to_use = np.arange(
             80 + (100 * num_agent_scenario),
             100 + (100 * num_agent_scenario),
@@ -1237,9 +1238,9 @@ def plot_rbs_needed_network_scenarios(
     scenario, agent, slices, number_network_scenarios
 ):
     scenario_results = {
-        f"{scenario}": {} for scenario in range(number_network_scenarios)
+        f"{scenario}": {} for scenario in number_network_scenarios
     }
-    for number_scenario in range(number_network_scenarios):
+    for number_scenario in number_network_scenarios:
         global_dict = {}
         episode = 80 + (100 * number_scenario)
         data = np.load(
@@ -1381,7 +1382,7 @@ def plot_rbs_needed_network_scenarios(
             )
     summary_results = [
         scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"]
-        for number_scenario in range(number_network_scenarios)
+        for number_scenario in number_network_scenarios
     ]
     max_scenario = np.argmax(summary_results)
     min_scenario = np.argmin(summary_results)
@@ -1391,21 +1392,27 @@ def plot_rbs_needed_network_scenarios(
             "scenario_number": max_scenario,
             "values": scenario_results[f"{max_scenario}"],
         },
-        "min_scenario": {
-            "scenario_number": min_scenario,
-            "values": scenario_results[f"{min_scenario}"],
-        },
         "median_scenario": {
             "scenario_number": median_scenario,
             "values": scenario_results[f"{median_scenario}"],
+        },
+        "min_scenario": {
+            "scenario_number": min_scenario,
+            "values": scenario_results[f"{min_scenario}"],
         },
     }
 
     for scenario_key in summary_dict.keys():
         plt.plot(
+            summary_dict[scenario_key]["values"]["max_needed_rbs"],
+            label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, max",
+            linestyle="dashed",
+        )
+        plt.plot(
             summary_dict[scenario_key]["values"]["avg_needed_rbs"],
             label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, avg",
             linestyle="solid",
+            color=plt.gca().lines[-1].get_color(),
         )
         plt.plot(
             summary_dict[scenario_key]["values"]["min_needed_rbs"],
@@ -1413,16 +1420,10 @@ def plot_rbs_needed_network_scenarios(
             color=plt.gca().lines[-1].get_color(),
             linestyle="dotted",
         )
-        plt.plot(
-            summary_dict[scenario_key]["values"]["max_needed_rbs"],
-            label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, max",
-            color=plt.gca().lines[-1].get_color(),
-            linestyle="dashed",
-        )
 
 
 def plot_total_multislice_seq(
-    metric, scenario, agents, num_agent_scenarios, slices
+    metric, scenario, agents, num_agent_scenarios, slices, name_postfix=""
 ):
     xlabel = "# of episodes"
     if metric == "normalized_violations_per_episode_cumsum":
@@ -1431,6 +1432,7 @@ def plot_total_multislice_seq(
         ylabel = "Normalized distance to fulfill (cumulative sum)"
     elif metric == "rbs_needed_network_scenarios":
         ylabel = "# of RBs"
+        xlabel = "Step (n)"
     else:
         raise Exception("Metric not found")
     x_values = np.array([])
@@ -1455,19 +1457,24 @@ def plot_total_multislice_seq(
     plt.grid()
     plt.xlabel(xlabel, fontsize=14)
     plt.ylabel(ylabel, fontsize=14)
-    plt.xticks(fontsize=12)
+    if metric == "rbs_needed_network_scenarios":
+        plt.xticks(fontsize=12)
+    else:
+        plt.xticks(np.arange(0, x_values.shape[0], 20), fontsize=12)
     plt.legend(fontsize=12, bbox_to_anchor=(1.04, 1), loc="upper left")
     os.makedirs(
         f"./results/{scenario}/",
         exist_ok=True,
     )
     plt.savefig(
-        f"./results/{scenario}/{metric}.pdf",
+        f"./results/{scenario}/{metric}{name_postfix}.pdf",
         bbox_inches="tight",
         pad_inches=0,
         format="pdf",
         dpi=1000,
     )
+    tikzplotlib.clean_figure()
+    tikzplotlib.save(f"./results/{scenario}/{metric}{name_postfix}.tex")
     plt.close()
 
 
@@ -1752,15 +1759,13 @@ scenarios = ["mult_slice_seq"]
 
 for scenario in scenarios:
     if scenario == "mult_slice_seq":
-        scenario_numbers = 10
+        scenario_numbers = np.arange(10)
         # mult_slice_seq scenario results
         agent_names = [
             # "ray_ib_sched",
             "ray_ib_sched_default",
             # "hyper_opt_ray_ib_sched",
             # "ray_ib_sched_non_shared",
-            "sb3_sched",
-            "sb3_pf_sched",
             # "sched_twc",
             # "sched_coloran",
             "mapf",
@@ -1797,6 +1802,15 @@ for scenario in scenarios:
             plot_total_multislice_seq(
                 metric, scenario, agent_names, scenario_numbers, slices
             )
+            if metric != "rbs_needed_network_scenarios":
+                plot_total_multislice_seq(
+                    metric,
+                    scenario,
+                    agent_names,
+                    np.array([6, 4, 2]),
+                    slices,
+                    "_selected_scenarios",
+                )
     elif scenario == "mult_slice":
         # mult_slice scenario results
         scenario_names = ["mult_slice"]

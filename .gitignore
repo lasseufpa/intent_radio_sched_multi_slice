@@ -13,6 +13,9 @@
 # Vs code files
 .vscode
 
+# Tex files
+*.tex
+
 # Tensorboard logs
 tensorboard-logs/
 
