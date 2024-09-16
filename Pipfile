@@ -10,7 +10,6 @@ flake8 = "==6.0.0"
 pre-commit = "*"
 numpy = "*"
 tqdm = "*"
-matplotlib = "==3.5.1"
 pyright = "==1.1.296"
 stable-baselines3 = ">=1.7.0"
 tensorboard = "*"
@@ -31,9 +30,8 @@ rich = "*"
 optuna = "*"
 gpy = "*"
 scikit-learn = "*"
-ray = {extras = ["rllib"], version = "*"}
-tikzplotlib = "*"
-webcolors = "==1.13"
+matplotlib = "*"
+ray = {extras = ["rllib"], version = "==2.31"}
 
 [dev-packages]
 torch-tb-profiler = "*"

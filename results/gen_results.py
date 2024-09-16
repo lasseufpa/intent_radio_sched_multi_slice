@@ -6,7 +6,7 @@ from typing import Tuple
 import matplotlib.figure as matfig
 import matplotlib.pyplot as plt
 import numpy as np
-import tikzplotlib
+import pandas as pd
 
 # Import intent_drift_calc function
 sys.path.append(os.path.abspath("agents/"))
@@ -1197,7 +1197,9 @@ def plot_total_agent(
     return (xlabel, ylabel)
 
 
-def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
+def plot_total_episodes(
+    metric, scenario, agent, episodes
+) -> Tuple[str, str, np.ndarray, np.ndarray, np.ndarray]:
     x_values = np.arange(episodes.shape[0], dtype=int)
     y_values = np.array([])
     y2_values = np.array([])
@@ -1210,23 +1212,33 @@ def plot_total_episodes(metric, scenario, agent, episodes) -> Tuple[str, str]:
         metric, x_values, y_values, y2_values, agent
     )
 
-    return (x_label, y_label)
+    return (x_label, y_label, x_values, y_values, y2_values)
 
 
-def get_metric_values_multslice_seq(
-    metric, scenario, agent, num_agent_scenarios
-):
-    x_values = np.arange(20 * num_agent_scenarios.shape[0], dtype=int)
+def get_metric_values_scenarios(metric, scenario, agent, num_agent_scenarios):
+    x_values = (
+        np.arange(20 * num_agent_scenarios.shape[0], dtype=int)
+        if scenario == "mult_slice_seq"
+        else np.arange(10, dtype=int)
+    )
     y_values = np.array([])
     y2_values = np.array([])
     for num_agent_scenario in num_agent_scenarios:
-        episodes_to_use = np.arange(
-            80 + (100 * num_agent_scenario),
-            100 + (100 * num_agent_scenario),
-            dtype=int,
-        )
+        if scenario == "mult_slice_seq":
+            episodes_to_use = np.arange(
+                (100 * num_agent_scenario),
+                20 + (100 * num_agent_scenario),
+                dtype=int,
+            )
+        elif scenario == "mult_slice":
+            episodes_to_use = np.arange(10, dtype=int)
+        else:
+            raise Exception("Scenario not found")
         tmp_y_values, tmp_y2_values = get_metric_episodes(
-            metric, scenario, f"{agent}_{num_agent_scenario}", episodes_to_use
+            metric,
+            scenario,
+            f"{agent}_{num_agent_scenario}",
+            episodes_to_use,
         )
         y_values = np.append(y_values, tmp_y_values)
         y2_values = np.append(y2_values, tmp_y2_values)
@@ -1242,7 +1254,7 @@ def plot_rbs_needed_network_scenarios(
     }
     for number_scenario in number_network_scenarios:
         global_dict = {}
-        episode = 80 + (100 * number_scenario)
+        episode = 100 * number_scenario
         data = np.load(
             f"hist/{scenario}/{agent}_{number_scenario}/ep_{episode}.npz",
             allow_pickle=True,
@@ -1375,10 +1387,10 @@ def plot_rbs_needed_network_scenarios(
 
         if slice == slices[-1]:
             scenario_results[f"{number_scenario}"] = global_dict
-            scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"] = (
-                np.mean(
-                    scenario_results[f"{number_scenario}"]["avg_needed_rbs"]
-                )
+            scenario_results[f"{number_scenario}"][
+                "total_avg_needed_rbs"
+            ] = np.mean(
+                scenario_results[f"{number_scenario}"]["avg_needed_rbs"]
             )
     summary_results = [
         scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"]
@@ -1401,8 +1413,20 @@ def plot_rbs_needed_network_scenarios(
             "values": scenario_results[f"{min_scenario}"],
         },
     }
-
+    data_plot = pd.DataFrame()
+    data_plot["x"] = np.arange(
+        summary_dict["min_scenario"]["values"]["max_needed_rbs"].shape[0]
+    )
     for scenario_key in summary_dict.keys():
+        data_plot[f"{scenario_key}_max"] = summary_dict[scenario_key][
+            "values"
+        ]["max_needed_rbs"]
+        data_plot[f"{scenario_key}_avg"] = summary_dict[scenario_key][
+            "values"
+        ]["avg_needed_rbs"]
+        data_plot[f"{scenario_key}_min"] = summary_dict[scenario_key][
+            "values"
+        ]["min_needed_rbs"]
         plt.plot(
             summary_dict[scenario_key]["values"]["max_needed_rbs"],
             label=f"Scenario {summary_dict[scenario_key]['scenario_number']}, max",
@@ -1420,16 +1444,28 @@ def plot_rbs_needed_network_scenarios(
             color=plt.gca().lines[-1].get_color(),
             linestyle="dotted",
         )
+    data_plot.to_csv(
+        f"./results/{scenario}/rbs_needed_network_scenarios.csv", index=False
+    )
 
 
-def plot_total_multislice_seq(
+def plot_total_scenarios(
     metric, scenario, agents, num_agent_scenarios, slices, name_postfix=""
 ):
+    # Create dir for results
+    os.makedirs(
+        (
+            f"./results/{scenario}/"
+            if len(agent_names) > 1
+            else f"./results/{scenario}/"
+        ),
+        exist_ok=True,
+    )
     xlabel = "# of episodes"
     if metric == "normalized_violations_per_episode_cumsum":
-        ylabel = "Normalized # of violations (cumulative sum)"
+        ylabel = "Normalized # of violations (cumulative)"
     elif metric == "normalized_distance_fulfill_cumsum":
-        ylabel = "Normalized distance to fulfill (cumulative sum)"
+        ylabel = "Normalized distance to fulfill (cumulative)"
     elif metric == "rbs_needed_network_scenarios":
         ylabel = "# of RBs"
         xlabel = "Step (n)"
@@ -1442,14 +1478,21 @@ def plot_total_multislice_seq(
         "normalized_violations_per_episode_cumsum",
         "normalized_distance_fulfill_cumsum",
     ]:
+        data_plot = pd.DataFrame()
         for agent in agents:
-            x_values, y_values, y2_values = get_metric_values_multslice_seq(
+            x_values, y_values, y2_values = get_metric_values_scenarios(
                 metric,
                 scenario,
                 agent,
                 num_agent_scenarios,
             )
+            data_plot[agent + "_total"] = np.cumsum(y_values)
+            data_plot[agent + "_pri"] = np.cumsum(y2_values)
             plot_total_agent(metric, x_values, y_values, y2_values, agent)
+        data_plot["x"] = x_values
+        data_plot.to_csv(
+            f"./results/{scenario}/{metric}{name_postfix}.csv", index=False
+        )
     elif metric == "rbs_needed_network_scenarios":
         plot_rbs_needed_network_scenarios(
             scenario, "marr", slices, num_agent_scenarios
@@ -1460,7 +1503,12 @@ def plot_total_multislice_seq(
     if metric == "rbs_needed_network_scenarios":
         plt.xticks(fontsize=12)
     else:
-        plt.xticks(np.arange(0, x_values.shape[0], 20), fontsize=12)
+        if scenario == "mult_slice_seq":
+            plt.xticks(np.arange(0, x_values.shape[0], 20), fontsize=12)
+        elif scenario == "mult_slice":
+            plt.xticks(np.arange(0, x_values.shape[0]), fontsize=12)
+        else:
+            raise Exception("Scenario not found")
     plt.legend(fontsize=12, bbox_to_anchor=(1.04, 1), loc="upper left")
     os.makedirs(
         f"./results/{scenario}/",
@@ -1473,8 +1521,6 @@ def plot_total_multislice_seq(
         format="pdf",
         dpi=1000,
     )
-    tikzplotlib.clean_figure()
-    tikzplotlib.save(f"./results/{scenario}/{metric}{name_postfix}.tex")
     plt.close()
 
 
@@ -1489,12 +1535,21 @@ def gen_results_total(
     xlabel = ylabel = ""
     for scenario in scenario_names:
         for metric in metrics:
+            data_plot = pd.DataFrame()
             w, h = matfig.figaspect(0.6)
             plt.figure(figsize=(w, h))
             for agent in agent_names:
-                xlabel, ylabel = plot_total_episodes(
-                    metric, scenario, agent, episodes
-                )
+                (
+                    xlabel,
+                    ylabel,
+                    x_values,
+                    y_values,
+                    y2_values,
+                ) = plot_total_episodes(metric, scenario, agent, episodes)
+                data_plot[agent + "_total"] = np.cumsum(y_values)
+                data_plot[agent + "_pri"] = np.cumsum(y2_values)
+            data_plot["x"] = x_values
+            data_plot.to_csv(f"./results/{scenario}/{metric}.csv", index=False)
             plt.grid()
             plt.xlabel(xlabel, fontsize=14)
             plt.ylabel(ylabel, fontsize=14)
@@ -1760,23 +1815,19 @@ scenarios = ["mult_slice_seq"]
 for scenario in scenarios:
     if scenario == "mult_slice_seq":
         scenario_numbers = np.arange(10)
-        # mult_slice_seq scenario results
         agent_names = [
-            # "ray_ib_sched",
             "ray_ib_sched_default",
-            # "hyper_opt_ray_ib_sched",
-            # "ray_ib_sched_non_shared",
-            # "sched_twc",
-            # "sched_coloran",
+            "sched_twc",
+            "sched_coloran",
             "mapf",
             "marr",
         ]
 
         # Check if agents are compared in episodes with the same characteristics
-        for scenario_number in range(scenario_numbers):
+        for scenario_number in scenario_numbers:
             episodes = np.arange(
-                80 + (100 * scenario_number),
-                100 + (100 * scenario_number),
+                (100 * scenario_number),
+                20 + (100 * scenario_number),
                 dtype=int,
             )
             if fair_comparison_check(
@@ -1799,11 +1850,11 @@ for scenario in scenarios:
         ]
         slices = np.arange(5)
         for metric in metrics:
-            plot_total_multislice_seq(
+            plot_total_scenarios(
                 metric, scenario, agent_names, scenario_numbers, slices
             )
             if metric != "rbs_needed_network_scenarios":
-                plot_total_multislice_seq(
+                plot_total_scenarios(
                     metric,
                     scenario,
                     agent_names,
@@ -1812,34 +1863,33 @@ for scenario in scenarios:
                     "_selected_scenarios",
                 )
     elif scenario == "mult_slice":
-        # mult_slice scenario results
-        scenario_names = ["mult_slice"]
         agent_names = [
-            "ray_ib_sched_0",
-            "ray_ib_sched_default_0",
-            "hyper_opt_ray_ib_sched_0",
-            "ray_ib_sched_non_shared_0",
-            "sb3_sched_0",
+            "ray_ib_sched_default",
             "sched_twc",
-            "sched_coloran_0",
-            "mapf_0",
-            "marr_0",
+            "sched_coloran",
+            "mapf",
+            "marr",
         ]
-        episodes = np.arange(180, 200, dtype=int)
+        episodes = np.arange(10, dtype=int)
         slices = np.arange(5)
+        scenario_numbers = np.array([0])
 
         # Check if agents are compared in episodes with the same characteristics
-        if fair_comparison_check(agent_names, episodes, scenario_names):
+        if fair_comparison_check(
+            [agent_name + "_0" for agent_name in agent_names],
+            episodes,
+            [scenario],
+        ):
             print(
                 "Agents are compared in episodes with the same characteristics"
             )
 
         # One graph for all agents considering all episodes (one graph for all episodes)
         metrics = [
-            # "reward_per_episode_cumsum",
-            "distance_fulfill_cumsum",
-            "violations_per_episode_cumsum",
+            "normalized_distance_fulfill_cumsum",
+            "normalized_violations_per_episode_cumsum",
         ]
-        gen_results_total(
-            scenario_names, agent_names, episodes, metrics, slices
-        )
+        for metric in metrics:
+            plot_total_scenarios(
+                metric, scenario, agent_names, scenario_numbers, slices
+            )

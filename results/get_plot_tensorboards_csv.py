@@ -114,7 +114,6 @@ for file in file_names:
         reward_inter_file["value"],
         label=f"Trial {trial_number}",
     )
-plt.plot()
 plt.grid()
 plt.xlabel("Steps (n)", fontsize=14)
 plt.ylabel("Inter-slice scheduler reward", fontsize=14)

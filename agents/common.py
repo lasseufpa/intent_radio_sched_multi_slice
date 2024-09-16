@@ -430,7 +430,7 @@ def calculate_reward_no_mask(
             active_metrics = agent_obs[1]["observations"][3:6]
             if np.sum(active_metrics > 0) > 0:
                 intent_drifts = agent_obs[1]["observations"][0:3]
-                intent_drifts[intent_drifts > 0] = 0
+                # intent_drifts[intent_drifts > 0] = 0
                 active_metrics = agent_obs[1]["observations"][3:6]
                 reward[agent_obs[0]] = np.min(
                     intent_drifts[active_metrics.astype(bool)]

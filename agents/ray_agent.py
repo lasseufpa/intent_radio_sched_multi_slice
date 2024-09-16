@@ -132,9 +132,6 @@ class RayAgent:
                 "grad_clip": tune.choice(
                     [0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 5]
                 ),
-                "kl_target": tune.choice(
-                    [0.1, 0.05, 0.03, 0.02, 0.01, 0.005, 0.001]
-                ),
                 "net_arch": tune.sample_from(
                     lambda config: choice(
                         [
@@ -166,7 +163,6 @@ class RayAgent:
                 "entropy_coeff": 0.01,
                 "vf_loss_coeff": 0.5,
                 "grad_clip": 0.5,
-                "kl_target": 0.01,
             }
         elif param_config_mode in [
             "checkpoint",
@@ -190,7 +186,6 @@ class RayAgent:
                 "entropy_coeff": 0.014410343410248648,
                 "vf_loss_coeff": 0.42179598812262487,
                 "grad_clip": 0.5,
-                "kl_target": 0.005,
             }
         else:
             raise ValueError(
@@ -372,14 +367,11 @@ class RayAgent:
                     or self.initial_hyperparam is None
                     else self.initial_hyperparam["grad_clip"]
                 ),
-                kl_target=(  # type: ignore SB3 target_kl
-                    self.param_config["kl_target"]
-                    if not self.hyper_opt_enable
-                    or self.initial_hyperparam is None
-                    else self.initial_hyperparam["kl_target"]
-                ),
                 vf_clip_param=np.inf,  # type: ignore SB3 equivalent to clip_range_vf=None
                 use_gae=True,  # type: ignore SB3 normalize_advantage
+                kl_coeff=0,  # type: ignore
+                use_kl_loss=False,  # type: ignore
+                kl_target=0,  # type: ignore
             )
             .debugging(
                 seed=env_config["seed"],
