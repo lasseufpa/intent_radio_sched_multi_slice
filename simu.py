@@ -23,9 +23,9 @@ from traffics.mult_slice import MultSliceTraffic
 scenarios = {
     # "hyperparam_opt_mult_slice": MultSliceAssociation,
     "mult_slice_seq": MultSliceAssociationSeq,
-    # "mult_slice": MultSliceAssociation,
-    # "mult_slice_overfit": MultSliceAssociation,
-    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    "mult_slice": MultSliceAssociation,
+    "mult_slice_overfit": MultSliceAssociation,
+    "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "ray_ib_sched": {
@@ -220,11 +220,11 @@ env_config_scenarios = {
         "enable_random_episodes": True,
         "number_rollout_workers": 10,
         "agents": [
-            # "mapf",
-            # "marr",
+            "mapf",
+            "marr",
             "ray_ib_sched_default",
-            # "sched_twc",
-            # "sched_coloran",
+            "sched_twc",
+            "sched_coloran",
         ],
         "number_scenarios": 10,
         "scenarios_skip_episodes": 100,
