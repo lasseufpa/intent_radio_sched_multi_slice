@@ -22,10 +22,10 @@ from traffics.mult_slice import MultSliceTraffic
 
 scenarios = {
     # "hyperparam_opt_mult_slice": MultSliceAssociation,
-    # "mult_slice_seq": MultSliceAssociationSeq,
+    "mult_slice_seq": MultSliceAssociationSeq,
     # "mult_slice": MultSliceAssociation,
     # "mult_slice_overfit": MultSliceAssociation,
-    "finetune_mult_slice_seq": MultSliceAssociationSeq,
+    # "finetune_mult_slice_seq": MultSliceAssociationSeq,
 }
 agents = {
     "ray_ib_sched": {
@@ -129,8 +129,19 @@ agents = {
         "rl": True,
         "train": True,
         "enable_finetune": True,
-        "base_agent": "ray_ib_sched",
+        "base_agent": "ray_ib_sched_default",
         "base_scenario": "mult_slice",
+        "load_method": "best",
+        "enable_masks": True,
+        "debug_mode": False,
+    },
+    "finetune_ray_ib_sched_overfit": {
+        "class": IBSched,
+        "rl": True,
+        "train": True,
+        "enable_finetune": True,
+        "base_agent": "ray_ib_sched_default",
+        "base_scenario": "mult_slice_overfit",
         "load_method": "best",
         "enable_masks": True,
         "debug_mode": False,
@@ -209,13 +220,14 @@ env_config_scenarios = {
         "enable_random_episodes": True,
         "number_rollout_workers": 10,
         "agents": [
-            "mapf",
-            "marr",
+            # "mapf",
+            # "marr",
             "ray_ib_sched_default",
-            "sched_twc",
-            "sched_coloran",
+            # "sched_twc",
+            # "sched_coloran",
         ],
         "number_scenarios": 10,
+        "scenarios_skip_episodes": 100,
     },
     "mult_slice": {
         "seed": 10,
@@ -302,33 +314,26 @@ env_config_scenarios = {
         "traffic_class": MultSliceTraffic,
         "mobility_class": SimpleMobility,
         "root_path": str(getcwd()),
-        "training_epochs": 5,
+        "training_epochs": 10,
         "enable_evaluation": True,
-        "initial_training_episode": 0,
-        "max_training_episodes": 60,  # 80 different channels from the same scenario
-        "initial_testing_episode": 80,
-        "test_episodes": 20,  # Testing on 20 channels from the same scenario
+        "initial_training_episode": 20,
+        "max_training_episodes": 100,
+        "initial_testing_episode": 0,
+        "test_episodes": 20,
         "episode_evaluation_freq": 10,
         "number_evaluation_episodes": 20,
         "checkpoint_episode_freq": 10,
-        "eval_initial_env_episode": 60,
+        "eval_initial_env_episode": 0,
         "save_hist": False,
         "enable_random_episodes": True,
         "number_rollout_workers": 10,
         "agents": [
-            "base_ray_ib_sched",
             "finetune_ray_ib_sched",
-            "scratch_ray_ib_sched",
-            "base_ray_ib_sched_non_shared",
-            "finetune_ray_ib_sched_non_shared",
-            "scratch_ray_ib_sched_non_shared",
-            "finetune_sb3_sched",
-            "finetune_sched_twc",
-            "finetune_sched_colran",
-            "mapf",
-            "marr",
+            "ray_ib_sched_default",
+            "finetune_ray_ib_sched_overfit",
         ],
         "number_scenarios": 10,
+        "scenarios_skip_episodes": 100,
     },
 }
 
@@ -500,7 +505,9 @@ for scenario in scenarios.keys():
                             ],
                             finetune=True,
                         )  # Loading base model
-                    print(f"Training {agent_name} on {scenario} scenario")
+                    print(
+                        f"Training {agent_name} on {scenario} scenario, number {scenario_number}"
+                    )
                     agent.train(total_time_steps)
 
             enable_test = agents[agent_name].get("test", True)
@@ -561,15 +568,15 @@ for scenario in scenarios.keys():
 
             # Updating values for next scenario
             if "number_scenarios" in env_config.keys():
-                scenario_episodes = (
-                    (
-                        env_config["max_training_episodes"]
-                        - env_config["initial_training_episode"]
-                    )
-                    + env_config["test_episodes"]
-                    + env_config["number_evaluation_episodes"]
-                )
-                env_config["initial_training_episode"] += scenario_episodes
-                env_config["max_training_episodes"] += scenario_episodes
-                env_config["initial_testing_episode"] += scenario_episodes
-                env_config["eval_initial_env_episode"] += scenario_episodes
+                env_config["initial_training_episode"] += env_config[
+                    "scenarios_skip_episodes"
+                ]
+                env_config["max_training_episodes"] += env_config[
+                    "scenarios_skip_episodes"
+                ]
+                env_config["initial_testing_episode"] += env_config[
+                    "scenarios_skip_episodes"
+                ]
+                env_config["eval_initial_env_episode"] += env_config[
+                    "scenarios_skip_episodes"
+                ]

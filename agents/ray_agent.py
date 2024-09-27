@@ -628,7 +628,10 @@ class UpdatePolicyCallback(DefaultCallbacks):
             root_path = (
                 algorithm.config.env_config["root_path"] + "/ray_results"
             )
-            base_agent = algorithm.config.env_config["base_agent"]
+            base_agent = (
+                algorithm.config.env_config["base_agent"]
+                + "_0"
+            )
             base_scenario = algorithm.config.env_config["base_scenario"]
             load_method = algorithm.config.env_config["load_method"]
             policies = self.load(

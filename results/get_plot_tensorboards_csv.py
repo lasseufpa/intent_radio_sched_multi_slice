@@ -32,20 +32,22 @@ def get_event_files(main_path):
     return all_files
 
 
-def process_event_acc(event_acc, file, df):
+def process_event_acc(event_acc, file, df, tags=None):
     """Process the EventAccumulator and return a dictionary of tag values"""
     # all_tags = event_acc.Tags()
-    all_tags = {
-        "scalars": [
-            "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched",
-            "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched",
-            "ray/tune/evaluation/env_runners/episode_return_mean",
-        ]
-    }
+    if tags is None:
+        tags = {
+            "scalars": [
+                "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched",
+                "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched",
+                "ray/tune/evaluation/env_runners/episode_return_mean",
+            ]
+        }
+    assert isinstance(tags, dict), "Tags should be a dictionary"
     try:
-        for tag in all_tags.keys():
+        for tag in tags.keys():
             if tag == "scalars":
-                for subtag in all_tags[tag]:
+                for subtag in tags[tag]:
                     for scalar in event_acc.Scalars(tag=subtag):
                         df = pd.concat(
                             [
@@ -69,14 +71,14 @@ def process_event_acc(event_acc, file, df):
     return df
 
 
-def process_runs(main_path):
+def process_runs(main_path, tags=None):
     """Iterate over all the runs and return the dataframe"""
     all_files = get_event_files(main_path=main_path)
     df = pd.DataFrame(columns=["file", "step", "value"])
     for file in tqdm(all_files, total=len(all_files)):
         event_acc = EventAccumulator(file)
         event_acc.Reload()
-        df = process_event_acc(event_acc, file, df)
+        df = process_event_acc(event_acc, file, df, tags)
     return df
 
 

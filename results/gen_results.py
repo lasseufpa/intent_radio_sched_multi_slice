@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from get_plot_tensorboards_csv import process_runs
+
 # Import intent_drift_calc function
 sys.path.append(os.path.abspath("agents/"))
 sys.path.append(os.path.abspath("sixg_radio_mgmt/"))
@@ -1230,7 +1232,7 @@ def get_metric_values_scenarios(metric, scenario, agent, num_agent_scenarios):
                 20 + (100 * num_agent_scenario),
                 dtype=int,
             )
-        elif scenario == "mult_slice":
+        elif scenario in ["mult_slice", "mult_slice_overfit"]:
             episodes_to_use = np.arange(10, dtype=int)
         else:
             raise Exception("Scenario not found")
@@ -1387,10 +1389,10 @@ def plot_rbs_needed_network_scenarios(
 
         if slice == slices[-1]:
             scenario_results[f"{number_scenario}"] = global_dict
-            scenario_results[f"{number_scenario}"][
-                "total_avg_needed_rbs"
-            ] = np.mean(
-                scenario_results[f"{number_scenario}"]["avg_needed_rbs"]
+            scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"] = (
+                np.mean(
+                    scenario_results[f"{number_scenario}"]["avg_needed_rbs"]
+                )
             )
     summary_results = [
         scenario_results[f"{number_scenario}"]["total_avg_needed_rbs"]
@@ -1489,6 +1491,19 @@ def plot_total_scenarios(
             data_plot[agent + "_total"] = np.cumsum(y_values)
             data_plot[agent + "_pri"] = np.cumsum(y2_values)
             plot_total_agent(metric, x_values, y_values, y2_values, agent)
+        if scenario in ["mult_slice", "mult_slice_overfit"]:
+            _, y_values, y2_values = get_metric_values_scenarios(
+                metric,
+                "mult_slice_seq",
+                "ray_ib_sched_default",
+                np.arange(10),
+            )
+            y_values = y_values[0:200:20]
+            y2_values = y2_values[0:200:20]
+            agent = "ray_ib_sched_default_net_sce"
+            data_plot[agent + "_total"] = np.cumsum(y_values)
+            data_plot[agent + "_pri"] = np.cumsum(y2_values)
+            plot_total_agent(metric, x_values, y_values, y2_values, agent)
         data_plot["x"] = x_values
         data_plot.to_csv(
             f"./results/{scenario}/{metric}{name_postfix}.csv", index=False
@@ -1505,7 +1520,7 @@ def plot_total_scenarios(
     else:
         if scenario == "mult_slice_seq":
             plt.xticks(np.arange(0, x_values.shape[0], 20), fontsize=12)
-        elif scenario == "mult_slice":
+        elif scenario in ["mult_slice", "mult_slice_overfit"]:
             plt.xticks(np.arange(0, x_values.shape[0]), fontsize=12)
         else:
             raise Exception("Scenario not found")
@@ -1809,8 +1824,245 @@ def print_scenarios(scenario_numbers: np.ndarray):
         print("\n")
 
 
-# scenarios = ["mult_slice_seq", "mult_slice", "finetune_mult_slice_seq"]
-scenarios = ["mult_slice_seq"]
+def plot_tensorboard_metrics(
+    scenario: str, agents: list, scenario_numbers: np.ndarray
+):
+    tags = {
+        "scalars": [
+            "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched",
+            "ray/tune/env_runners/policy_reward_mean/inter_slice_sched",
+            "ray/tune/info/learner/inter_slice_sched/learner_stats/total_loss",
+        ]
+    }
+
+    for scenario_number in scenario_numbers:
+        metric_plot_agents = {agent: {} for agent in agents}
+        for agent in agents:
+            agent_path = f"./ray_results/{scenario}/{agent}_{scenario_number}/"
+            df = process_runs(agent_path, tags)
+            evaluation = df[
+                df["metric"]
+                == "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched"
+            ]
+            evaluation_reward = evaluation["value"]
+            evaluation_step = evaluation["step"]
+            training = df[
+                df["metric"]
+                == "ray/tune/env_runners/policy_reward_mean/inter_slice_sched"
+            ]
+            training_reward = training["value"]
+            training_step = training["step"]
+            total_loss = df[
+                df["metric"]
+                == "ray/tune/info/learner/inter_slice_sched/learner_stats/total_loss"
+            ]
+            total_loss_value = total_loss["value"]
+            total_loss_step = total_loss["step"]
+            save_df_train = pd.DataFrame(
+                {
+                    "step": training_step.to_numpy(),
+                    "reward": training_reward.to_numpy(),
+                }
+            )
+            save_df_eval = pd.DataFrame(
+                {
+                    "step": evaluation_step.to_numpy(),
+                    "reward": evaluation_reward.to_numpy(),
+                }
+            )
+            save_df_loss = pd.DataFrame(
+                {
+                    "step": total_loss_step.to_numpy(),
+                    "value": total_loss_value.to_numpy(),
+                }
+            )
+            os.makedirs(
+                f"./results/{scenario}/",
+                exist_ok=True,
+            )
+            save_df_train.to_csv(
+                f"./results/{scenario}/{agent}_{scenario_number}_train.csv",
+                index=False,
+            )
+            save_df_eval.to_csv(
+                f"./results/{scenario}/{agent}_{scenario_number}_eval.csv",
+                index=False,
+            )
+            save_df_loss.to_csv(
+                f"./results/{scenario}/{agent}_{scenario_number}_loss.csv",
+                index=False,
+            )
+            metric_plot_agents[agent]["training_step"] = training_step
+            metric_plot_agents[agent]["training_reward"] = training_reward
+            metric_plot_agents[agent]["evaluation_step"] = evaluation_step
+            metric_plot_agents[agent]["evaluation_reward"] = evaluation_reward
+            metric_plot_agents[agent]["total_loss_step"] = total_loss_step
+            metric_plot_agents[agent]["total_loss_value"] = total_loss_value
+
+        # Plot rewards
+        w, h = matfig.figaspect(0.6)
+        plt.figure(figsize=(w, h))
+        for agent in agents:
+            label = f"{agent}, " if len(agents) != 1 else ""
+            plt.plot(
+                metric_plot_agents[agent]["training_step"],
+                metric_plot_agents[agent]["training_reward"],
+                label=f"{label}Training",
+            )
+            plt.plot(
+                metric_plot_agents[agent]["evaluation_step"],
+                metric_plot_agents[agent]["evaluation_reward"],
+                label=f"{label}Validation",
+                color=plt.gca().lines[-1].get_color(),
+                linestyle="--",
+            )
+        plt.legend()
+        plt.grid()
+        plt.xlabel("Steps (n)", fontsize=14)
+        plt.ylabel("Reward", fontsize=14)
+        plt.xticks(fontsize=12)
+        os.makedirs(
+            f"./results/{scenario}/",
+            exist_ok=True,
+        )
+        filename = (
+            f"{agents[0]}_{scenario_number}_reward_train_val.pdf"
+            if len(agents) == 1
+            else f"scen_{scenario_number}_reward_train_val.pdf"
+        )
+        plt.savefig(
+            f"./results/{scenario}/{filename}",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
+
+        # Plot total loss
+        w, h = matfig.figaspect(0.6)
+        plt.figure(figsize=(w, h))
+        for agent in agents:
+            plt.plot(
+                metric_plot_agents[agent]["total_loss_step"],
+                metric_plot_agents[agent]["total_loss_value"],
+            )
+        plt.grid()
+        plt.xlabel("Step (n)", fontsize=14)
+        plt.ylabel("Total loss", fontsize=14)
+        plt.xticks(fontsize=12)
+        os.makedirs(
+            f"./results/{scenario}/",
+            exist_ok=True,
+        )
+        filename = (
+            f"{agents[0]}_{scenario_number}_total_loss.pdf"
+            if len(agents) == 1
+            else f"scen_{scenario_number}_total_loss.pdf"
+        )
+        plt.savefig(
+            f"./results/{scenario}/{filename}",
+            bbox_inches="tight",
+            pad_inches=0,
+            format="pdf",
+            dpi=1000,
+        )
+        plt.close()
+
+
+def save_table_tensorboard_metrics(
+    scenario: str, agents: list, scenario_numbers: np.ndarray
+):
+    steps_one_epoch = 100000
+    tags = {
+        "scalars": [
+            "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched",
+        ]
+    }
+    df_all = pd.DataFrame(
+        columns=[
+            "scenario_idx",
+            "agent",
+            "best_first_epoch",
+            "best_first_epoch_step",
+            "best_all",
+            "best_all_step",
+            "improv_rate",
+        ]
+    )
+    for scenario_number in scenario_numbers:
+        for agent in agents:
+            agent_path = f"./ray_results/{scenario}/{agent}_{scenario_number}/"
+            df = process_runs(agent_path, tags)
+            evaluation = df[
+                df["metric"]
+                == "ray/tune/evaluation/env_runners/policy_reward_mean/inter_slice_sched"
+            ]
+            # evaluation_reward = evaluation["value"]
+            # evaluation_step = evaluation["step"]
+            best_first_epoch_idx = evaluation[
+                evaluation["step"] < steps_one_epoch
+            ]["value"].idxmax()
+            best_first_epoch = evaluation.loc[best_first_epoch_idx]
+            best_all_idx = evaluation["value"].idxmax()
+            best_all = evaluation.loc[best_all_idx]
+            best_all_value = best_all["value"]
+            best_first_epoch_value = best_first_epoch["value"]
+            assert isinstance(best_all_value, float) and isinstance(
+                best_first_epoch_value, float
+            ), f"Best values must be float"
+            improv_rate = (
+                abs(best_first_epoch_value - best_all_value)
+                / abs(best_all_value)
+                * 100
+            )
+
+            df_all = pd.concat(
+                [
+                    df_all,
+                    pd.DataFrame(
+                        [
+                            {
+                                "scenario_idx": scenario_number,
+                                "agent": agent,
+                                "best_first_epoch": best_first_epoch["value"],
+                                "best_first_epoch_step": best_first_epoch[
+                                    "step"
+                                ],
+                                "best_all": best_all["value"],
+                                "best_all_step": best_all["step"],
+                                "improv_rate": improv_rate,
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
+        os.makedirs(
+            f"./results/{scenario}/",
+            exist_ok=True,
+        )
+    df_all.to_csv(
+        f"./results/{scenario}/table_eval.csv",
+        index=False,
+    )
+    best_first_epoch_agents = df_all.loc[
+        df_all.groupby("scenario_idx")["best_first_epoch"].idxmax()
+    ]
+    best_all_agents = df_all.loc[
+        df_all.groupby("scenario_idx")["best_all"].idxmax()
+    ]
+    print("Best agents by first epoch:")
+    print(
+        best_first_epoch_agents[["scenario_idx", "agent", "best_first_epoch"]]
+    )
+
+    print("\nBest agents by all epochs:")
+    print(best_all_agents[["scenario_idx", "agent", "best_all"]])
+
+
+# scenarios = ["mult_slice_seq", "mult_slice", "mult_slice_overfit", "finetune_mult_slice_seq"]
+scenarios = ["finetune_mult_slice_seq"]
 
 for scenario in scenarios:
     if scenario == "mult_slice_seq":
@@ -1862,7 +2114,10 @@ for scenario in scenarios:
                     slices,
                     "_selected_scenarios",
                 )
-    elif scenario == "mult_slice":
+        plot_tensorboard_metrics(
+            scenario, ["ray_ib_sched_default"], np.array([2])
+        )
+    elif scenario in ["mult_slice", "mult_slice_overfit"]:
         agent_names = [
             "ray_ib_sched_default",
             "sched_twc",
@@ -1893,3 +2148,22 @@ for scenario in scenarios:
             plot_total_scenarios(
                 metric, scenario, agent_names, scenario_numbers, slices
             )
+        plot_tensorboard_metrics(
+            scenario, ["ray_ib_sched_default"], np.array([0])
+        )
+    elif scenario == "finetune_mult_slice_seq":
+        scenario_numbers = np.arange(10)
+        agent_names = [
+            "ray_ib_sched_default",
+            "finetune_ray_ib_sched",
+        ]
+        slices = np.arange(5)
+        plot_tensorboard_metrics(scenario, agent_names, np.array([0]))
+        agent_names = [
+            "ray_ib_sched_default",
+            "finetune_ray_ib_sched",
+        ]
+        save_table_tensorboard_metrics(scenario, agent_names, np.arange(10))
+
+    else:
+        raise Exception("Scenario not found")
