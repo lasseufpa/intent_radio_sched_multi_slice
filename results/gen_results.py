@@ -2061,8 +2061,7 @@ def save_table_tensorboard_metrics(
     print(best_all_agents[["scenario_idx", "agent", "best_all"]])
 
 
-# scenarios = ["mult_slice_seq", "mult_slice", "mult_slice_overfit", "finetune_mult_slice_seq"]
-scenarios = ["finetune_mult_slice_seq"]
+scenarios = ["mult_slice_seq", "mult_slice", "mult_slice_overfit", "finetune_mult_slice_seq"]
 
 for scenario in scenarios:
     if scenario == "mult_slice_seq":
