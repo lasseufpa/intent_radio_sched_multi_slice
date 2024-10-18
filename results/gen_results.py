@@ -1834,7 +1834,7 @@ def plot_tensorboard_metrics(
             "ray/tune/info/learner/inter_slice_sched/learner_stats/total_loss",
         ]
     }
-
+    window_size = 1
     for scenario_number in scenario_numbers:
         metric_plot_agents = {agent: {} for agent in agents}
         for agent in agents:
@@ -1876,6 +1876,21 @@ def plot_tensorboard_metrics(
                     "value": total_loss_value.to_numpy(),
                 }
             )
+            window_size = 10
+            ma_total_loss = np.convolve(
+                total_loss_value,
+                np.ones(window_size) / window_size,
+                mode="valid",
+            )
+            len_ma = len(ma_total_loss)
+            total_loss_step_np = total_loss_step.to_numpy()
+            total_ma_loss_step = total_loss_step_np[0:len_ma]
+            save_df_ma_loss = pd.DataFrame(
+                {
+                    "step": total_ma_loss_step,
+                    "value": ma_total_loss,
+                }
+            )
             os.makedirs(
                 f"./results/{scenario}/",
                 exist_ok=True,
@@ -1892,12 +1907,20 @@ def plot_tensorboard_metrics(
                 f"./results/{scenario}/{agent}_{scenario_number}_loss.csv",
                 index=False,
             )
+            save_df_ma_loss.to_csv(
+                f"./results/{scenario}/{agent}_{scenario_number}_ma_loss.csv",
+                index=False,
+            )
             metric_plot_agents[agent]["training_step"] = training_step
             metric_plot_agents[agent]["training_reward"] = training_reward
             metric_plot_agents[agent]["evaluation_step"] = evaluation_step
             metric_plot_agents[agent]["evaluation_reward"] = evaluation_reward
             metric_plot_agents[agent]["total_loss_step"] = total_loss_step
             metric_plot_agents[agent]["total_loss_value"] = total_loss_value
+            metric_plot_agents[agent][
+                "ma_total_loss_step"
+            ] = total_ma_loss_step
+            metric_plot_agents[agent]["ma_total_loss_value"] = ma_total_loss
 
         # Plot rewards
         w, h = matfig.figaspect(0.6)
@@ -1946,11 +1969,18 @@ def plot_tensorboard_metrics(
             plt.plot(
                 metric_plot_agents[agent]["total_loss_step"],
                 metric_plot_agents[agent]["total_loss_value"],
+                label=f"Values",
+            )
+            plt.plot(
+                metric_plot_agents[agent]["ma_total_loss_step"],
+                metric_plot_agents[agent]["ma_total_loss_value"],
+                label="Moving average",
             )
         plt.grid()
         plt.xlabel("Step (n)", fontsize=14)
         plt.ylabel("Total loss", fontsize=14)
         plt.xticks(fontsize=12)
+        plt.legend()
         os.makedirs(
             f"./results/{scenario}/",
             exist_ok=True,
@@ -2061,7 +2091,12 @@ def save_table_tensorboard_metrics(
     print(best_all_agents[["scenario_idx", "agent", "best_all"]])
 
 
-scenarios = ["mult_slice_seq", "mult_slice", "mult_slice_overfit", "finetune_mult_slice_seq"]
+scenarios = [
+    "mult_slice_seq",
+    "mult_slice",
+    "mult_slice_overfit",
+    "finetune_mult_slice_seq",
+]
 
 for scenario in scenarios:
     if scenario == "mult_slice_seq":
