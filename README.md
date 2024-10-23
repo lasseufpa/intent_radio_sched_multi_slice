@@ -44,3 +44,5 @@ Run the command `pipenv run python results/gen_results.py` will generate the res
 
 ## Contributing to this repo
 - Activate pre-commit hooks to use [black formatter](https://github.com/psf/black), [flake8 lint](https://gitlab.com/pycqa/flake8), [Isort references](https://github.com/timothycrosley/isort) and [Pyright type check](https://github.com/microsoft/pyright). Run `pre-commit install` inside the virtual environment. Now every time you make a commit, black formatter, flake8, isort and pyrights will make tests to verify if your code is following the [patterns](https://realpython.com/python-pep8/) (you can adapt your IDE or text editor to follow this patterns, e.g. [vs code](https://code.visualstudio.com/docs/python/python-tutorial#_next-steps)).
+
+## Cite this project
