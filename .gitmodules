@@ -1,3 +1,6 @@
 [submodule "sixg_radio_mgmt"]
 	path = sixg_radio_mgmt
 	url = git@github.com:lasseufpa/sixg_radio_mgmt.git
+[submodule "mult_slice_channel_generation"]
+	path = mult_slice_channel_generation
+	url = git@github.com:lasseufpa/mult_slice_channel_generation.git
