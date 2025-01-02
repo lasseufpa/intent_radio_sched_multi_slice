@@ -29,7 +29,7 @@ class QuadrigaChannel(Channel):
         )
         self.current_episode_number = -1
         self.file = None
-        self.channels_path = f"{self.root_path}/../mult_slice_channel_generation/results/{self.scenario_name}/freq_channel/"
+        self.channels_path = f"{self.root_path}/mult_slice_channel_generation/results/{self.scenario_name}/freq_channel/"
         self.spectral_efficiencies = np.array([])
         self.transmission_power = 100  # Watts
         self.thermal_noise_power = 10e-14

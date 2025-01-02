@@ -24,17 +24,21 @@ Use the command `pipenv run python gen_assoc_mult_slice.py` to generate the netw
 ### Generating channel data
 We utilize the [QuaDRiGa](https://quadriga-channel-model.de/) channel simulator to generate the UEs channel data based on the network scenarios generated before. Therefore, you need to have Matlab or Octave installed with the QuaDRiGa module enabled. You can have more information about how to install the QuaDRiGa simulator in their [repo](https://github.com/fraunhoferhhi/QuaDRiGa). In this work, we utilized Matlab and QuaDRiGa (version 2.6.1).
 
-Once Matlab/Octave and QuaDRiGa are installed, you can open the folder `mult_slice_channel_generation` in Matlab/Octave and execute the script `simu.m`. It will take a long time to generate all the channels used in the paper. Once the simulation finishes, a folder `results/` should contain the channel data for each UE in each specific network scenario. At this point all the pre-generated datasets were created and 
+Once Matlab/Octave and QuaDRiGa are installed, you can open the folder `mult_slice_channel_generation` in Matlab/Octave and execute the script `simu.m`. It will take a long time to generate all the channels used in the paper. Once the simulation finishes, a folder `results/` should contain the channel data for each UE in each specific network scenario. At this point all the pre-generated datasets were created, and you can run the simulation.
 
 ## <a name="precomputed"></a> Download pre-computed data for network scenarios and channels
 
 Follow this section only if you have skipped the section before on [generate pre-computed data](#generate_data).
 
+Download the channel dataset from this [link](https://nextcloud.lasseufpa.org/s/CXKz5fK8LmyDtR6) into the folder `mult_slice_channel_generation/results`. After extracting the downloaded file, the folder structure should contain the folder `mult_slice_channel_generation/results/mult_slice`.
+
+Download the network scenarios (association) dataset from this [link](https://nextcloud.lasseufpa.org/s/Y9CGsR8GHpHPdbX) into the folder `associations/`. After extracting the compressed file, the folder structure should contain the folder `associations/data/mult_slice`.
+
 ## Running the radio resource scheduler + RL simulation
 
-Returning to the root directory of this project (`intent_radio_sched_multi_slice`), the script `simu.py` is the main responsible for running each of the simulation scenarios presented in the paper. The scenario where the RL agent is trained and tested for each specific scenario is called `mult_slice_seq`, the simulation scenario where the RL agent is trained and tested on different network scenarios is called `mult_slice`, while the fine-tune simulation scenario is called `finetune_mult_slice_seq`.
+Returning to the root directory of this project (`intent_radio_sched_multi_slice`), the script `simu.py` is the main responsible for running each of the simulation scenarios presented in the paper. The scenario where the RL agent is trained and tested for each specific network scenario is called `mult_slice_seq`, the simulation scenario where the RL agent is trained and tested on different network scenarios is called `mult_slice`, while fine-tune simulation scenario is called `finetune_mult_slice_seq`.
 
-In order to execute these three scenarios, execute the command `pipenv run python simu.py`. It should take a long time (probably some weeks) to finish training all the simulation scenarios. You can decide the simulation scenarios you want by commenting them in the variable `scenarios` in the beggining of the `simu.py` file.
+In order to execute these three scenarios, execute the command `pipenv run python simu.py`. It should take a long time to finish training all the simulation scenarios. You can decide the simulation scenarios you want by commenting them in the variable `scenarios` in the beginning of the `simu.py` file.
 
 Once the simulation is finished, the network data generated during the simulation training and testing will be available in the folder `hist`, `ray_results`, and `tensorboard-logs`. The folder `hist` contains the test results obtained after the training process. The folder `ray_results` contains the training and evaluation data obtained during Ray training to the proposed agent (including RL agent models). The folder `tensorboard-logs` contains the training and evaluation data to the baseline agents using RL (Stable-baselines3).
 
