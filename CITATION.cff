@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: If you use this software, please cite both the article from preferred-citation and the software itself.
+authors:
+  - family-names: "Nahum"
+    given-names: "Cleverson"
+    orcid: "https://orcid.org/0000-0001-9644-5394"
+  - family-names: "D'Oro"
+    given-names: "Salvatore"
+  - family-names: "Batista"
+    given-names: "Pedro"
+  - family-names: "Both"
+    given-names: "Cristiano"
+  - family-names: "Cardoso"
+    given-names: "Kleber"
+  - family-names: "Klautau"
+    given-names: "Aldebaro"
+  - family-names: "Melodia"
+    given-names: "Tommaso"
+title: 'Intent-based Radio Scheduler for RAN Slicing: Learning to deal with different network scenarios'
+version: 1.0.0
+date-released: '2025-01-03'
+identifiers:
+  - type: doi
+    value: "10.48550/arXiv.2501.00950"
+preferred-citation:
+  authors:
+    - family-names: "Nahum"
+      given-names: "Cleverson"
+      orcid: "https://orcid.org/0000-0001-9644-5394"
+    - family-names: "D'Oro"
+      given-names: "Salvatore"
+    - family-names: "Batista"
+      given-names: "Pedro"
+    - family-names: "Both"
+      given-names: "Cristiano"
+    - family-names: "Cardoso"
+      given-names: "Kleber"
+    - family-names: "Klautau"
+      given-names: "Aldebaro"
+    - family-names: "Melodia"
+      given-names: "Tommaso"
+  title: 'Intent-based Radio Scheduler for RAN Slicing: Learning to deal with different network scenarios'
+  type: generic
+  year: '2025'
+  url: "https://arxiv.org/abs/2501.00950"
+  doi: "10.48550/arXiv.2501.00950"
+  conference: {}
+  publisher: {}

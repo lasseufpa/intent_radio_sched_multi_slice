@@ -1,6 +1,6 @@
 # Intent-based Radio resource scheduler using RL for RAN slicing
 
-Code implementation from paper "" available in [ArXiv](). It utilizes a python implementation to the radio resource scheduler simulation based on [sixg_radio_mgmt ](https://github.com/lasseufpa/sixg_radio_mgmt), channel generation using [QuaDRiGa](https://quadriga-channel-model.de/), the proposed RL implementation using [Ray Rllib](https://docs.ray.io/en/latest/rllib/index.html), and [Stable-baselines3](stable-baselines3.readthedocs.io/) to the baseline agents using RL.
+Code implementation from paper "Intent-based Radio Scheduler for RAN Slicing: Learning to deal with different network scenarios" available in [ArXiv](https://arxiv.org/abs/2501.00950). It utilizes a python implementation to the radio resource scheduler simulation based on [sixg_radio_mgmt ](https://github.com/lasseufpa/sixg_radio_mgmt), channel generation using [QuaDRiGa](https://quadriga-channel-model.de/), the proposed RL implementation using [Ray Rllib](https://docs.ray.io/en/latest/rllib/index.html), and [Stable-baselines3](stable-baselines3.readthedocs.io/) to the baseline agents using RL.
 
 ## Requirements
  - python 3.10
@@ -50,3 +50,14 @@ Run the command `pipenv run python results/gen_results.py` will generate the res
 - Activate pre-commit hooks to use [black formatter](https://github.com/psf/black), [flake8 lint](https://gitlab.com/pycqa/flake8), [Isort references](https://github.com/timothycrosley/isort) and [Pyright type check](https://github.com/microsoft/pyright). Run `pre-commit install` inside the virtual environment. Now every time you make a commit, black formatter, flake8, isort and pyrights will make tests to verify if your code is following the [patterns](https://realpython.com/python-pep8/) (you can adapt your IDE or text editor to follow this patterns, e.g. [vs code](https://code.visualstudio.com/docs/python/python-tutorial#_next-steps)).
 
 ## Cite this project
+
+```
+@misc{nahum2025intentbased,
+    title={Intent-based Radio Scheduler for RAN Slicing: Learning to deal with different network scenarios},
+    author={Cleverson Nahum and Salvatore D'Oro and Pedro Batista and Cristiano Both and Kleber Cardoso and Aldebaro Klautau and Tommaso Melodia},
+    year={2025},
+    eprint={2501.00950},
+    archivePrefix={arXiv},
+    primaryClass={cs.NI}
+}
+```
