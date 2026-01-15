@@ -52,12 +52,14 @@ Run the command `pipenv run python results/gen_results.py` will generate the res
 ## Cite this project
 
 ```
-@misc{nahum2025intentbased,
-    title={Intent-based Radio Scheduler for RAN Slicing: Learning to deal with different network scenarios},
-    author={Cleverson Nahum and Salvatore D'Oro and Pedro Batista and Cristiano Both and Kleber Cardoso and Aldebaro Klautau and Tommaso Melodia},
-    year={2025},
-    eprint={2501.00950},
-    archivePrefix={arXiv},
-    primaryClass={cs.NI}
-}
+@ARTICLE{11179861,
+  author={Nahum, Cleverson V. and D'Oro, Salvatore and Batista, Pedro and Both, Cristiano B. and Cardoso, Kleber V. and Klautau, Aldebaro and Melodia, Tommaso},
+  journal={IEEE Transactions on Mobile Computing}, 
+  title={Intent-based Radio Scheduler for RAN Slicing: Learning to Deal with Different Network Scenarios}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={1-18},
+  keywords={Throughput;Resource management;6G mobile communication;Ultra reliable low latency communication;Training;Radio access networks;Base stations;Traffic control;Quality of service;Network slicing;Radio resource scheduling;RAN slicing;intent-based scheduler;multi-agent reinforcement learning},
+  doi={10.1109/TMC.2025.3614453}}
 ```
