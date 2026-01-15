@@ -21,7 +21,7 @@ version: 1.0.0
 date-released: '2025-01-03'
 identifiers:
   - type: doi
-    value: "10.48550/arXiv.2501.00950"
+    value: "10.1109/TMC.2025.3614453"
 preferred-citation:
   authors:
     - family-names: "Nahum"
@@ -42,7 +42,7 @@ preferred-citation:
   title: 'Intent-based Radio Scheduler for RAN Slicing: Learning to deal with different network scenarios'
   type: generic
   year: '2025'
-  url: "https://arxiv.org/abs/2501.00950"
-  doi: "10.48550/arXiv.2501.00950"
-  conference: {}
-  publisher: {}
+  url: "https://ieeexplore.ieee.org/abstract/document/11179861"
+  doi: "10.1109/TMC.2025.3614453"
+  conference: {IEEE Transactions on Mobile Computing}
+  publisher: {IEEE}
